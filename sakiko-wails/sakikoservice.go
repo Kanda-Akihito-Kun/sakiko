@@ -1,0 +1,377 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	coreapi "sakiko.local/sakiko-core/api"
+	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/logx"
+
+	"go.uber.org/zap"
+)
+
+type SakikoService struct {
+	api          *coreapi.Service
+	profilesPath string
+	once         sync.Once
+	initErr      error
+}
+
+type ProfileTaskSubmitRequest struct {
+	ProfileID string                `json:"profileId"`
+	Name      string                `json:"name,omitempty"`
+	Preset    string                `json:"preset"`
+	Config    interfaces.TaskConfig `json:"config,omitempty"`
+}
+
+type DesktopStatus struct {
+	ProfilesPath string                   `json:"profilesPath"`
+	Runtime      interfaces.RuntimeStatus `json:"runtime"`
+}
+
+type ProfileSummary struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Source    string `json:"source"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+	NodeCount int    `json:"nodeCount"`
+}
+
+func (s *SakikoService) DesktopStatus() (DesktopStatus, error) {
+	if err := s.ensureReady(); err != nil {
+		return DesktopStatus{}, err
+	}
+
+	return DesktopStatus{
+		ProfilesPath: s.profilesPath,
+		Runtime:      s.api.RuntimeStatus().Status,
+	}, nil
+}
+
+func (s *SakikoService) ListProfileSummaries() ([]ProfileSummary, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+
+	profiles := s.api.ListProfiles().Profiles
+	summaries := make([]ProfileSummary, 0, len(profiles))
+	for _, profile := range profiles {
+		summaries = append(summaries, ProfileSummary{
+			ID:        profile.ID,
+			Name:      profile.Name,
+			Source:    profile.Source,
+			UpdatedAt: profile.UpdatedAt,
+			NodeCount: len(profile.Nodes),
+		})
+	}
+	return summaries, nil
+}
+
+func (s *SakikoService) ListProfiles() ([]interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	return s.api.ListProfiles().Profiles, nil
+}
+
+func (s *SakikoService) GetProfile(profileID string) (interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.Profile{}, err
+	}
+	resp, err := s.api.GetProfile(profileID)
+	if err != nil {
+		return interfaces.Profile{}, err
+	}
+	return resp.Profile, nil
+}
+
+func (s *SakikoService) ListDownloadTargets() ([]interfaces.DownloadTarget, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	resp, err := s.api.ListDownloadTargets()
+	if err != nil {
+		return nil, err
+	}
+	return resp.Targets, nil
+}
+
+func (s *SakikoService) ImportProfile(req interfaces.ProfileImportRequest) (interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.Profile{}, err
+	}
+	resp, err := s.api.ImportProfile(req)
+	if err != nil {
+		wailsServiceLogger().Warn("import profile failed", zap.Error(err))
+		return interfaces.Profile{}, err
+	}
+	wailsServiceLogger().Info("profile imported",
+		zap.String("profile_id", resp.Profile.ID),
+		zap.Int("node_count", len(resp.Profile.Nodes)),
+	)
+	return resp.Profile, nil
+}
+
+func (s *SakikoService) RefreshProfile(profileID string) (interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.Profile{}, err
+	}
+	resp, err := s.api.RefreshProfile(interfaces.ProfileRefreshRequest{ProfileID: profileID})
+	if err != nil {
+		wailsServiceLogger().Warn("refresh profile failed",
+			zap.String("profile_id", profileID),
+			zap.Error(err),
+		)
+		return interfaces.Profile{}, err
+	}
+	wailsServiceLogger().Info("profile refreshed",
+		zap.String("profile_id", resp.Profile.ID),
+		zap.Int("node_count", len(resp.Profile.Nodes)),
+	)
+	return resp.Profile, nil
+}
+
+func (s *SakikoService) DeleteProfile(profileID string) error {
+	if err := s.ensureReady(); err != nil {
+		return err
+	}
+	_, err := s.api.DeleteProfile(interfaces.ProfileDeleteRequest{ProfileID: profileID})
+	if err != nil {
+		wailsServiceLogger().Warn("delete profile failed",
+			zap.String("profile_id", profileID),
+			zap.Error(err),
+		)
+		return err
+	}
+	wailsServiceLogger().Info("profile deleted", zap.String("profile_id", profileID))
+	return nil
+}
+
+func (s *SakikoService) ListTasks() ([]interfaces.TaskState, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	return s.api.ListTasks().Tasks, nil
+}
+
+func (s *SakikoService) GetTask(taskID string) (interfaces.TaskStatusResponse, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.TaskStatusResponse{}, err
+	}
+	return s.api.GetTask(taskID)
+}
+
+func (s *SakikoService) ListResultArchives() ([]interfaces.ResultArchiveListItem, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	resp, err := s.api.ListResultArchives()
+	if err != nil {
+		return nil, err
+	}
+	return resp.Archives, nil
+}
+
+func (s *SakikoService) GetResultArchive(taskID string) (interfaces.ResultArchive, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.ResultArchive{}, err
+	}
+	resp, err := s.api.GetResultArchive(taskID)
+	if err != nil {
+		return interfaces.ResultArchive{}, err
+	}
+	return resp.Archive, nil
+}
+
+func (s *SakikoService) DeleteResultArchive(taskID string) error {
+	if err := s.ensureReady(); err != nil {
+		return err
+	}
+	_, err := s.api.DeleteResultArchive(interfaces.ResultArchiveDeleteRequest{TaskID: taskID})
+	if err != nil {
+		wailsServiceLogger().Warn("delete result archive failed",
+			zap.String("task_id", taskID),
+			zap.Error(err),
+		)
+		return err
+	}
+	wailsServiceLogger().Info("result archive deleted", zap.String("task_id", taskID))
+	return nil
+}
+
+func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string, error) {
+	if err := s.ensureReady(); err != nil {
+		return "", err
+	}
+
+	wailsServiceLogger().Info("submit profile task requested",
+		zap.String("profile_id", req.ProfileID),
+		zap.String("preset", req.Preset),
+		zap.String("task_name", req.Name),
+	)
+
+	profileResp, err := s.api.GetProfile(req.ProfileID)
+	if err != nil {
+		wailsServiceLogger().Warn("load profile for task failed",
+			zap.String("profile_id", req.ProfileID),
+			zap.Error(err),
+		)
+		return "", err
+	}
+	if len(profileResp.Profile.Nodes) == 0 {
+		wailsServiceLogger().Warn("submit profile task rejected: profile has no nodes",
+			zap.String("profile_id", req.ProfileID),
+		)
+		return "", fmt.Errorf("profile has no nodes")
+	}
+
+	matrices, err := presetMatrices(req.Preset)
+	if err != nil {
+		wailsServiceLogger().Warn("resolve task preset failed",
+			zap.String("profile_id", req.ProfileID),
+			zap.String("preset", req.Preset),
+			zap.Error(err),
+		)
+		return "", err
+	}
+
+	taskName := strings.TrimSpace(req.Name)
+	if taskName == "" {
+		taskName = defaultTaskName(profileResp.Profile.Name, req.Preset)
+	}
+
+	resp, err := s.api.SubmitTask(interfaces.TaskSubmitRequest{
+		Task: interfaces.Task{
+			Name:   taskName,
+			Vendor: interfaces.VendorMihomo,
+			Context: interfaces.TaskContext{
+				Preset:        strings.ToLower(strings.TrimSpace(req.Preset)),
+				ProfileID:     profileResp.Profile.ID,
+				ProfileName:   profileResp.Profile.Name,
+				ProfileSource: profileResp.Profile.Source,
+			},
+			Nodes:    profileResp.Profile.Nodes,
+			Matrices: matrices,
+			Config:   req.Config.Normalize(),
+		},
+	}, nil)
+	if err != nil {
+		wailsServiceLogger().Warn("submit profile task failed",
+			zap.String("profile_id", req.ProfileID),
+			zap.String("preset", req.Preset),
+			zap.Error(err),
+		)
+		return "", err
+	}
+	wailsServiceLogger().Info("profile task submitted",
+		zap.String("profile_id", req.ProfileID),
+		zap.String("task_id", resp.TaskID),
+		zap.String("preset", req.Preset),
+		zap.Int("node_count", len(profileResp.Profile.Nodes)),
+	)
+	return resp.TaskID, nil
+}
+
+func resolveProfilesPath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "sakiko", "profiles.yaml"), nil
+}
+
+func presetMatrices(preset string) ([]interfaces.MatrixEntry, error) {
+	switch strings.ToLower(strings.TrimSpace(preset)) {
+	case "", "ping":
+		return []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixHTTPPing},
+			{Type: interfaces.MatrixRTTPing},
+		}, nil
+	case "geo":
+		return []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixInboundGeoIP},
+			{Type: interfaces.MatrixOutboundGeoIP},
+		}, nil
+	case "speed":
+		return []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixAverageSpeed},
+			{Type: interfaces.MatrixMaxSpeed},
+			{Type: interfaces.MatrixPerSecSpeed},
+		}, nil
+	case "media":
+		return []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixMediaUnlock},
+		}, nil
+	case "full":
+		return []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixHTTPPing},
+			{Type: interfaces.MatrixRTTPing},
+			{Type: interfaces.MatrixInboundGeoIP},
+			{Type: interfaces.MatrixOutboundGeoIP},
+			{Type: interfaces.MatrixAverageSpeed},
+			{Type: interfaces.MatrixMaxSpeed},
+			{Type: interfaces.MatrixPerSecSpeed},
+			{Type: interfaces.MatrixMediaUnlock},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported task preset: %s", preset)
+	}
+}
+
+func defaultTaskName(profileName string, preset string) string {
+	name := strings.TrimSpace(profileName)
+	if name == "" {
+		name = "Profile"
+	}
+	preset = strings.ToUpper(strings.TrimSpace(preset))
+	if preset == "" {
+		preset = "PING"
+	}
+	return fmt.Sprintf("%s %s %s", name, preset, time.Now().Format("15:04:05"))
+}
+
+func (s *SakikoService) ensureReady() error {
+	if s == nil {
+		return fmt.Errorf("sakiko service is nil")
+	}
+
+	s.once.Do(func() {
+		wailsServiceLogger().Info("initializing sakiko service")
+		profilesPath, err := resolveProfilesPath()
+		if err != nil {
+			wailsServiceLogger().Error("resolve profiles path failed", zap.Error(err))
+			s.initErr = err
+			return
+		}
+		wailsServiceLogger().Info("resolved profiles path", zap.String("profiles_path", profilesPath))
+
+		apiService, err := coreapi.New(coreapi.Config{
+			Mode:                interfaces.ModeParallel,
+			ConnConcurrency:     24,
+			SpeedConcurrency:    1,
+			SpeedInterval:       300 * time.Millisecond,
+			ProfilesPath:        profilesPath,
+			ProfileFetchTimeout: 20 * time.Second,
+		})
+		if err != nil {
+			wailsServiceLogger().Error("initialize core api failed", zap.Error(err))
+			s.initErr = err
+			return
+		}
+
+		s.api = apiService
+		s.profilesPath = profilesPath
+		wailsServiceLogger().Info("sakiko service ready", zap.String("profiles_path", profilesPath))
+	})
+
+	return s.initErr
+}
+
+func wailsServiceLogger() *zap.Logger {
+	return logx.Named("service")
+}

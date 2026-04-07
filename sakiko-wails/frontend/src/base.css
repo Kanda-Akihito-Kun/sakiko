@@ -1,0 +1,39 @@
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: local(""), url("/Inter-Medium.ttf") format("truetype");
+}
+
+:root {
+  --primary-main: #007AFF;
+  --selection-color: #f5f5f5;
+  --scroller-color: #90939980;
+  --scrollbar-bg: #f1f1f1;
+  --background-color: #F5F5F5;
+  --page-background-color: #ECECEC;
+  --surface-color: #FFFFFF;
+  --background-color-alpha: rgba(10, 132, 255, 0.12);
+  --divider-color: rgba(0, 0, 0, 0.06);
+  --sidebar-background: rgba(255, 255, 255, 0.92);
+  --header-background: rgba(245, 245, 245, 0.9);
+  --logo-background: rgba(0, 122, 255, 0.08);
+  --logo-border-color: rgba(0, 122, 255, 0.14);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--page-background-color);
+}
+
+::selection {
+  color: var(--selection-color);
+  background-color: var(--primary-main);
+}

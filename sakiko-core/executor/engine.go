@@ -1,0 +1,197 @@
+package executor
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"sakiko.local/sakiko-core/executor/taskpoll"
+	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/logx"
+	"sakiko.local/sakiko-core/macro"
+	"sakiko.local/sakiko-core/matrix"
+	"sakiko.local/sakiko-core/vendors"
+
+	"go.uber.org/zap"
+)
+
+type Config struct {
+	SpeedConcurrency uint
+	ConnConcurrency  uint
+	SpeedInterval    time.Duration
+}
+
+type Callbacks struct {
+	OnProcess func(taskID string, index int, result interfaces.EntryResult, queuing int)
+	OnExit    func(taskID string, results []interfaces.EntryResult, exitCode taskpoll.ExitCode)
+}
+
+type Engine struct {
+	speedPoll *taskpoll.Controller
+	connPoll  *taskpoll.Controller
+	stop      chan struct{}
+	once      sync.Once
+}
+
+func NewSerialEngine() *Engine {
+	return NewEngine(Config{
+		SpeedConcurrency: 1,
+		ConnConcurrency:  1,
+	})
+}
+
+func NewEngine(cfg Config) *Engine {
+	if cfg.SpeedConcurrency == 0 {
+		cfg.SpeedConcurrency = 1
+	}
+	if cfg.ConnConcurrency == 0 {
+		cfg.ConnConcurrency = 16
+	}
+	e := &Engine{
+		speedPoll: taskpoll.New("speed", cfg.SpeedConcurrency, cfg.SpeedInterval, 200*time.Millisecond),
+		connPoll:  taskpoll.New("conn", cfg.ConnConcurrency, 0, 200*time.Millisecond),
+		stop:      make(chan struct{}),
+	}
+	executorLogger().Info("executor initialized",
+		zap.Uint("speed_concurrency", cfg.SpeedConcurrency),
+		zap.Uint("conn_concurrency", cfg.ConnConcurrency),
+		zap.Duration("speed_interval", cfg.SpeedInterval),
+	)
+	go e.speedPoll.Start(e.stop)
+	go e.connPoll.Start(e.stop)
+	return e
+}
+
+func (e *Engine) Stop() {
+	e.once.Do(func() {
+		executorLogger().Info("executor stopping")
+		close(e.stop)
+	})
+}
+
+func (e *Engine) Submit(task interfaces.Task, cb Callbacks) (string, error) {
+	if len(task.Nodes) == 0 {
+		return "", fmt.Errorf("empty nodes")
+	}
+	if task.ID == "" {
+		task.ID = randomID()
+	}
+	task.Config = task.Config.Normalize()
+
+	macroSet := map[interfaces.MacroType]struct{}{}
+	for _, entry := range task.Matrices {
+		macroSet[matrix.Find(entry.Type).MacroJob()] = struct{}{}
+	}
+	macros := make([]interfaces.MacroType, 0, len(macroSet))
+	for mt := range macroSet {
+		if mt != interfaces.MacroInvalid {
+			macros = append(macros, mt)
+		}
+	}
+
+	item := (&pollItem{
+		id:       task.ID,
+		name:     task.Name,
+		task:     task,
+		matrices: task.Matrices,
+		macros:   macros,
+		results:  make([]interfaces.EntryResult, len(task.Nodes)),
+		onProcess: func(self *pollItem, idx int, result interfaces.EntryResult, c *taskpoll.Controller) {
+			if cb.OnProcess != nil {
+				cb.OnProcess(self.id, idx, result, c.AwaitingCount())
+			}
+		},
+		onExit: func(self *pollItem, exitCode taskpoll.ExitCode) {
+			if cb.OnExit != nil {
+				cb.OnExit(self.id, append([]interfaces.EntryResult{}, self.results...), exitCode)
+			}
+		},
+	}).Init().(*pollItem)
+
+	isSpeed := false
+	for _, mt := range macros {
+		if mt == interfaces.MacroSpeed {
+			isSpeed = true
+			break
+		}
+	}
+	if isSpeed {
+		executorLogger().Info("task routed to speed queue",
+			zap.String("task_id", task.ID),
+			zap.String("task_name", task.Name),
+			zap.Int("node_count", len(task.Nodes)),
+			zap.Int("macro_count", len(macros)),
+		)
+		e.speedPoll.Push(item)
+	} else {
+		executorLogger().Info("task routed to connection queue",
+			zap.String("task_id", task.ID),
+			zap.String("task_name", task.Name),
+			zap.Int("node_count", len(task.Nodes)),
+			zap.Int("macro_count", len(macros)),
+		)
+		e.connPoll.Push(item)
+	}
+	return task.ID, nil
+}
+
+func runMacros(v interfaces.Vendor, task *interfaces.Task, macroTypes []interfaces.MacroType) (map[interfaces.MacroType]interfaces.Macro, error) {
+	out := map[interfaces.MacroType]interfaces.Macro{}
+	errs := make([]error, 0, len(macroTypes))
+	var lock sync.Mutex
+	var wg sync.WaitGroup
+	for _, mt := range macroTypes {
+		wg.Add(1)
+		go func(macroType interfaces.MacroType) {
+			defer wg.Done()
+			m := macro.Find(macroType)
+			err := m.Run(v, task)
+			if err != nil {
+				executorLogger().Warn("macro execution failed",
+					zap.String("macro_type", string(macroType)),
+					zap.String("proxy_name", v.ProxyInfo().Name),
+					zap.Error(err),
+				)
+			}
+			lock.Lock()
+			out[macroType] = m
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", macroType, err))
+			}
+			lock.Unlock()
+		}(mt)
+	}
+	wg.Wait()
+	return out, errors.Join(errs...)
+}
+
+func extractMatrices(entries []interfaces.MatrixEntry, macroMap map[interfaces.MacroType]interfaces.Macro) []interfaces.MatrixResult {
+	out := make([]interfaces.MatrixResult, 0, len(entries))
+	for _, entry := range entries {
+		m := matrix.Find(entry.Type)
+		mac := macroMap[m.MacroJob()]
+		if mac == nil {
+			mac = macro.Find(interfaces.MacroInvalid)
+		}
+		m.Extract(entry, mac)
+		out = append(out, interfaces.MatrixResult{Type: m.Type(), Payload: m.Payload()})
+	}
+	return out
+}
+
+func buildVendor(task interfaces.Task, idx int) interfaces.Vendor {
+	return vendors.Find(task.Vendor).Build(task.Nodes[idx])
+}
+
+func randomID() string {
+	var b [12]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
+
+func executorLogger() *zap.Logger {
+	return logx.Named("core.executor")
+}
