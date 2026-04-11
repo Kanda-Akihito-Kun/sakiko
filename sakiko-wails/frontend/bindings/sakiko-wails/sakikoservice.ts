@@ -87,6 +87,12 @@ export function RefreshProfile(profileID: string): $CancellablePromise<interface
     });
 }
 
+export function SetProfileNodeEnabled(profileID: string, nodeIndex: number, enabled: boolean): $CancellablePromise<interfaces$0.Profile> {
+    return $Call.ByID(3960989747, profileID, nodeIndex, enabled).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function SubmitProfileTask(req: $models.ProfileTaskSubmitRequest): $CancellablePromise<string> {
     return $Call.ByID(737454241, req);
 }

@@ -32,6 +32,7 @@ func TestResultStoreSaveLoadAndList(t *testing.T) {
 				{Type: interfaces.MatrixAverageSpeed},
 				{Type: interfaces.MatrixMaxSpeed},
 				{Type: interfaces.MatrixPerSecSpeed},
+				{Type: interfaces.MatrixTrafficUsed},
 			},
 			Config: interfaces.TaskConfig{
 				PingAddress:       "https://www.gstatic.com/generate_204",
@@ -63,6 +64,7 @@ func TestResultStoreSaveLoadAndList(t *testing.T) {
 					{Type: interfaces.MatrixAverageSpeed, Payload: map[string]any{"value": uint64(789)}},
 					{Type: interfaces.MatrixMaxSpeed, Payload: map[string]any{"value": uint64(999)}},
 					{Type: interfaces.MatrixPerSecSpeed, Payload: map[string]any{"values": []uint64{111, 222}}},
+					{Type: interfaces.MatrixTrafficUsed, Payload: map[string]any{"value": uint64(12_345_678)}},
 				},
 			},
 		},
@@ -121,6 +123,9 @@ func TestResultStoreSaveLoadAndList(t *testing.T) {
 	}
 	if archive.Report.Sections[0].Kind != "speed_table" {
 		t.Fatalf("expected speed_table section, got %q", archive.Report.Sections[0].Kind)
+	}
+	if got := archive.Report.Sections[0].Rows[0]["trafficUsedBytes"]; got != float64(12_345_678) {
+		t.Fatalf("expected trafficUsedBytes 12345678, got %#v", got)
 	}
 
 	items, err := store.List()
@@ -240,5 +245,129 @@ func TestResultStoreDeleteRemovesArchiveAndSummary(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Fatalf("expected no archived results after delete, got %d", len(items))
+	}
+}
+
+func TestBuildMediaUnlockSectionUsesNodePlatformMatrix(t *testing.T) {
+	t.Parallel()
+
+	section := buildMediaUnlockSection(interfaces.TaskArchiveSnapshot{
+		Task: interfaces.Task{
+			Context: interfaces.TaskContext{Preset: "media"},
+		},
+		Results: []interfaces.EntryResult{
+			{
+				ProxyInfo: interfaces.ProxyInfo{
+					Name: "node-a",
+					Type: interfaces.ProxyShadowsocks,
+				},
+				Matrices: []interfaces.MatrixResult{
+					{
+						Type: interfaces.MatrixMediaUnlock,
+						Payload: interfaces.MediaUnlockResult{
+							Items: []interfaces.MediaUnlockPlatformResult{
+								{
+									Platform: interfaces.MediaUnlockPlatformChatGPT,
+									Name:     "ChatGPT",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Unlocked (US)",
+								},
+								{
+									Platform: interfaces.MediaUnlockPlatformNetflix,
+									Name:     "Netflix",
+									Status:   interfaces.MediaUnlockStatusOriginalsOnly,
+									Display:  "Originals Only (US)",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	if section.Kind != "media_unlock_table" {
+		t.Fatalf("expected media_unlock_table section, got %q", section.Kind)
+	}
+	if len(section.Columns) < 4 {
+		t.Fatalf("expected matrix columns, got %d", len(section.Columns))
+	}
+	if section.Columns[0].Key != "nodeName" || section.Columns[1].Key != "proxyType" {
+		t.Fatalf("expected fixed node columns first, got %q and %q", section.Columns[0].Key, section.Columns[1].Key)
+	}
+	if len(section.Rows) != 1 {
+		t.Fatalf("expected 1 matrix row, got %d", len(section.Rows))
+	}
+	if got := section.Rows[0]["chatgpt"]; got != "Unlocked (US)" {
+		t.Fatalf("expected chatgpt cell to use display text, got %#v", got)
+	}
+	if got := section.Rows[0]["netflix"]; got != "Originals Only (US)" {
+		t.Fatalf("expected netflix cell to use display text, got %#v", got)
+	}
+}
+
+func TestBuildMediaUnlockSectionFiltersRemovedPlatforms(t *testing.T) {
+	t.Parallel()
+
+	section := buildMediaUnlockSection(interfaces.TaskArchiveSnapshot{
+		Task: interfaces.Task{
+			Context: interfaces.TaskContext{Preset: "media"},
+		},
+		Results: []interfaces.EntryResult{
+			{
+				ProxyInfo: interfaces.ProxyInfo{
+					Name: "node-a",
+					Type: interfaces.ProxyShadowsocks,
+				},
+				Matrices: []interfaces.MatrixResult{
+					{
+						Type: interfaces.MatrixMediaUnlock,
+						Payload: interfaces.MediaUnlockResult{
+							Items: []interfaces.MediaUnlockPlatformResult{
+								{
+									Platform: "dazn",
+									Name:     "DAZN",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Unlocked (JP)",
+								},
+								{
+									Platform: "instagram_music",
+									Name:     "Instagram Music",
+									Status:   interfaces.MediaUnlockStatusNo,
+									Display:  "No",
+								},
+								{
+									Platform: interfaces.MediaUnlockPlatformNetflix,
+									Name:     "Netflix",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Unlocked (US)",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	for _, column := range section.Columns {
+		if column.Key == "dazn" || column.Key == "instagram_music" {
+			t.Fatalf("expected removed media columns to be hidden, got %q", column.Key)
+		}
+	}
+	if _, exists := section.Rows[0]["dazn"]; exists {
+		t.Fatalf("expected DAZN cell to be omitted from report row")
+	}
+	if _, exists := section.Rows[0]["instagram_music"]; exists {
+		t.Fatalf("expected Instagram Music cell to be omitted from report row")
+	}
+	if got := section.Rows[0]["netflix"]; got != "Unlocked (US)" {
+		t.Fatalf("expected visible platform to remain, got %#v", got)
+	}
+	if got := section.Summary["platformCount"]; got != 1 {
+		t.Fatalf("expected platformCount 1 after filtering, got %#v", got)
+	}
+	if got := section.Summary["successCount"]; got != 1 {
+		t.Fatalf("expected successCount 1 after filtering, got %#v", got)
 	}
 }

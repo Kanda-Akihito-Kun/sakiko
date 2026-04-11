@@ -12,7 +12,6 @@ type Profile struct {
 type ProfileImportRequest struct {
 	Name       string      `json:"name"`
 	Source     string      `json:"source"`
-	Content    string      `json:"content,omitempty"`
 	Attributes interface{} `json:"attributes,omitempty"`
 }
 
@@ -41,5 +40,15 @@ type ProfileListResponse struct {
 }
 
 type ProfileGetResponse struct {
+	Profile Profile `json:"profile"`
+}
+
+type ProfileNodeSelectionUpdateRequest struct {
+	ProfileID string `json:"profileId"`
+	NodeIndex int    `json:"nodeIndex"`
+	Enabled   bool   `json:"enabled"`
+}
+
+type ProfileNodeSelectionUpdateResponse struct {
 	Profile Profile `json:"profile"`
 }

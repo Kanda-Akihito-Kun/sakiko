@@ -32,8 +32,25 @@ export function TasksSection({
   onTaskPresetChange,
 }: TasksSectionProps) {
   return (
-    <Box className="sakiko-section-grid">
-      <Box className="sakiko-section-grid__sidebar">
+    <Box
+      sx={{
+        display: "flex",
+        gap: 2.25,
+        alignItems: "flex-start",
+        minWidth: 0,
+        "@media (max-width: 1240px)": {
+          flexDirection: "column",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          flex: "0 0 auto",
+          width: "fit-content",
+          maxWidth: "100%",
+          minWidth: 0,
+        }}
+      >
         <TaskLauncherPanel
           activeProfileId={activeProfileId}
           activeTaskId={activeTaskId}
@@ -48,7 +65,13 @@ export function TasksSection({
         />
       </Box>
 
-      <Box className="sakiko-section-grid__content">
+      <Box
+        sx={{
+          flex: "1 1 0",
+          minWidth: 0,
+          width: "100%",
+        }}
+      >
         <TaskResultsPanel activeTask={activeTask} />
       </Box>
     </Box>

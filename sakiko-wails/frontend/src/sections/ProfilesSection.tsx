@@ -17,6 +17,7 @@ type ProfilesSectionProps = {
   onDeleteProfile: () => Promise<void>;
   onImport: () => Promise<void>;
   onImportFormChange: (field: keyof ImportForm, value: string) => void;
+  onNodeEnabledChange: (nodeIndex: number, enabled: boolean) => Promise<void>;
   onNodeFilterChange: (value: string) => void;
   onRefreshProfile: () => Promise<void>;
   onReload: (preferredProfileId?: string) => Promise<void>;
@@ -34,6 +35,7 @@ export function ProfilesSection({
   onDeleteProfile,
   onImport,
   onImportFormChange,
+  onNodeEnabledChange,
   onNodeFilterChange,
   onRefreshProfile,
   onReload,
@@ -68,6 +70,7 @@ export function ProfilesSection({
           nodeFilter={nodeFilter}
           submitting={submitting}
           onDeleteProfile={onDeleteProfile}
+          onNodeEnabledChange={onNodeEnabledChange}
           onNodeFilterChange={onNodeFilterChange}
           onRefreshProfile={onRefreshProfile}
         />

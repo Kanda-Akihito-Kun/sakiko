@@ -15,29 +15,53 @@ type profilesYAML struct {
 	Profiles []profileIndexEntry `yaml:"profiles"`
 }
 
+type profileNodeIndexEntry struct {
+	Name    string `yaml:"name"`
+	Enabled bool   `yaml:"enabled"`
+}
+
 type profileIndexEntry struct {
-	ID         string      `yaml:"id"`
-	Name       string      `yaml:"name"`
-	Source     string      `yaml:"source"`
-	UpdatedAt  string      `yaml:"updatedAt,omitempty"`
-	Attributes interface{} `yaml:"attributes,omitempty"`
+	ID         string                  `yaml:"id"`
+	Name       string                  `yaml:"name"`
+	Source     string                  `yaml:"source"`
+	Nodes      []profileNodeIndexEntry `yaml:"nodes,omitempty"`
+	UpdatedAt  string                  `yaml:"updatedAt,omitempty"`
+	Attributes interface{}             `yaml:"attributes,omitempty"`
 }
 
 func newProfileIndexEntry(profile interfaces.Profile) profileIndexEntry {
+	nodes := make([]profileNodeIndexEntry, 0, len(profile.Nodes))
+	for _, node := range profile.Nodes {
+		nodes = append(nodes, profileNodeIndexEntry{
+			Name:    node.Name,
+			Enabled: node.Enabled,
+		})
+	}
+
 	return profileIndexEntry{
 		ID:         profile.ID,
 		Name:       profile.Name,
 		Source:     profile.Source,
+		Nodes:      nodes,
 		UpdatedAt:  profile.UpdatedAt,
 		Attributes: profile.Attributes,
 	}
 }
 
 func (e profileIndexEntry) toProfile() interfaces.Profile {
+	nodes := make([]interfaces.Node, 0, len(e.Nodes))
+	for _, node := range e.Nodes {
+		nodes = append(nodes, interfaces.Node{
+			Name:    node.Name,
+			Enabled: node.Enabled,
+		})
+	}
+
 	return interfaces.Profile{
 		ID:         e.ID,
 		Name:       e.Name,
 		Source:     e.Source,
+		Nodes:      nodes,
 		UpdatedAt:  e.UpdatedAt,
 		Attributes: e.Attributes,
 	}

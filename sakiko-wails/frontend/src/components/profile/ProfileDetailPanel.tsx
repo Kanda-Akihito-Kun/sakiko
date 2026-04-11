@@ -19,15 +19,16 @@ import {
   Typography,
 } from "@mui/material";
 import type { Profile } from "../../types/sakiko";
-import { extractNodeMeta } from "../../utils/dashboard";
+import type { FilteredProfileNode } from "../../utils/dashboard";
 import { EmptyState } from "../shared/EmptyState";
 import { SectionCard } from "../shared/SectionCard";
 
 type ProfileDetailPanelProps = {
   activeProfile: Profile | null;
-  filteredNodes: Profile["nodes"];
+  filteredNodes: FilteredProfileNode[];
   nodeFilter: string;
   submitting: boolean;
+  onNodeEnabledChange: (nodeIndex: number, enabled: boolean) => void;
   onNodeFilterChange: (value: string) => void;
   onRefreshProfile: () => void;
   onDeleteProfile: () => void;
@@ -38,38 +39,42 @@ export function ProfileDetailPanel({
   filteredNodes,
   nodeFilter,
   submitting,
+  onNodeEnabledChange,
   onNodeFilterChange,
   onRefreshProfile,
   onDeleteProfile,
 }: ProfileDetailPanelProps) {
   const canRefreshProfile = Boolean(activeProfile?.source?.trim());
+  const enabledNodeCount = activeProfile?.nodes.filter((node) => node.enabled).length ?? 0;
 
   return (
     <SectionCard
       title="Profile Detail"
       subtitle={activeProfile?.source || "Pick a profile"}
       icon={<HubRounded color="primary" />}
+      subtitleWrap
     >
       {activeProfile ? (
         <Stack spacing={2}>
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
               gap: 1.5,
             }}
           >
             <MetricCard label="Selected" value={activeProfile.name} />
             <MetricCard label="Nodes" value={`${activeProfile.nodes.length}`} />
+            <MetricCard label="Enabled" value={`${enabledNodeCount}`} />
             <MetricCard label="Updated" value={activeProfile.updatedAt || "Unknown"} mono />
           </Box>
 
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Stack direction="row" spacing={1.5} alignItems="flex-start" useFlexGap sx={{ flexWrap: "wrap" }}>
             <TextField
-              fullWidth
               value={nodeFilter}
               onChange={(event) => onNodeFilterChange(event.target.value)}
-              placeholder="Filter node name / payload"
+              placeholder="Filter conditions"
+              sx={{ flex: "1 1 320px", minWidth: 240 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -107,8 +112,9 @@ export function ProfileDetailPanel({
             </Button>
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", overflowX: "auto", pb: 0.25 }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", pb: 0.25 }}>
             <Chip label={`${filteredNodes.length} matching nodes`} color="primary" />
+            <Chip label={`${enabledNodeCount} enabled for tasks`} color="success" variant="outlined" />
             <Chip label={activeProfile.source || "Recovered local profile"} variant="outlined" />
           </Stack>
 
@@ -117,29 +123,48 @@ export function ProfileDetailPanel({
               <TableHead>
                 <TableRow>
                   <TableCell>Node</TableCell>
-                  <TableCell>Type</TableCell>
                   <TableCell>Server</TableCell>
                   <TableCell align="right">Port</TableCell>
+                  <TableCell align="right">Task Scope</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredNodes.map((node, index) => {
-                  const meta = extractNodeMeta(node.payload);
+                {filteredNodes.map(({ node, index }) => {
                   return (
                     <TableRow key={`${node.name}-${index}`} hover>
                       <TableCell>
                         <Stack spacing={0.25}>
                           <Typography fontWeight={600} noWrap>{node.name}</Typography>
-                          <Typography variant="caption" color="text.secondary" className="sakiko-mono" noWrap>
-                            {node.payload.slice(0, 88)}
-                            {node.payload.length > 88 ? "..." : ""}
-                          </Typography>
+                          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", pt: 0.25 }}>
+                            <Chip
+                              size="small"
+                              label={node.protocol || "unknown"}
+                              variant="outlined"
+                              sx={{ textTransform: "uppercase" }}
+                            />
+                            <Chip
+                              size="small"
+                              label={node.udp === true ? "UDP" : node.udp === false ? "No UDP" : "UDP ?"}
+                              color={node.udp === true ? "success" : "default"}
+                              variant={node.udp === true ? "filled" : "outlined"}
+                            />
+                          </Stack>
                         </Stack>
                       </TableCell>
-                      <TableCell>{meta.type}</TableCell>
-                      <TableCell>{meta.server}</TableCell>
+                      <TableCell className="sakiko-mono">{node.server || "unknown server"}</TableCell>
                       <TableCell align="right" className="sakiko-mono">
-                        {meta.port}
+                        {node.port || "-"}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          variant={node.enabled ? "contained" : "outlined"}
+                          color={node.enabled ? "success" : "inherit"}
+                          disabled={submitting}
+                          onClick={() => onNodeEnabledChange(index, !node.enabled)}
+                        >
+                          {node.enabled ? "Included" : "Skipped"}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -172,12 +197,21 @@ function MetricCard({ label, value, mono = false }: MetricCardProps) {
         p: 1.75,
         bgcolor: "background.default",
         borderColor: "divider",
+        minWidth: 0,
       }}
     >
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         {label}
       </Typography>
-      <Typography className={mono ? "sakiko-mono" : undefined} fontWeight={600} noWrap>
+      <Typography
+        className={mono ? "sakiko-mono" : undefined}
+        fontWeight={600}
+        sx={{
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
+          whiteSpace: "pre-wrap",
+        }}
+      >
         {value}
       </Typography>
     </Card>

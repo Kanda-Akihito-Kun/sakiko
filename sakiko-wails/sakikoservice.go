@@ -90,6 +90,29 @@ func (s *SakikoService) GetProfile(profileID string) (interfaces.Profile, error)
 	return resp.Profile, nil
 }
 
+func (s *SakikoService) SetProfileNodeEnabled(profileID string, nodeIndex int, enabled bool) (interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.Profile{}, err
+	}
+
+	resp, err := s.api.UpdateProfileNodeSelection(interfaces.ProfileNodeSelectionUpdateRequest{
+		ProfileID: profileID,
+		NodeIndex: nodeIndex,
+		Enabled:   enabled,
+	})
+	if err != nil {
+		wailsServiceLogger().Warn("update profile node selection failed",
+			zap.String("profile_id", profileID),
+			zap.Int("node_index", nodeIndex),
+			zap.Bool("enabled", enabled),
+			zap.Error(err),
+		)
+		return interfaces.Profile{}, err
+	}
+
+	return resp.Profile, nil
+}
+
 func (s *SakikoService) ListDownloadTargets() ([]interfaces.DownloadTarget, error) {
 	if err := s.ensureReady(); err != nil {
 		return nil, err
@@ -229,6 +252,13 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 		)
 		return "", fmt.Errorf("profile has no nodes")
 	}
+	selectedNodes := enabledNodes(profileResp.Profile.Nodes)
+	if len(selectedNodes) == 0 {
+		wailsServiceLogger().Warn("submit profile task rejected: profile has no enabled nodes",
+			zap.String("profile_id", req.ProfileID),
+		)
+		return "", fmt.Errorf("profile has no enabled nodes")
+	}
 
 	matrices, err := presetMatrices(req.Preset)
 	if err != nil {
@@ -255,7 +285,7 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 				ProfileName:   profileResp.Profile.Name,
 				ProfileSource: profileResp.Profile.Source,
 			},
-			Nodes:    profileResp.Profile.Nodes,
+			Nodes:    selectedNodes,
 			Matrices: matrices,
 			Config:   req.Config.Normalize(),
 		},
@@ -272,9 +302,20 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 		zap.String("profile_id", req.ProfileID),
 		zap.String("task_id", resp.TaskID),
 		zap.String("preset", req.Preset),
-		zap.Int("node_count", len(profileResp.Profile.Nodes)),
+		zap.Int("node_count", len(selectedNodes)),
 	)
 	return resp.TaskID, nil
+}
+
+func enabledNodes(nodes []interfaces.Node) []interfaces.Node {
+	selected := make([]interfaces.Node, 0, len(nodes))
+	for _, node := range nodes {
+		if !node.Enabled {
+			continue
+		}
+		selected = append(selected, node)
+	}
+	return selected
 }
 
 func resolveProfilesPath() (string, error) {
@@ -302,6 +343,7 @@ func presetMatrices(preset string) ([]interfaces.MatrixEntry, error) {
 			{Type: interfaces.MatrixAverageSpeed},
 			{Type: interfaces.MatrixMaxSpeed},
 			{Type: interfaces.MatrixPerSecSpeed},
+			{Type: interfaces.MatrixTrafficUsed},
 		}, nil
 	case "media":
 		return []interfaces.MatrixEntry{
@@ -316,6 +358,7 @@ func presetMatrices(preset string) ([]interfaces.MatrixEntry, error) {
 			{Type: interfaces.MatrixAverageSpeed},
 			{Type: interfaces.MatrixMaxSpeed},
 			{Type: interfaces.MatrixPerSecSpeed},
+			{Type: interfaces.MatrixTrafficUsed},
 			{Type: interfaces.MatrixMediaUnlock},
 		}, nil
 	default:

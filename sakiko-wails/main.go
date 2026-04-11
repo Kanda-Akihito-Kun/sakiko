@@ -18,10 +18,10 @@ var assets embed.FS
 
 func main() {
 	const (
-		defaultWindowWidth  = 960
-		defaultWindowHeight = 720
-		minWindowWidth      = 900
-		minWindowHeight     = 620
+		defaultWindowWidth  = 1120
+		defaultWindowHeight = 760
+		minWindowWidth      = 1024
+		minWindowHeight     = 680
 	)
 
 	logger, err := logx.Configure(logx.Config{

@@ -6,14 +6,12 @@ describe("dashboard payload builders", () => {
     const payload = createImportProfilePayload({
       name: "  My Profile  ",
       source: "  https://example.com/sub.yaml  ",
-      content: "  proxies: []  ",
     });
 
     expect(Object.getPrototypeOf(payload)).toBe(Object.prototype);
     expect(payload).toEqual({
       name: "My Profile",
       source: "https://example.com/sub.yaml",
-      content: "proxies: []",
     });
   });
 

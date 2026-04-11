@@ -26,10 +26,19 @@
   -webkit-text-size-adjust: 100%;
 }
 
+html,
+body {
+  height: 100%;
+}
+
+body,
+#root {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
   background-color: var(--page-background-color);
 }
 

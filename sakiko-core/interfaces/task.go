@@ -8,8 +8,13 @@ const (
 )
 
 type Node struct {
-	Name    string `json:"name"`
-	Payload string `json:"payload"`
+	Name     string `json:"name"`
+	Protocol string `json:"protocol,omitempty" yaml:"-"`
+	Server   string `json:"server,omitempty" yaml:"-"`
+	Port     string `json:"port,omitempty" yaml:"-"`
+	UDP      *bool  `json:"udp,omitempty" yaml:"-"`
+	Payload  string `json:"payload,omitempty" yaml:"-"`
+	Enabled  bool   `json:"enabled" yaml:"enabled"`
 }
 
 type TaskConfig struct {
@@ -82,6 +87,7 @@ const (
 	MatrixAverageSpeed  MatrixType = "SPEED_AVERAGE"
 	MatrixMaxSpeed      MatrixType = "SPEED_MAX"
 	MatrixPerSecSpeed   MatrixType = "SPEED_PER_SECOND"
+	MatrixTrafficUsed   MatrixType = "SPEED_TRAFFIC_USED"
 	MatrixInboundGeoIP  MatrixType = "GEOIP_INBOUND"
 	MatrixOutboundGeoIP MatrixType = "GEOIP_OUTBOUND"
 	MatrixMediaUnlock   MatrixType = "MEDIA_UNLOCK"
@@ -116,6 +122,9 @@ const (
 	MediaUnlockStatusYes           MediaUnlockStatus = "yes"
 	MediaUnlockStatusNo            MediaUnlockStatus = "no"
 	MediaUnlockStatusOriginalsOnly MediaUnlockStatus = "originals_only"
+	MediaUnlockStatusWebOnly       MediaUnlockStatus = "web_only"
+	MediaUnlockStatusOverseaOnly   MediaUnlockStatus = "oversea_only"
+	MediaUnlockStatusUnsupported   MediaUnlockStatus = "unsupported"
 	MediaUnlockStatusFailed        MediaUnlockStatus = "failed"
 )
 
@@ -130,9 +139,21 @@ const (
 type MediaUnlockPlatform string
 
 const (
-	MediaUnlockPlatformNetflix     MediaUnlockPlatform = "netflix"
-	MediaUnlockPlatformHulu        MediaUnlockPlatform = "hulu"
-	MediaUnlockPlatformBilibiliHMT MediaUnlockPlatform = "bilibili_hmt"
+	MediaUnlockPlatformNetflix        MediaUnlockPlatform = "netflix"
+	MediaUnlockPlatformHulu           MediaUnlockPlatform = "hulu"
+	MediaUnlockPlatformHuluJP         MediaUnlockPlatform = "hulu_jp"
+	MediaUnlockPlatformBilibiliHMT    MediaUnlockPlatform = "bilibili_hmt"
+	MediaUnlockPlatformBilibiliTW     MediaUnlockPlatform = "bilibili_tw"
+	MediaUnlockPlatformYouTubePremium MediaUnlockPlatform = "youtube_premium"
+	MediaUnlockPlatformPrimeVideo     MediaUnlockPlatform = "prime_video"
+	MediaUnlockPlatformHBOMax         MediaUnlockPlatform = "hbo_max"
+	MediaUnlockPlatformAbema          MediaUnlockPlatform = "abema"
+	MediaUnlockPlatformTikTok         MediaUnlockPlatform = "tiktok"
+	MediaUnlockPlatformSpotify        MediaUnlockPlatform = "spotify"
+	MediaUnlockPlatformSteam          MediaUnlockPlatform = "steam"
+	MediaUnlockPlatformChatGPT        MediaUnlockPlatform = "chatgpt"
+	MediaUnlockPlatformClaude         MediaUnlockPlatform = "claude"
+	MediaUnlockPlatformGemini         MediaUnlockPlatform = "gemini"
 )
 
 type MediaUnlockPlatformResult struct {
@@ -142,6 +163,7 @@ type MediaUnlockPlatformResult struct {
 	Region   string              `json:"region,omitempty"`
 	Mode     MediaUnlockMode     `json:"mode,omitempty"`
 	Error    string              `json:"error,omitempty"`
+	Display  string              `json:"display,omitempty"`
 }
 
 type MediaUnlockResult struct {

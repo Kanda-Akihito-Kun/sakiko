@@ -24,16 +24,25 @@ func TestManagerImportAndRefreshValidation(t *testing.T) {
 		t.Fatalf("NewManager() error = %v", err)
 	}
 
-	content := `
+	if _, err := m.Import(interfaces.ProfileImportRequest{Name: "missing-source"}); err == nil {
+		t.Fatalf("expected import error for empty source")
+	}
+
+	responseBody := `
 proxies:
   - name: test
     type: vmess
     server: 1.1.1.1
     port: 443
 `
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(responseBody))
+	}))
+	defer server.Close()
+
 	profile, err := m.Import(interfaces.ProfileImportRequest{
-		Name:    "demo",
-		Content: content,
+		Name:   "demo",
+		Source: server.URL,
 	})
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
@@ -43,6 +52,9 @@ proxies:
 	}
 	if len(profile.Nodes) != 1 {
 		t.Fatalf("expected 1 node, got %d", len(profile.Nodes))
+	}
+	if profile.Nodes[0].Protocol != "vmess" || profile.Nodes[0].Server != "1.1.1.1" || profile.Nodes[0].Port != "443" {
+		t.Fatalf("expected imported node metadata, got %+v", profile.Nodes[0])
 	}
 
 	profileFile := filepath.Join(dir, "profiles", profile.ID+".yaml")
@@ -58,8 +70,8 @@ proxies:
 	if err != nil {
 		t.Fatalf("expected generated profiles index: %v", err)
 	}
-	if strings.Contains(string(rawIndex), "nodes:") || strings.Contains(string(rawIndex), "payload:") {
-		t.Fatalf("expected metadata-only index, got %s", string(rawIndex))
+	if strings.Contains(string(rawIndex), "payload:") {
+		t.Fatalf("expected index to omit payload content, got %s", string(rawIndex))
 	}
 
 	list := m.List()
@@ -67,8 +79,22 @@ proxies:
 		t.Fatalf("expected list size 1, got %d", len(list))
 	}
 
-	if _, err := m.Refresh(profile.ID); err == nil {
-		t.Fatalf("expected refresh error for empty source")
+	responseBody = `
+proxies:
+  - name: refreshed
+    type: vmess
+    server: 2.2.2.2
+    port: 8443
+`
+	refreshed, err := m.Refresh(profile.ID)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if len(refreshed.Nodes) != 1 || !strings.Contains(refreshed.Nodes[0].Payload, "2.2.2.2") {
+		t.Fatalf("expected refreshed profile nodes, got %+v", refreshed.Nodes)
+	}
+	if refreshed.Nodes[0].Server != "2.2.2.2" || refreshed.Nodes[0].Port != "8443" {
+		t.Fatalf("expected refreshed node metadata, got %+v", refreshed.Nodes[0])
 	}
 
 	reloaded, err := NewManager(Config{StorePath: path})
@@ -96,10 +122,14 @@ func TestManagerImportBase64Subscription(t *testing.T) {
 
 	rawSubscription := "ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ=@1.2.3.4:8388#demo"
 	content := base64.StdEncoding.EncodeToString([]byte(rawSubscription))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(content))
+	}))
+	defer server.Close()
 
 	profile, err := m.Import(interfaces.ProfileImportRequest{
-		Name:    "base64-sub",
-		Content: content,
+		Name:   "base64-sub",
+		Source: server.URL,
 	})
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
@@ -118,6 +148,9 @@ func TestManagerImportBase64Subscription(t *testing.T) {
 		if !strings.Contains(payload, want) {
 			t.Fatalf("expected payload to contain %q, got %s", want, payload)
 		}
+	}
+	if profile.Nodes[0].Protocol != "ss" || profile.Nodes[0].Server != "1.2.3.4" || profile.Nodes[0].Port != "8388" {
+		t.Fatalf("expected imported share-link metadata, got %+v", profile.Nodes[0])
 	}
 
 	vendor := (&mihomo.Vendor{}).Build(profile.Nodes[0])
@@ -144,9 +177,8 @@ func TestManagerDeleteRemovesProfileFromIndexAndContentDirectory(t *testing.T) {
 		t.Fatalf("NewManager() error = %v", err)
 	}
 
-	profile, err := m.Import(interfaces.ProfileImportRequest{
-		Name: "delete-me",
-		Content: `
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
 proxies:
   - name: delete-me
     type: ss
@@ -154,7 +186,13 @@ proxies:
     port: 443
     cipher: aes-128-gcm
     password: demo
-`,
+`))
+	}))
+	defer server.Close()
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "delete-me",
+		Source: server.URL,
 	})
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
@@ -200,9 +238,8 @@ func TestManagerImportRollsBackWhenIndexPersistFails(t *testing.T) {
 	// Point the profile index store at a directory so the write fails.
 	m.store = storage.NewProfileStore(dir)
 
-	_, err = m.Import(interfaces.ProfileImportRequest{
-		Name: "rollback-import",
-		Content: `
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
 proxies:
   - name: rollback
     type: ss
@@ -210,7 +247,13 @@ proxies:
     port: 443
     cipher: aes-128-gcm
     password: demo
-`,
+`))
+	}))
+	defer server.Close()
+
+	_, err = m.Import(interfaces.ProfileImportRequest{
+		Name:   "rollback-import",
+		Source: server.URL,
 	})
 	if err == nil {
 		t.Fatalf("expected import to fail when index persistence fails")
@@ -233,16 +276,17 @@ func TestManagerRefreshRollsBackProfileFileWhenIndexPersistFails(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profiles.yaml")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`
+	responseBody := `
 proxies:
-  - name: refreshed-node
+  - name: original-node
     type: ss
-    server: 8.8.8.8
-    port: 8443
+    server: 1.1.1.1
+    port: 443
     cipher: aes-128-gcm
-    password: refreshed
-`))
+    password: original
+`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(responseBody))
 	}))
 	defer server.Close()
 
@@ -254,21 +298,21 @@ proxies:
 	profile, err := m.Import(interfaces.ProfileImportRequest{
 		Name:   "refresh-rollback",
 		Source: server.URL,
-		Content: `
-proxies:
-  - name: original-node
-    type: ss
-    server: 1.1.1.1
-    port: 443
-    cipher: aes-128-gcm
-    password: original
-`,
 	})
 	if err != nil {
 		t.Fatalf("Import() error = %v", err)
 	}
 
 	m.store = storage.NewProfileStore(dir)
+	responseBody = `
+proxies:
+  - name: refreshed-node
+    type: ss
+    server: 8.8.8.8
+    port: 8443
+    cipher: aes-128-gcm
+    password: refreshed
+`
 
 	if _, err := m.Refresh(profile.ID); err == nil {
 		t.Fatalf("expected refresh to fail when index persistence fails")
@@ -280,6 +324,9 @@ proxies:
 	}
 	if len(current.Nodes) != 1 || !strings.Contains(current.Nodes[0].Payload, "1.1.1.1") {
 		t.Fatalf("expected in-memory profile to keep original nodes, got %+v", current.Nodes)
+	}
+	if current.Nodes[0].Server != "1.1.1.1" {
+		t.Fatalf("expected in-memory metadata to keep original server, got %+v", current.Nodes[0])
 	}
 
 	profileFile := filepath.Join(dir, "profiles", profile.ID+".yaml")
@@ -344,6 +391,9 @@ proxies:
 	if len(profile.Nodes) != 1 {
 		t.Fatalf("expected 1 recovered node, got %d", len(profile.Nodes))
 	}
+	if profile.Nodes[0].Protocol != "ss" || profile.Nodes[0].Server != "1.1.1.1" || profile.Nodes[0].Port != "443" {
+		t.Fatalf("expected recovered node metadata, got %+v", profile.Nodes[0])
+	}
 
 	rawIndex, err := os.ReadFile(path)
 	if err != nil {
@@ -352,8 +402,142 @@ proxies:
 	if !strings.Contains(string(rawIndex), profileID) {
 		t.Fatalf("expected recovered index to contain profile id, got %s", string(rawIndex))
 	}
-	if strings.Contains(string(rawIndex), "nodes:") || strings.Contains(string(rawIndex), "payload:") {
-		t.Fatalf("expected recovered index to stay metadata-only, got %s", string(rawIndex))
+	if strings.Contains(string(rawIndex), "payload:") {
+		t.Fatalf("expected recovered index to omit payload content, got %s", string(rawIndex))
+	}
+}
+
+func TestManagerSetNodeEnabledPersistsSelectionAndSurvivesReload(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profiles.yaml")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+proxies:
+  - name: hk-01
+    type: ss
+    server: 1.1.1.1
+    port: 443
+    cipher: aes-128-gcm
+    password: demo
+  - name: us-02
+    type: ss
+    server: 2.2.2.2
+    port: 8443
+    cipher: aes-128-gcm
+    password: demo
+`))
+	}))
+	defer server.Close()
+
+	m, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "selection-demo",
+		Source: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+	if !profile.Nodes[0].Enabled || !profile.Nodes[1].Enabled {
+		t.Fatalf("expected imported nodes enabled by default, got %+v", profile.Nodes)
+	}
+
+	updated, err := m.SetNodeEnabled(profile.ID, 1, false)
+	if err != nil {
+		t.Fatalf("SetNodeEnabled() error = %v", err)
+	}
+	if !updated.Nodes[0].Enabled || updated.Nodes[1].Enabled {
+		t.Fatalf("expected only second node disabled, got %+v", updated.Nodes)
+	}
+
+	rawIndex, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if !strings.Contains(string(rawIndex), "enabled: false") {
+		t.Fatalf("expected index to persist disabled selection, got %s", string(rawIndex))
+	}
+	if strings.Contains(string(rawIndex), "password: demo") || strings.Contains(string(rawIndex), "payload:") {
+		t.Fatalf("expected index to omit sensitive payloads, got %s", string(rawIndex))
+	}
+
+	reloaded, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("reloaded NewManager() error = %v", err)
+	}
+
+	reloadedProfile, ok := reloaded.Get(profile.ID)
+	if !ok {
+		t.Fatalf("expected reloaded profile to exist")
+	}
+	if !reloadedProfile.Nodes[0].Enabled || reloadedProfile.Nodes[1].Enabled {
+		t.Fatalf("expected reloaded profile to preserve node selection, got %+v", reloadedProfile.Nodes)
+	}
+}
+
+func TestManagerRefreshPreservesNodeSelectionByName(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profiles.yaml")
+
+	responseBody := `
+proxies:
+  - name: hk-01
+    type: ss
+    server: 1.1.1.1
+    port: 443
+    cipher: aes-128-gcm
+    password: original
+`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(responseBody))
+	}))
+	defer server.Close()
+
+	m, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "refresh-selection",
+		Source: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+
+	if _, err := m.SetNodeEnabled(profile.ID, 0, false); err != nil {
+		t.Fatalf("SetNodeEnabled() error = %v", err)
+	}
+
+	responseBody = `
+proxies:
+  - name: hk-01
+    type: ss
+    server: 8.8.8.8
+    port: 8443
+    cipher: aes-128-gcm
+    password: refreshed
+`
+	refreshed, err := m.Refresh(profile.ID)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if len(refreshed.Nodes) != 1 {
+		t.Fatalf("expected 1 refreshed node, got %d", len(refreshed.Nodes))
+	}
+	if refreshed.Nodes[0].Enabled {
+		t.Fatalf("expected disabled selection to survive refresh, got %+v", refreshed.Nodes)
+	}
+	if !strings.Contains(refreshed.Nodes[0].Payload, "8.8.8.8") {
+		t.Fatalf("expected refreshed payload, got %s", refreshed.Nodes[0].Payload)
+	}
+	if refreshed.Nodes[0].Server != "8.8.8.8" || refreshed.Nodes[0].Port != "8443" {
+		t.Fatalf("expected refreshed metadata, got %+v", refreshed.Nodes[0])
 	}
 }
 

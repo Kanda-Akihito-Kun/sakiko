@@ -19,3 +19,7 @@ func (w *writeCounter) Take() uint64 {
 	atomic.StoreUint64(&w.last, total)
 	return delta
 }
+
+func (w *writeCounter) Total() uint64 {
+	return atomic.LoadUint64(&w.total)
+}

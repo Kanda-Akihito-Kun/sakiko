@@ -1,13 +1,18 @@
 package geo
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/vendors/local"
+
+	mihomoresolver "github.com/metacubex/mihomo/component/resolver"
+	D "github.com/miekg/dns"
 )
 
 func TestMacroRunCapturesInboundAndOutboundGeo(t *testing.T) {
@@ -94,3 +99,59 @@ func TestExtractHost(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveHostPrefersMihomoResolverForProxyHosts(t *testing.T) {
+	original := mihomoresolver.ProxyServerHostResolver
+	defer func() {
+		mihomoresolver.ProxyServerHostResolver = original
+	}()
+
+	mihomoresolver.ProxyServerHostResolver = stubResolver{
+		lookupIP: func(host string) ([]netip.Addr, error) {
+			if host != "node.example.invalid" {
+				t.Fatalf("unexpected host %q", host)
+			}
+			return []netip.Addr{netip.MustParseAddr("198.51.100.9")}, nil
+		},
+	}
+
+	ip, err := resolveHost(t.Context(), "node.example.invalid")
+	if err != nil {
+		t.Fatalf("resolveHost() error = %v", err)
+	}
+	if ip != "198.51.100.9" {
+		t.Fatalf("resolveHost() = %q, want %q", ip, "198.51.100.9")
+	}
+}
+
+type stubResolver struct {
+	lookupIP func(host string) ([]netip.Addr, error)
+}
+
+func (s stubResolver) LookupIP(_ context.Context, host string) ([]netip.Addr, error) {
+	return s.lookupIP(host)
+}
+
+func (s stubResolver) LookupIPv4(ctx context.Context, host string) ([]netip.Addr, error) {
+	return s.LookupIP(ctx, host)
+}
+
+func (s stubResolver) LookupIPv6(_ context.Context, _ string) ([]netip.Addr, error) {
+	return nil, mihomoresolver.ErrIPv6Disabled
+}
+
+func (s stubResolver) ResolveECH(_ context.Context, _ string) ([]byte, error) {
+	return nil, mihomoresolver.ErrIPNotFound
+}
+
+func (s stubResolver) ExchangeContext(_ context.Context, _ *D.Msg) (*D.Msg, error) {
+	return nil, mihomoresolver.ErrIPNotFound
+}
+
+func (s stubResolver) Invalid() bool {
+	return true
+}
+
+func (s stubResolver) ClearCache() {}
+
+func (s stubResolver) ResetConnection() {}

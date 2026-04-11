@@ -26,16 +26,16 @@ export function ImportProfilePanel({
   return (
     <SectionCard
       title="Import Profile"
-      subtitle="Source URL or inline Clash YAML"
+      subtitle="Subscription URL import"
       icon={<CloudUploadRounded color="primary" />}
     >
       <Stack spacing={2}>
         <TextField
-          label="Name"
+          label="Custome Profile Name"
           fullWidth
           value={importForm.name}
           onChange={(event) => onImportFormChange("name", event.target.value)}
-          placeholder="Tokyo Nodes / My Clash Sub"
+          placeholder="Use profile's name in default"
         />
 
         <TextField
@@ -44,16 +44,6 @@ export function ImportProfilePanel({
           value={importForm.source}
           onChange={(event) => onImportFormChange("source", event.target.value)}
           placeholder="https://example.com/sub.yaml"
-        />
-
-        <TextField
-          label="Inline Content"
-          fullWidth
-          multiline
-          minRows={8}
-          value={importForm.content}
-          onChange={(event) => onImportFormChange("content", event.target.value)}
-          placeholder={"proxies:\n  - name: hk-1\n    type: vmess\n    server: 1.1.1.1\n    port: 443"}
         />
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>

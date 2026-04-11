@@ -201,6 +201,26 @@ func (s *Service) GetProfile(profileID string) (interfaces.ProfileGetResponse, e
 	return interfaces.ProfileGetResponse{Profile: profile}, nil
 }
 
+func (s *Service) UpdateProfileNodeSelection(req interfaces.ProfileNodeSelectionUpdateRequest) (interfaces.ProfileNodeSelectionUpdateResponse, error) {
+	if s == nil || s.profiles == nil {
+		apiLogger().Warn("update profile node selection rejected: service not initialized")
+		return interfaces.ProfileNodeSelectionUpdateResponse{}, fmt.Errorf("service not initialized")
+	}
+
+	profile, err := s.profiles.SetNodeEnabled(req.ProfileID, req.NodeIndex, req.Enabled)
+	if err != nil {
+		apiLogger().Warn("update profile node selection failed",
+			zap.String("profile_id", req.ProfileID),
+			zap.Int("node_index", req.NodeIndex),
+			zap.Bool("enabled", req.Enabled),
+			zap.Error(err),
+		)
+		return interfaces.ProfileNodeSelectionUpdateResponse{}, err
+	}
+
+	return interfaces.ProfileNodeSelectionUpdateResponse{Profile: profile}, nil
+}
+
 func (s *Service) ListDownloadTargets() (interfaces.DownloadTargetListResponse, error) {
 	if s == nil || s.downloadTargets == nil {
 		apiLogger().Warn("list download targets rejected: service not initialized")

@@ -1,7 +1,7 @@
 import HomeRounded from "@mui/icons-material/HomeRounded";
 import { Box, Stack } from "@mui/material";
-import { ConsoleFooter } from "../components/layout/ConsoleFooter";
 import { DashboardHero } from "../components/layout/DashboardHero";
+import { WorkspaceStatusPanel } from "../components/layout/WorkspaceStatusPanel";
 import { ProfileListPanel } from "../components/profile/ProfileListPanel";
 import { OverviewRow } from "../components/shared/OverviewRow";
 import { SectionCard } from "../components/shared/SectionCard";
@@ -57,6 +57,7 @@ export function OverviewSection({
               label="Profiles Path"
               value={profilesPath || "Loading..."}
               mono
+              multiline
             />
             <OverviewRow
               label="Active Task"
@@ -70,7 +71,7 @@ export function OverviewSection({
         </SectionCard>
       </Box>
 
-      <ConsoleFooter message={message} error={error} />
+      <WorkspaceStatusPanel message={message} error={error} />
     </Stack>
   );
 }

@@ -3,7 +3,6 @@ import type { ImportForm, TaskPreset } from "../types/dashboard";
 type ImportProfilePayload = {
   name: string;
   source: string;
-  content?: string;
 };
 
 type TaskConfigShape = {
@@ -26,7 +25,6 @@ export function createImportProfilePayload(importForm: ImportForm): ImportProfil
   return {
     name: importForm.name.trim(),
     source: importForm.source.trim(),
-    content: importForm.content.trim(),
   };
 }
 

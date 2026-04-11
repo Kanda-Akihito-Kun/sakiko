@@ -2,19 +2,7 @@ import PlayCircleFilledWhiteRounded from "@mui/icons-material/PlayCircleFilledWh
 import ScheduleRounded from "@mui/icons-material/ScheduleRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
-import {
-  Box,
-  Button,
-  Chip,
-  LinearProgress,
-  List,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Chip, LinearProgress, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { taskPresets } from "../../constants/dashboard";
 import type { TaskPreset } from "../../types/dashboard";
 import type { TaskConfig, TaskState } from "../../types/sakiko";
@@ -49,37 +37,40 @@ export function TaskLauncherPanel({
   return (
     <SectionCard
       title="Task Launcher"
-      subtitle="Choose a task preset and run it with shared defaults from Settings"
+      subtitle="Choose a task preset"
       icon={<TuneRounded color="primary" />}
     >
       <Stack spacing={2}>
-        <ToggleButtonGroup
-          exclusive
-          fullWidth
-          value={taskPreset}
-          onChange={(_event, value: TaskPreset | null) => {
-            if (value) {
-              onTaskPresetChange(value);
-            }
-          }}
-        >
-          {taskPresets.map((preset) => (
-            <ToggleButton key={preset} value={preset}>
-              {preset.toUpperCase()}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        <Box sx={{ maxWidth: "100%", overflowX: "auto", pb: 0.25 }}>
+          <ToggleButtonGroup
+            exclusive
+            value={taskPreset}
+            onChange={(_event, value: TaskPreset | null) => {
+              if (value) {
+                onTaskPresetChange(value);
+              }
+            }}
+            sx={{
+              display: "inline-flex",
+              flexWrap: "nowrap",
+              width: "max-content",
+              minWidth: "100%",
+              "& .MuiToggleButton-root": {
+                flex: "0 0 auto",
+                whiteSpace: "nowrap",
+              },
+            }}
+          >
+            {taskPresets.map((preset) => (
+              <ToggleButton key={preset} value={preset}>
+                {preset.toUpperCase()}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
 
         <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Shared Defaults
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Ping URL, timeout, download target, duration, and speed mode are now managed in Settings.
-              </Typography>
-            </Box>
+          <Stack direction="row" justifyContent="flex-end" alignItems="flex-start" spacing={1}>
             <Button
               size="small"
               variant="outlined"

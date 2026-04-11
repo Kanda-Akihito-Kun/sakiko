@@ -184,11 +184,15 @@ export function createAppTheme(mode: ResolvedThemeMode) {
           },
           body: {
             minWidth: 320,
+            height: "100vh",
+            overflow: "hidden",
             backgroundColor: tokens.pageBackground,
             color: tokens.textPrimary,
           },
           "#root": {
+            height: "100vh",
             minHeight: "100vh",
+            overflow: "hidden",
           },
         },
       },

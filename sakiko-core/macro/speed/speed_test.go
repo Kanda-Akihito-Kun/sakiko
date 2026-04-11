@@ -22,3 +22,24 @@ func TestDropExtremesKeepsTwoOrFewerSamples(t *testing.T) {
 		t.Fatalf("expected untrimmed speeds %v, got %v", expected, trimmed)
 	}
 }
+
+func TestWriteCounterTracksTotalBytes(t *testing.T) {
+	counter := &writeCounter{}
+
+	if _, err := counter.Write(make([]byte, 512)); err != nil {
+		t.Fatalf("Write() first error = %v", err)
+	}
+	if _, err := counter.Write(make([]byte, 256)); err != nil {
+		t.Fatalf("Write() second error = %v", err)
+	}
+
+	if got := counter.Total(); got != 768 {
+		t.Fatalf("expected total bytes 768, got %d", got)
+	}
+	if got := counter.Take(); got != 768 {
+		t.Fatalf("expected take bytes 768, got %d", got)
+	}
+	if got := counter.Take(); got != 0 {
+		t.Fatalf("expected second take bytes 0, got %d", got)
+	}
+}

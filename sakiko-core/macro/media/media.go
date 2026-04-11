@@ -29,14 +29,17 @@ const (
 	huluAuthBody             = "csrf=fdc1427eccde53326e27d7575c436595e28299dc420232ff26075ca06bbb28ed&password=Jam0.5cm~&scenario=web_password_login&user_email=me%40jamchoi.cc"
 	bilibiliHKMCTWHost       = "api.bilibili.com"
 	bilibiliHKMCTWURLPattern = "https://api.bilibili.com/pgc/player/web/playurl?avid=18281381&cid=29892777&qn=0&type=&otype=json&ep_id=183799&fourk=1&fnver=0&fnval=16&session=%s&module=bangumi"
-	minProbeTimeout          = 10 * time.Second
+	mediaProbeAttemptTimeout = 5 * time.Second
 	modeProbeTimeout         = 8 * time.Second
 	publicLookupTimeout      = 4 * time.Second
 	maxModeProbeIPs          = 2
+	mediaProbeRetryAttempts  = 2
+	mediaProbeConcurrency    = 4
+	maxMediaProbeTimeout     = 12 * time.Second
 )
 
 var (
-	mediaBrowserUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+	mediaBrowserUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.64"
 	netflixContextRegexp = regexp.MustCompile(`(?s)netflix\.reactContext\s*=\s*(\{.*?\});`)
 	doHQueryPatterns     = []string{
 		"https://cloudflare-dns.com/dns-query?name=%s&type=%s",
@@ -51,6 +54,7 @@ type Macro struct {
 type httpSnapshot struct {
 	StatusCode int
 	FinalURL   string
+	Headers    http.Header
 	Body       []byte
 }
 
@@ -67,6 +71,7 @@ type requestSpec struct {
 	Body          []byte
 	Host          string
 	TLSServerName string
+	NoRedir       bool
 }
 
 func (m *Macro) Type() interfaces.MacroType {
@@ -75,22 +80,36 @@ func (m *Macro) Type() interfaces.MacroType {
 
 func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	probeTimeout := resolveProbeTimeout(task)
-	results := make([]interfaces.MediaUnlockPlatformResult, 3)
-
 	probes := []func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult{
+		probeChatGPT,
+		probeClaude,
+		probeGemini,
+		probeYouTubePremium,
 		probeNetflix,
 		probeHulu,
+		probeHuluJP,
+		probePrimeVideo,
+		probeHBOMax,
 		probeBilibiliHKMCTW,
+		probeBilibiliTW,
+		probeAbema,
+		probeTikTok,
+		probeSpotify,
+		probeSteam,
 	}
+	results := make([]interfaces.MediaUnlockPlatformResult, len(probes))
 
+	sem := make(chan struct{}, mediaProbeConcurrency)
 	var wg sync.WaitGroup
 	for index, probe := range probes {
 		wg.Add(1)
 		go func(i int, run func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult) {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
-			defer cancel()
-			results[i] = run(ctx, proxy)
+			sem <- struct{}{}
+			defer func() {
+				<-sem
+			}()
+			results[i] = runProbeWithRetry(proxy, probeTimeout, run)
 		}(index, probe)
 	}
 	wg.Wait()
@@ -101,6 +120,39 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 
 	// Media probing is auxiliary data and must not poison node execution semantics.
 	return nil
+}
+
+func runProbeWithRetry(
+	proxy interfaces.Vendor,
+	timeout time.Duration,
+	run func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult,
+) interfaces.MediaUnlockPlatformResult {
+	first := runProbeAttempt(proxy, timeout, run)
+	if first.Status != interfaces.MediaUnlockStatusFailed {
+		return first
+	}
+
+	result := first
+	for attempt := 2; attempt <= mediaProbeRetryAttempts; attempt++ {
+		candidate := runProbeAttempt(proxy, timeout, run)
+		if candidate.Status != interfaces.MediaUnlockStatusFailed {
+			return candidate
+		}
+		candidate.Error = joinErrorTexts(result.Error, candidate.Error)
+		result = finalizeResult(candidate)
+	}
+
+	return result
+}
+
+func runProbeAttempt(
+	proxy interfaces.Vendor,
+	timeout time.Duration,
+	run func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult,
+) interfaces.MediaUnlockPlatformResult {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return run(ctx, proxy)
 }
 
 func probeNetflix(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockPlatformResult {
@@ -154,17 +206,17 @@ func probeNetflix(ctx context.Context, proxy interfaces.Vendor) interfaces.Media
 	if results[0].err != nil && results[1].err != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = joinErrors(results[0].err, results[1].err)
-		return result
+		return finalizeResult(result)
 	}
 
 	if accessible {
 		result.Status = interfaces.MediaUnlockStatusYes
-		result.Mode = inferNetflixUnlockMode(proxy)
-		return result
+		result.Mode = inferNetflixUnlockMode(ctx, proxy)
+		return finalizeResult(result)
 	}
 
 	result.Status = interfaces.MediaUnlockStatusOriginalsOnly
-	return result
+	return finalizeResult(result)
 }
 
 func probeHulu(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockPlatformResult {
@@ -178,14 +230,14 @@ func probeHulu(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnl
 	if err != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = err.Error()
-		return result
+		return finalizeResult(result)
 	}
 
 	status, errName, parseErr := evaluateHuluSnapshot(snapshot)
 	if parseErr != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = parseErr.Error()
-		return result
+		return finalizeResult(result)
 	}
 
 	result.Status = status
@@ -193,12 +245,12 @@ func probeHulu(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnl
 	if result.Status == interfaces.MediaUnlockStatusYes {
 		result.Region = "US"
 		result.Error = ""
-		result.Mode = inferHuluUnlockMode(proxy)
+		result.Mode = inferHuluUnlockMode(ctx, proxy)
 	}
 	if result.Status == interfaces.MediaUnlockStatusNo {
 		result.Error = ""
 	}
-	return result
+	return finalizeResult(result)
 }
 
 func probeBilibiliHKMCTW(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockPlatformResult {
@@ -212,7 +264,7 @@ func probeBilibiliHKMCTW(ctx context.Context, proxy interfaces.Vendor) interface
 	if err != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = err.Error()
-		return result
+		return finalizeResult(result)
 	}
 
 	requestURL := fmt.Sprintf(bilibiliHKMCTWURLPattern, sessionID)
@@ -220,22 +272,22 @@ func probeBilibiliHKMCTW(ctx context.Context, proxy interfaces.Vendor) interface
 	if err != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = err.Error()
-		return result
+		return finalizeResult(result)
 	}
 
 	status, parseErr := evaluateBilibiliSnapshot(snapshot)
 	if parseErr != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
 		result.Error = parseErr.Error()
-		return result
+		return finalizeResult(result)
 	}
 
 	result.Status = status
 	if result.Status == interfaces.MediaUnlockStatusYes {
 		result.Region = "HK/MO/TW"
-		result.Mode = inferBilibiliUnlockMode(proxy, requestURL)
+		result.Mode = inferBilibiliUnlockMode(ctx, proxy, requestURL)
 	}
-	return result
+	return finalizeResult(result)
 }
 
 func performRequest(ctx context.Context, proxy interfaces.Vendor, spec requestSpec) (httpSnapshot, error) {
@@ -247,6 +299,7 @@ func performRequest(ctx context.Context, proxy interfaces.Vendor, spec requestSp
 		Body:          spec.Body,
 		Host:          spec.Host,
 		TLSServerName: spec.TLSServerName,
+		NoRedir:       spec.NoRedir,
 		Network:       interfaces.ROptionsTCP,
 	})
 	if err != nil {
@@ -260,6 +313,7 @@ func performRequest(ctx context.Context, proxy interfaces.Vendor, spec requestSp
 	}
 
 	snapshot.StatusCode = resp.StatusCode
+	snapshot.Headers = resp.Header.Clone()
 	if resp.Request != nil && resp.Request.URL != nil {
 		snapshot.FinalURL = resp.Request.URL.String()
 	}
@@ -294,8 +348,8 @@ func (s httpSnapshot) netflixRegion() string {
 	return strings.TrimSpace(payload.Models.Geo.Data.RequestCountry.ID)
 }
 
-func inferNetflixUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode {
-	publicIPs, err := lookupPublicHostIPs(netflixHost)
+func inferNetflixUnlockMode(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockMode {
+	publicIPs, err := lookupPublicHostIPs(ctx, netflixHost)
 	if err != nil || len(publicIPs) == 0 {
 		return interfaces.MediaUnlockModeUnknown
 	}
@@ -303,9 +357,9 @@ func inferNetflixUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode 
 	attempted := 0
 	directOnlyMisses := 0
 	for _, ip := range limitStrings(publicIPs, maxModeProbeIPs) {
-		ctx, cancel := context.WithTimeout(context.Background(), modeProbeTimeout)
-		first, err1 := performRequest(ctx, proxy, buildNetflixRequest(netflixTitleURL1, ip, true))
-		second, err2 := performRequest(ctx, proxy, buildNetflixRequest(netflixTitleURL2, ip, true))
+		attemptCtx, cancel := context.WithTimeout(ctx, modeProbeTimeout)
+		first, err1 := performRequest(attemptCtx, proxy, buildNetflixRequest(netflixTitleURL1, ip, true))
+		second, err2 := performRequest(attemptCtx, proxy, buildNetflixRequest(netflixTitleURL2, ip, true))
 		cancel()
 
 		if err1 != nil && err2 != nil {
@@ -325,8 +379,8 @@ func inferNetflixUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode 
 	return interfaces.MediaUnlockModeUnknown
 }
 
-func inferHuluUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode {
-	publicIPs, err := lookupPublicHostIPs(huluAuthHost)
+func inferHuluUnlockMode(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockMode {
+	publicIPs, err := lookupPublicHostIPs(ctx, huluAuthHost)
 	if err != nil || len(publicIPs) == 0 {
 		return interfaces.MediaUnlockModeUnknown
 	}
@@ -334,8 +388,8 @@ func inferHuluUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode {
 	attempted := 0
 	blockedCount := 0
 	for _, ip := range limitStrings(publicIPs, maxModeProbeIPs) {
-		ctx, cancel := context.WithTimeout(context.Background(), modeProbeTimeout)
-		snapshot, reqErr := performRequest(ctx, proxy, buildHuluRequest(huluAuthURL, ip, true))
+		attemptCtx, cancel := context.WithTimeout(ctx, modeProbeTimeout)
+		snapshot, reqErr := performRequest(attemptCtx, proxy, buildHuluRequest(huluAuthURL, ip, true))
 		cancel()
 		if reqErr != nil {
 			continue
@@ -361,8 +415,8 @@ func inferHuluUnlockMode(proxy interfaces.Vendor) interfaces.MediaUnlockMode {
 	return interfaces.MediaUnlockModeUnknown
 }
 
-func inferBilibiliUnlockMode(proxy interfaces.Vendor, requestURL string) interfaces.MediaUnlockMode {
-	publicIPs, err := lookupPublicHostIPs(bilibiliHKMCTWHost)
+func inferBilibiliUnlockMode(ctx context.Context, proxy interfaces.Vendor, requestURL string) interfaces.MediaUnlockMode {
+	publicIPs, err := lookupPublicHostIPs(ctx, bilibiliHKMCTWHost)
 	if err != nil || len(publicIPs) == 0 {
 		return interfaces.MediaUnlockModeUnknown
 	}
@@ -370,8 +424,8 @@ func inferBilibiliUnlockMode(proxy interfaces.Vendor, requestURL string) interfa
 	attempted := 0
 	blockedCount := 0
 	for _, ip := range limitStrings(publicIPs, maxModeProbeIPs) {
-		ctx, cancel := context.WithTimeout(context.Background(), modeProbeTimeout)
-		snapshot, reqErr := performRequest(ctx, proxy, buildBilibiliRequest(requestURL, ip, true))
+		attemptCtx, cancel := context.WithTimeout(ctx, modeProbeTimeout)
+		snapshot, reqErr := performRequest(attemptCtx, proxy, buildBilibiliRequest(requestURL, ip, true))
 		cancel()
 		if reqErr != nil {
 			continue
@@ -512,12 +566,12 @@ func replaceURLHost(rawURL string, host string) (string, error) {
 	return parsed.String(), nil
 }
 
-func lookupPublicHostIPs(host string) ([]string, error) {
+func lookupPublicHostIPs(ctx context.Context, host string) ([]string, error) {
 	if strings.TrimSpace(host) == "" {
 		return nil, fmt.Errorf("host is required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), publicLookupTimeout)
+	ctx, cancel := context.WithTimeout(ctx, publicLookupTimeout)
 	defer cancel()
 
 	for _, pattern := range doHQueryPatterns {
@@ -527,7 +581,7 @@ func lookupPublicHostIPs(host string) ([]string, error) {
 		}
 	}
 
-	resolverCtx, resolverCancel := context.WithTimeout(context.Background(), publicLookupTimeout)
+	resolverCtx, resolverCancel := context.WithTimeout(ctx, publicLookupTimeout)
 	defer resolverCancel()
 
 	ips, err := net.DefaultResolver.LookupIPAddr(resolverCtx, host)
@@ -612,12 +666,18 @@ func randomHex(byteCount int) (string, error) {
 }
 
 func resolveProbeTimeout(task *interfaces.Task) time.Duration {
-	if task == nil {
-		return minProbeTimeout
+	timeout := mediaProbeAttemptTimeout
+	if task != nil {
+		cfg := task.Config.Normalize()
+		if cfg.TaskTimeoutMillis > 0 {
+			timeout = time.Duration(cfg.TaskTimeoutMillis) * time.Millisecond
+		}
 	}
-	timeout := time.Duration(task.Config.Normalize().TaskTimeoutMillis) * time.Millisecond
-	if timeout < minProbeTimeout {
-		return minProbeTimeout
+	if timeout < mediaProbeAttemptTimeout {
+		timeout = mediaProbeAttemptTimeout
+	}
+	if timeout > maxMediaProbeTimeout {
+		timeout = maxMediaProbeTimeout
 	}
 	return timeout
 }
@@ -648,6 +708,27 @@ func joinErrors(errs ...error) string {
 		}
 		if !duplicate {
 			parts = append(parts, message)
+		}
+	}
+	return strings.Join(parts, " | ")
+}
+
+func joinErrorTexts(values ...string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		duplicate := false
+		for _, existing := range parts {
+			if existing == trimmed {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			parts = append(parts, trimmed)
 		}
 	}
 	return strings.Join(parts, " | ")

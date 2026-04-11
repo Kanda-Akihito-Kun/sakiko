@@ -15,8 +15,8 @@ describe("dashboard utilities", () => {
         name: "demo",
         source: "",
         nodes: [
-          { name: "HK-01", payload: "" },
-          { name: "US-02", payload: "" },
+          { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
+          { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", enabled: true },
         ],
         updatedAt: "",
       },
@@ -24,6 +24,26 @@ describe("dashboard utilities", () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.name).toBe("HK-01");
+    expect(result[0]?.node.name).toBe("HK-01");
+    expect(result[0]?.index).toBe(0);
+  });
+
+  it("filters nodes by structured metadata", () => {
+    const result = getFilteredNodes(
+      {
+        id: "p1",
+        name: "demo",
+        source: "",
+        nodes: [
+          { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
+          { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", udp: true, enabled: true },
+        ],
+        updatedAt: "",
+      },
+      "8443",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.node.name).toBe("US-02");
   });
 });

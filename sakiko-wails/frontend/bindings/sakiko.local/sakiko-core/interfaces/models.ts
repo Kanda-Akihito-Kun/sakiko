@@ -172,6 +172,7 @@ export enum MatrixType {
     MatrixAverageSpeed = "SPEED_AVERAGE",
     MatrixMaxSpeed = "SPEED_MAX",
     MatrixPerSecSpeed = "SPEED_PER_SECOND",
+    MatrixTrafficUsed = "SPEED_TRAFFIC_USED",
     MatrixInboundGeoIP = "GEOIP_INBOUND",
     MatrixOutboundGeoIP = "GEOIP_OUTBOUND",
     MatrixMediaUnlock = "MEDIA_UNLOCK",
@@ -180,15 +181,20 @@ export enum MatrixType {
 
 export class Node {
     "name": string;
-    "payload": string;
+    "protocol"?: string;
+    "server"?: string;
+    "port"?: string;
+    "udp"?: boolean | null;
+    "payload"?: string;
+    "enabled": boolean;
 
     /** Creates a new Node instance. */
     constructor($$source: Partial<Node> = {}) {
         if (!("name" in $$source)) {
             this["name"] = "";
         }
-        if (!("payload" in $$source)) {
-            this["payload"] = "";
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
         }
 
         Object.assign(this, $$source);
@@ -245,7 +251,6 @@ export class Profile {
 export class ProfileImportRequest {
     "name": string;
     "source": string;
-    "content"?: string;
     "attributes"?: any;
 
     /** Creates a new ProfileImportRequest instance. */

@@ -75,3 +75,21 @@ func TestCountMatrixFailuresDetectsGeoErrors(t *testing.T) {
 		t.Fatalf("expected 1 failure, got %d", failures)
 	}
 }
+
+func TestNodeRetryAttemptsDisablesWholeNodeRetryForExpensiveMacros(t *testing.T) {
+	task := interfaces.Task{
+		Config: interfaces.TaskConfig{
+			TaskRetry: 2,
+		},
+	}
+
+	if got := nodeRetryAttempts(task, []interfaces.MacroType{interfaces.MacroPing, interfaces.MacroGeo}); got != 2 {
+		t.Fatalf("expected connection-only task to keep retries, got %d", got)
+	}
+	if got := nodeRetryAttempts(task, []interfaces.MacroType{interfaces.MacroPing, interfaces.MacroSpeed}); got != 1 {
+		t.Fatalf("expected speed task to disable whole-node retry, got %d", got)
+	}
+	if got := nodeRetryAttempts(task, []interfaces.MacroType{interfaces.MacroMedia}); got != 1 {
+		t.Fatalf("expected media task to disable whole-node retry, got %d", got)
+	}
+}

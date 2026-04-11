@@ -141,31 +141,64 @@ func (e *Engine) Submit(task interfaces.Task, cb Callbacks) (string, error) {
 func runMacros(v interfaces.Vendor, task *interfaces.Task, macroTypes []interfaces.MacroType) (map[interfaces.MacroType]interfaces.Macro, error) {
 	out := map[interfaces.MacroType]interfaces.Macro{}
 	errs := make([]error, 0, len(macroTypes))
-	var lock sync.Mutex
-	var wg sync.WaitGroup
-	for _, mt := range macroTypes {
-		wg.Add(1)
-		go func(macroType interfaces.MacroType) {
-			defer wg.Done()
-			m := macro.Find(macroType)
-			err := m.Run(v, task)
-			if err != nil {
-				executorLogger().Warn("macro execution failed",
-					zap.String("macro_type", string(macroType)),
-					zap.String("proxy_name", v.ProxyInfo().Name),
-					zap.Error(err),
-				)
-			}
-			lock.Lock()
-			out[macroType] = m
-			if err != nil {
-				errs = append(errs, fmt.Errorf("%s: %w", macroType, err))
-			}
-			lock.Unlock()
-		}(mt)
+	for _, macroType := range macroExecutionOrder(macroTypes) {
+		m := macro.Find(macroType)
+		err := m.Run(v, task)
+		if err != nil {
+			executorLogger().Warn("macro execution failed",
+				zap.String("macro_type", string(macroType)),
+				zap.String("proxy_name", v.ProxyInfo().Name),
+				zap.Error(err),
+			)
+			errs = append(errs, fmt.Errorf("%s: %w", macroType, err))
+		}
+		out[macroType] = m
 	}
-	wg.Wait()
 	return out, errors.Join(errs...)
+}
+
+func macroExecutionOrder(macroTypes []interfaces.MacroType) []interfaces.MacroType {
+	priority := map[interfaces.MacroType]int{
+		interfaces.MacroPing:  0,
+		interfaces.MacroGeo:   1,
+		interfaces.MacroSpeed: 2,
+		interfaces.MacroMedia: 3,
+	}
+
+	seen := make(map[interfaces.MacroType]struct{}, len(macroTypes))
+	ordered := make([]interfaces.MacroType, 0, len(macroTypes))
+
+	appendIfPresent := func(target interfaces.MacroType) {
+		for _, macroType := range macroTypes {
+			if macroType != target {
+				continue
+			}
+			if _, exists := seen[macroType]; exists {
+				return
+			}
+			seen[macroType] = struct{}{}
+			ordered = append(ordered, macroType)
+			return
+		}
+	}
+
+	appendIfPresent(interfaces.MacroPing)
+	appendIfPresent(interfaces.MacroGeo)
+	appendIfPresent(interfaces.MacroSpeed)
+	appendIfPresent(interfaces.MacroMedia)
+
+	for _, macroType := range macroTypes {
+		if _, exists := seen[macroType]; exists {
+			continue
+		}
+		if _, known := priority[macroType]; known {
+			continue
+		}
+		seen[macroType] = struct{}{}
+		ordered = append(ordered, macroType)
+	}
+
+	return ordered
 }
 
 func extractMatrices(entries []interfaces.MatrixEntry, macroMap map[interfaces.MacroType]interfaces.Macro) []interfaces.MatrixResult {

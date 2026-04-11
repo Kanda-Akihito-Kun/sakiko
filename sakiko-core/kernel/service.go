@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -156,6 +157,9 @@ func (s *Service) ListTasks() []interfaces.TaskState {
 	for _, task := range s.tasks {
 		out = append(out, task.state)
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return newerTaskState(out[i], out[j])
+	})
 	return out
 }
 
@@ -256,4 +260,32 @@ func randomID() string {
 
 func kernelLogger() *zap.Logger {
 	return logx.Named("core.kernel")
+}
+
+func newerTaskState(left interfaces.TaskState, right interfaces.TaskState) bool {
+	leftStartedAt := parseTaskTimestamp(left.StartedAt)
+	rightStartedAt := parseTaskTimestamp(right.StartedAt)
+	if leftStartedAt != rightStartedAt {
+		return leftStartedAt.After(rightStartedAt)
+	}
+
+	leftFinishedAt := parseTaskTimestamp(left.FinishedAt)
+	rightFinishedAt := parseTaskTimestamp(right.FinishedAt)
+	if leftFinishedAt != rightFinishedAt {
+		return leftFinishedAt.After(rightFinishedAt)
+	}
+
+	return left.TaskID > right.TaskID
+}
+
+func parseTaskTimestamp(value string) time.Time {
+	if value == "" {
+		return time.Time{}
+	}
+
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }

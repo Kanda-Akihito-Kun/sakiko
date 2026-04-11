@@ -12,10 +12,11 @@ import (
 )
 
 type Macro struct {
-	AvgSpeed uint64
-	MaxSpeed uint64
-	Total    uint64
-	Speeds   []uint64
+	AvgSpeed    uint64
+	MaxSpeed    uint64
+	Total       uint64
+	TrafficUsed uint64
+	Speeds      []uint64
 }
 
 const (
@@ -35,11 +36,13 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	counters := make([]*writeCounter, 0, cfg.DownloadThreading)
 	cancels := make([]context.CancelFunc, 0, cfg.DownloadThreading)
 	var ready sync.WaitGroup
+	var done sync.WaitGroup
 
 	for i := 0; i < int(cfg.DownloadThreading); i++ {
 		ready.Add(1)
+		done.Add(1)
 		counter := &writeCounter{}
-		cancel := singleThread(proxy, cfg.DownloadURL, cfg.DownloadDuration, counter, &ready)
+		cancel := singleThread(proxy, cfg.DownloadURL, cfg.DownloadDuration, counter, &ready, &done)
 		counters = append(counters, counter)
 		cancels = append(cancels, cancel)
 	}
@@ -55,6 +58,10 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	}
 	for _, cancel := range cancels {
 		cancel()
+	}
+	done.Wait()
+	for _, counter := range counters {
+		m.TrafficUsed += counter.Total()
 	}
 
 	m.Speeds = dropExtremes(samples)
@@ -73,9 +80,10 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	return nil
 }
 
-func singleThread(proxy interfaces.Vendor, rawURL string, duration int64, counter *writeCounter, ready *sync.WaitGroup) context.CancelFunc {
+func singleThread(proxy interfaces.Vendor, rawURL string, duration int64, counter *writeCounter, ready *sync.WaitGroup, done *sync.WaitGroup) context.CancelFunc {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(duration+1)*time.Second)
 	go func() {
+		defer done.Done()
 		ready.Done()
 		for ctx.Err() == nil {
 			resp, err := netx.RequestUnsafe(ctx, proxy, interfaces.RequestOptions{

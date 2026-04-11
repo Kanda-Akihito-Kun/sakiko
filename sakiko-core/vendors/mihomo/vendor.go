@@ -36,6 +36,8 @@ func (v *Vendor) Build(node interfaces.Node) interfaces.Vendor {
 		return v
 	}
 
+	ensureRuntime()
+
 	payload := map[string]any{}
 	if err := yaml.Unmarshal([]byte(raw), &payload); err != nil {
 		return v

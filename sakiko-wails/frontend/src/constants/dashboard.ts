@@ -4,7 +4,6 @@ import type { ImportForm, TaskPreset } from "../types/dashboard";
 export const initialImportForm: ImportForm = {
   name: "",
   source: "",
-  content: "",
 };
 
 export const initialTaskConfig = new TaskConfig({
@@ -17,4 +16,4 @@ export const initialTaskConfig = new TaskConfig({
   downloadThreading: 8,
 });
 
-export const taskPresets: TaskPreset[] = ["ping", "geo", "speed", "media", "full"];
+export const taskPresets: TaskPreset[] = ["full", "ping", "geo", "speed", "media"];

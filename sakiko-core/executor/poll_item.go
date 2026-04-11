@@ -55,7 +55,7 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 		}
 	}()
 
-	attempts := int(p.task.Config.TaskRetry)
+	attempts := nodeRetryAttempts(p.task, p.macros)
 	if attempts < 1 {
 		attempts = 1
 	}
@@ -91,6 +91,24 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 		zap.Int64("invoke_duration_ms", result.InvokeDuration),
 		zap.String("result_error", result.Error),
 	)
+}
+
+func nodeRetryAttempts(task interfaces.Task, macros []interfaces.MacroType) int {
+	attempts := int(task.Config.TaskRetry)
+	if attempts < 1 {
+		return 1
+	}
+
+	for _, macroType := range macros {
+		switch macroType {
+		case interfaces.MacroSpeed, interfaces.MacroMedia:
+			// Expensive macros already have internal retry / retry-like behavior.
+			// Re-running the whole node makes full tasks disproportionately slow.
+			return 1
+		}
+	}
+
+	return attempts
 }
 
 func executeNodeAttempt(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType) interfaces.EntryResult {
@@ -145,7 +163,7 @@ func isMatrixFailed(target interfaces.MatrixType, matrices []interfaces.MatrixRe
 	}
 
 	switch target {
-	case interfaces.MatrixRTTPing, interfaces.MatrixHTTPPing, interfaces.MatrixAverageSpeed, interfaces.MatrixMaxSpeed:
+	case interfaces.MatrixRTTPing, interfaces.MatrixHTTPPing, interfaces.MatrixAverageSpeed, interfaces.MatrixMaxSpeed, interfaces.MatrixTrafficUsed:
 		payload, ok := decodePayload[struct {
 			Value uint64 `json:"value"`
 		}](matrix.Payload)

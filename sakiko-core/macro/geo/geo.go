@@ -12,6 +12,8 @@ import (
 
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/netx"
+
+	mihomoresolver "github.com/metacubex/mihomo/component/resolver"
 )
 
 var (
@@ -87,7 +89,7 @@ func lookupInbound(proxy interfaces.Vendor, timeout time.Duration) (interfaces.G
 		return interfaces.GeoIPInfo{Address: host}, err
 	}
 
-	info, err := lookupIPInfo(nil, ip, timeout)
+	info, err := lookupIPInfo(proxy, ip, timeout)
 	info.Address = host
 	return info, err
 }
@@ -153,6 +155,17 @@ func requestIPInfo(proxy interfaces.Vendor, url string, timeout time.Duration) (
 func resolveHost(ctx context.Context, host string) (string, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		return ip.String(), nil
+	}
+
+	if ips, err := mihomoresolver.LookupIPWithResolver(ctx, host, mihomoresolver.ProxyServerHostResolver); err == nil {
+		for _, ip := range ips {
+			if ip.Is4() {
+				return ip.String(), nil
+			}
+		}
+		if len(ips) > 0 {
+			return ips[0].String(), nil
+		}
 	}
 
 	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)

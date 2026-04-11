@@ -13,7 +13,7 @@ The codebase now includes a working MVP kernel implementation for:
 - in-memory runtime task registry
 - WebSocket transport with authenticated envelope flow
 - profile management in `api/`:
-  - import profile from inline content or subscription URL
+  - import profile from subscription URL
   - list and get profile
   - refresh profile from source URL
 - local profile persistence via `profiles.yaml` (YAML file storage)

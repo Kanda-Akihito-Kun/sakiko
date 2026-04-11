@@ -134,6 +134,15 @@ require (
 
 require sakiko.local/sakiko-core v0.0.0
 
-require go.uber.org/multierr v1.10.0 // indirect
+require (
+	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/metacubex/nftables v0.0.0-20250503052935-30a69ab87793 // indirect
+	github.com/metacubex/sing-tun v0.4.16 // indirect
+	github.com/oschwald/maxminddb-golang v1.12.0 // indirect
+	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
+	github.com/vishvananda/netns v0.0.4 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
 
 replace sakiko.local/sakiko-core => ../sakiko-core

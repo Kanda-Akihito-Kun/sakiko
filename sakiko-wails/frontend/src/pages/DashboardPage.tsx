@@ -5,7 +5,6 @@ import MenuRounded from "@mui/icons-material/MenuRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import StorageRounded from "@mui/icons-material/StorageRounded";
-import TerminalRounded from "@mui/icons-material/TerminalRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
 import {
   Box,
@@ -29,10 +28,9 @@ const OverviewSection = lazy(() => import("../sections/OverviewSection").then((m
 const ProfilesSection = lazy(() => import("../sections/ProfilesSection").then((module) => ({ default: module.ProfilesSection })));
 const TasksSection = lazy(() => import("../sections/TasksSection").then((module) => ({ default: module.TasksSection })));
 const ResultsSection = lazy(() => import("../sections/ResultsSection").then((module) => ({ default: module.ResultsSection })));
-const ConsoleSection = lazy(() => import("../sections/ConsoleSection").then((module) => ({ default: module.ConsoleSection })));
 const SettingsSection = lazy(() => import("../sections/SettingsSection").then((module) => ({ default: module.SettingsSection })));
 
-export type DashboardSection = "overview" | "profiles" | "tasks" | "results" | "console" | "settings";
+export type DashboardSection = "overview" | "profiles" | "tasks" | "results" | "settings";
 
 type NavItem = {
   id: DashboardSection;
@@ -46,7 +44,6 @@ const navItems: NavItem[] = [
   { id: "profiles", label: "Profiles", subtitle: "Profiles", icon: StorageRounded },
   { id: "tasks", label: "Tasks", subtitle: "Tasks", icon: TuneRounded },
   { id: "results", label: "Results", subtitle: "Archives", icon: InsightsRounded },
-  { id: "console", label: "Console", subtitle: "Logs", icon: TerminalRounded },
   { id: "settings", label: "Settings", subtitle: "Settings", icon: SettingsRounded },
 ];
 
@@ -70,6 +67,7 @@ export function DashboardPage() {
     handleInspectTask: state.handleInspectTask,
     handleProfileSelect: state.handleProfileSelect,
     handleRefreshProfile: state.handleRefreshProfile,
+    handleSetProfileNodeEnabled: state.handleSetProfileNodeEnabled,
     handleRunTask: state.handleRunTask,
     importForm: state.importForm,
     loading: state.loading,
@@ -148,16 +146,6 @@ export function DashboardPage() {
             })}
           </List>
 
-          <Stack className="sakiko-sidebar__footer" spacing={1.25}>
-            <SidebarStat label="Profiles" value={`${dashboard.profiles.length}`} />
-            <SidebarStat label="Tasks" value={`${dashboard.tasks.length}`} />
-            <SidebarStat label="Results" value={`${dashboard.resultArchives.length}`} />
-            <SidebarStat
-              label="Selected"
-              value={dashboard.activeProfile?.name || "No profile"}
-              mono={Boolean(!dashboard.activeProfile?.name)}
-            />
-          </Stack>
         </Box>
 
         <Box className="sakiko-content">
@@ -238,6 +226,7 @@ export function DashboardPage() {
                   onDeleteProfile={dashboard.handleDeleteProfile}
                   onImport={dashboard.handleImport}
                   onImportFormChange={dashboard.updateImportForm}
+                  onNodeEnabledChange={dashboard.handleSetProfileNodeEnabled}
                   onNodeFilterChange={dashboard.setNodeFilter}
                   onRefreshProfile={dashboard.handleRefreshProfile}
                   onReload={dashboard.refreshDashboard}
@@ -276,15 +265,6 @@ export function DashboardPage() {
                 />
               )}
 
-              {section === "console" && (
-                <ConsoleSection
-                  activeTask={dashboard.activeTask}
-                  error={dashboard.error}
-                  message={dashboard.message}
-                  profiles={dashboard.profiles}
-                />
-              )}
-
               {section === "settings" && (
                 <SettingsSection
                   downloadTargets={dashboard.downloadTargets}
@@ -301,33 +281,6 @@ export function DashboardPage() {
           </Box>
         </Box>
       </Box>
-    </Box>
-  );
-}
-
-type SidebarStatProps = {
-  label: string;
-  value: string;
-  mono?: boolean;
-};
-
-function SidebarStat({ label, value, mono = false }: SidebarStatProps) {
-  return (
-    <Box
-      sx={(theme) => ({
-        px: 1.5,
-        py: 1.25,
-        borderRadius: 2,
-        backgroundColor: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-      })}
-    >
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {label}
-      </Typography>
-      <Typography className={mono ? "sakiko-mono" : undefined} variant="body2" noWrap>
-        {value}
-      </Typography>
     </Box>
   );
 }

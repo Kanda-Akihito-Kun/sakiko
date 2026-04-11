@@ -189,6 +189,60 @@ func TestTaskArchiveWriterReceivesFinishedSnapshot(t *testing.T) {
 	}
 }
 
+func TestListTasksReturnsNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	svc, err := New(Config{Mode: interfaces.ModeSerial})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer svc.Stop()
+
+	svc.tasks = map[string]*taskRecord{
+		"task-old": {
+			state: interfaces.TaskState{
+				TaskID:     "task-old",
+				Name:       "old",
+				Status:     "finished",
+				StartedAt:  "2026-04-11T10:00:00Z",
+				FinishedAt: "2026-04-11T10:02:00Z",
+			},
+		},
+		"task-new": {
+			state: interfaces.TaskState{
+				TaskID:    "task-new",
+				Name:      "new",
+				Status:    "running",
+				StartedAt: "2026-04-11T11:00:00Z",
+			},
+		},
+		"task-mid": {
+			state: interfaces.TaskState{
+				TaskID:     "task-mid",
+				Name:       "mid",
+				Status:     "finished",
+				StartedAt:  "2026-04-11T10:30:00Z",
+				FinishedAt: "2026-04-11T10:31:00Z",
+			},
+		},
+	}
+
+	tasks := svc.ListTasks()
+	if len(tasks) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(tasks))
+	}
+
+	if tasks[0].TaskID != "task-new" {
+		t.Fatalf("expected newest task first, got %q", tasks[0].TaskID)
+	}
+	if tasks[1].TaskID != "task-mid" {
+		t.Fatalf("expected middle task second, got %q", tasks[1].TaskID)
+	}
+	if tasks[2].TaskID != "task-old" {
+		t.Fatalf("expected oldest task last, got %q", tasks[2].TaskID)
+	}
+}
+
 type captureArchiveWriter struct {
 	mu       sync.Mutex
 	snapshot interfaces.TaskArchiveSnapshot

@@ -9,7 +9,7 @@ This README records the current desktop-side implementation status instead of th
 
 The desktop app already supports:
 
-- import profile from subscription URL or inline content
+- import profile from subscription URL
 - refresh and delete profile
 - browse imported nodes
 - launch `ping / geo / speed / full` tasks

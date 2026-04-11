@@ -4,6 +4,8 @@ import { alpha } from "@mui/material/styles";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
 import type { TaskStatusResponse } from "../../types/sakiko";
 import { formatDuration, formatMatrixPayload } from "../../utils/dashboard";
+import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
+import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
 import { SectionCard } from "../shared/SectionCard";
 
@@ -12,6 +14,8 @@ type TaskResultsPanelProps = {
 };
 
 export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
+  const mediaMatrix = buildMediaMatrixFromResults(activeTask?.results || []);
+
   return (
     <SectionCard
       title="Task Results"
@@ -33,73 +37,84 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
           </Box>
 
           {(activeTask.results || []).length > 0 ? (
-            <div className="sakiko-results-grid">
-              {(activeTask.results || []).map((result, index) => (
-                <Card key={`${result.proxyInfo.name}-${index}`} variant="outlined" sx={{ p: 2.25 }}>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" justifyContent="space-between" spacing={1}>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="h6" noWrap>
-                          {result.proxyInfo.name || "Unnamed node"}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {result.proxyInfo.address || "No address"}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        label={result.proxyInfo.type || "unknown"}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </Stack>
+            <Stack spacing={2}>
+              {mediaMatrix.columns.length > 0 ? (
+                <MediaUnlockMatrix
+                  columns={mediaMatrix.columns}
+                  rows={mediaMatrix.rows}
+                  title="Media Unlock Test"
+                  subtitle="Nodes are listed vertically; each platform column shows the unlock status directly."
+                />
+              ) : null}
 
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", overflowX: "auto", pb: 0.25 }}>
-                      <Chip
-                        icon={<QueryStatsRounded />}
-                        label={formatDuration(result.invokeDuration)}
-                        size="small"
-                      />
-                      <Chip
-                        label={`${result.matrices.length} matrices`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Stack>
-
-                    {result.error && (
-                      <Typography variant="body2" color="error.main">
-                        {result.error}
-                      </Typography>
-                    )}
-
-                    <Divider sx={{ borderColor: "divider" }} />
-                    <Stack spacing={1}>
-                      {result.matrices.map((matrix, matrixIndex) => (
-                        <Box
-                          key={`${matrix.type}-${matrixIndex}`}
-                          sx={(theme) => ({
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 1.5,
-                            p: 1.25,
-                            borderRadius: 2,
-                            bgcolor: alpha(theme.palette.primary.main, 0.08),
-                          })}
-                        >
-                          <Typography variant="body2" color="text.secondary">
-                            {matrix.type}
+              <div className="sakiko-results-grid">
+                {(activeTask.results || []).map((result, index) => (
+                  <Card key={`${result.proxyInfo.name}-${index}`} variant="outlined" sx={{ p: 2.25 }}>
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" justifyContent="space-between" spacing={1}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="h6" noWrap>
+                            {result.proxyInfo.name || "Unnamed node"}
                           </Typography>
-                          <Typography variant="body2" className="sakiko-mono" noWrap sx={{ minWidth: 0, textAlign: "right" }}>
-                            {formatMatrixPayload(matrix.payload, matrix.type)}
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {result.proxyInfo.address || "No address"}
                           </Typography>
                         </Box>
-                      ))}
+                        <Chip
+                          label={result.proxyInfo.type || "unknown"}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </Stack>
+
+                      <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", overflowX: "auto", pb: 0.25 }}>
+                        <Chip
+                          icon={<QueryStatsRounded />}
+                          label={formatDuration(result.invokeDuration)}
+                          size="small"
+                        />
+                        <Chip
+                          label={`${result.matrices.length} matrices`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Stack>
+
+                      {result.error && (
+                        <Typography variant="body2" color="error.main">
+                          {result.error}
+                        </Typography>
+                      )}
+
+                      <Divider sx={{ borderColor: "divider" }} />
+                      <Stack spacing={1}>
+                        {result.matrices.map((matrix, matrixIndex) => (
+                          <Box
+                            key={`${matrix.type}-${matrixIndex}`}
+                            sx={(theme) => ({
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: 1.5,
+                              p: 1.25,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            })}
+                          >
+                            <Typography variant="body2" color="text.secondary">
+                              {matrix.type}
+                            </Typography>
+                            <Typography variant="body2" className="sakiko-mono" noWrap sx={{ minWidth: 0, textAlign: "right" }}>
+                              {formatMatrixPayload(matrix.payload, matrix.type)}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Stack>
                     </Stack>
-                  </Stack>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            </Stack>
           ) : (
             <EmptyState
               title="No results yet"

@@ -315,7 +315,7 @@ func buildResultReport(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 	}
 
 	sections := make([]interfaces.ResultReportSection, 0, 2)
-	if hasAnyMatrix(snapshot.Task.Matrices, interfaces.MatrixAverageSpeed, interfaces.MatrixMaxSpeed, interfaces.MatrixPerSecSpeed) {
+	if hasAnyMatrix(snapshot.Task.Matrices, interfaces.MatrixAverageSpeed, interfaces.MatrixMaxSpeed, interfaces.MatrixPerSecSpeed, interfaces.MatrixTrafficUsed) {
 		sections = append(sections, buildSpeedSection(snapshot))
 	}
 	if hasAnyMatrix(snapshot.Task.Matrices, interfaces.MatrixInboundGeoIP, interfaces.MatrixOutboundGeoIP) {
@@ -346,6 +346,7 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 		avgSpeed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixAverageSpeed)
 		maxSpeed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixMaxSpeed)
 		perSecond, _ := extractUint64SliceMatrix(result.Matrices, interfaces.MatrixPerSecSpeed)
+		trafficUsed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixTrafficUsed)
 
 		rows = append(rows, speedRow{
 			maxSpeed: maxSpeed,
@@ -360,6 +361,7 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 				"averageBytesPerSecond":   avgSpeed,
 				"maxBytesPerSecond":       maxSpeed,
 				"perSecondBytesPerSecond": perSecond,
+				"trafficUsedBytes":        trafficUsed,
 				"error":                   result.Error,
 			},
 		})
@@ -397,6 +399,7 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 			{Key: "averageBytesPerSecond", Label: "Average Speed"},
 			{Key: "maxBytesPerSecond", Label: "Max Speed"},
 			{Key: "perSecondBytesPerSecond", Label: "Per-second Speed"},
+			{Key: "trafficUsedBytes", Label: "Traffic Used"},
 			{Key: "error", Label: "Error"},
 		},
 		Rows: flatRows,
@@ -465,54 +468,181 @@ func buildTopologySection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Re
 }
 
 func buildMediaUnlockSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.ResultReportSection {
-	rows := make([]map[string]any, 0)
-	successCount := 0
+	platforms := collectMediaPlatforms(snapshot.Results)
+	columns := []interfaces.ResultReportColumn{
+		{Key: "nodeName", Label: "Node"},
+		{Key: "proxyType", Label: "Protocol"},
+	}
+	for _, platform := range platforms {
+		columns = append(columns, interfaces.ResultReportColumn{
+			Key:   string(platform),
+			Label: mediaPlatformLabel(platform),
+		})
+	}
 
+	rows := make([]map[string]any, 0, len(snapshot.Results))
+	successCount := 0
 	for _, result := range snapshot.Results {
+		row := map[string]any{
+			"nodeName":  result.ProxyInfo.Name,
+			"proxyType": result.ProxyInfo.Type,
+		}
+
 		payload, ok := extractMediaUnlockMatrix(result.Matrices, interfaces.MatrixMediaUnlock)
 		if !ok || len(payload.Items) == 0 {
-			rows = append(rows, map[string]any{
-				"nodeName": result.ProxyInfo.Name,
-				"status":   "failed",
-				"error":    "media unlock payload missing",
-			})
+			for _, platform := range platforms {
+				row[string(platform)] = "Failed (Payload Missing)"
+			}
+			rows = append(rows, row)
 			continue
 		}
 
+		itemsByPlatform := make(map[interfaces.MediaUnlockPlatform]interfaces.MediaUnlockPlatformResult, len(payload.Items))
 		for _, item := range payload.Items {
+			if !isVisibleMediaPlatform(item.Platform) {
+				continue
+			}
+			itemsByPlatform[item.Platform] = item
 			if item.Status != interfaces.MediaUnlockStatusFailed {
 				successCount++
 			}
-			rows = append(rows, map[string]any{
-				"nodeName":   result.ProxyInfo.Name,
-				"platform":   item.Name,
-				"status":     item.Status,
-				"region":     item.Region,
-				"unlockMode": item.Mode,
-				"error":      item.Error,
-			})
 		}
+
+		for _, platform := range platforms {
+			if item, ok := itemsByPlatform[platform]; ok {
+				row[string(platform)] = preferredMediaDisplay(item)
+				continue
+			}
+			row[string(platform)] = "-"
+		}
+		rows = append(rows, row)
 	}
 
 	return interfaces.ResultReportSection{
-		Kind:  "media_unlock_table",
-		Title: "Media Unlock",
-		Columns: []interfaces.ResultReportColumn{
-			{Key: "nodeName", Label: "Node"},
-			{Key: "platform", Label: "Platform"},
-			{Key: "status", Label: "Status"},
-			{Key: "region", Label: "Region"},
-			{Key: "unlockMode", Label: "Unlock Mode"},
-			{Key: "error", Label: "Error"},
-		},
-		Rows: rows,
+		Kind:    "media_unlock_table",
+		Title:   "Media Unlock Matrix",
+		Columns: columns,
+		Rows:    rows,
 		Summary: map[string]any{
-			"rowCount":      len(rows),
+			"nodeCount":     len(snapshot.Results),
 			"successCount":  successCount,
-			"platformCount": 3,
+			"platformCount": len(platforms),
 			"preset":        snapshot.Task.Context.Preset,
 		},
 	}
+}
+
+func collectMediaPlatforms(results []interfaces.EntryResult) []interfaces.MediaUnlockPlatform {
+	preferred := []interfaces.MediaUnlockPlatform{
+		interfaces.MediaUnlockPlatformChatGPT,
+		interfaces.MediaUnlockPlatformClaude,
+		interfaces.MediaUnlockPlatformGemini,
+		interfaces.MediaUnlockPlatformYouTubePremium,
+		interfaces.MediaUnlockPlatformNetflix,
+		interfaces.MediaUnlockPlatformHulu,
+		interfaces.MediaUnlockPlatformHuluJP,
+		interfaces.MediaUnlockPlatformPrimeVideo,
+		interfaces.MediaUnlockPlatformHBOMax,
+		interfaces.MediaUnlockPlatformBilibiliHMT,
+		interfaces.MediaUnlockPlatformBilibiliTW,
+		interfaces.MediaUnlockPlatformAbema,
+		interfaces.MediaUnlockPlatformTikTok,
+		interfaces.MediaUnlockPlatformSpotify,
+		interfaces.MediaUnlockPlatformSteam,
+	}
+
+	seen := map[interfaces.MediaUnlockPlatform]struct{}{}
+	for _, result := range results {
+		payload, ok := extractMediaUnlockMatrix(result.Matrices, interfaces.MatrixMediaUnlock)
+		if !ok {
+			continue
+		}
+		for _, item := range payload.Items {
+			if !isVisibleMediaPlatform(item.Platform) {
+				continue
+			}
+			seen[item.Platform] = struct{}{}
+		}
+	}
+
+	platforms := make([]interfaces.MediaUnlockPlatform, 0, len(seen))
+	for _, platform := range preferred {
+		if _, ok := seen[platform]; ok {
+			platforms = append(platforms, platform)
+			delete(seen, platform)
+		}
+	}
+	leftovers := make([]interfaces.MediaUnlockPlatform, 0, len(seen))
+	for platform := range seen {
+		leftovers = append(leftovers, platform)
+	}
+	sort.Slice(leftovers, func(i, j int) bool {
+		return string(leftovers[i]) < string(leftovers[j])
+	})
+	platforms = append(platforms, leftovers...)
+	if len(platforms) == 0 {
+		return preferred[:0]
+	}
+	return platforms
+}
+
+func mediaPlatformLabel(platform interfaces.MediaUnlockPlatform) string {
+	switch platform {
+	case interfaces.MediaUnlockPlatformChatGPT:
+		return "ChatGPT"
+	case interfaces.MediaUnlockPlatformClaude:
+		return "Claude"
+	case interfaces.MediaUnlockPlatformGemini:
+		return "Gemini"
+	case interfaces.MediaUnlockPlatformYouTubePremium:
+		return "YouTube"
+	case interfaces.MediaUnlockPlatformNetflix:
+		return "Netflix"
+	case interfaces.MediaUnlockPlatformHulu:
+		return "Hulu"
+	case interfaces.MediaUnlockPlatformHuluJP:
+		return "Hulu JP"
+	case interfaces.MediaUnlockPlatformPrimeVideo:
+		return "Prime Video"
+	case interfaces.MediaUnlockPlatformHBOMax:
+		return "HBO Max"
+	case interfaces.MediaUnlockPlatformBilibiliHMT:
+		return "Bilibili HMT"
+	case interfaces.MediaUnlockPlatformBilibiliTW:
+		return "Bilibili TW"
+	case interfaces.MediaUnlockPlatformAbema:
+		return "Abema"
+	case interfaces.MediaUnlockPlatformTikTok:
+		return "TikTok"
+	case interfaces.MediaUnlockPlatformSpotify:
+		return "Spotify"
+	case interfaces.MediaUnlockPlatformSteam:
+		return "Steam"
+	default:
+		return string(platform)
+	}
+}
+
+func isVisibleMediaPlatform(platform interfaces.MediaUnlockPlatform) bool {
+	switch platform {
+	case "dazn", "instagram_music":
+		return false
+	default:
+		return true
+	}
+}
+
+func preferredMediaDisplay(item interfaces.MediaUnlockPlatformResult) string {
+	if strings.TrimSpace(item.Display) != "" {
+		return item.Display
+	}
+	if strings.TrimSpace(item.Region) != "" {
+		return string(item.Status) + " (" + item.Region + ")"
+	}
+	if strings.TrimSpace(item.Error) != "" {
+		return string(item.Status) + " (" + item.Error + ")"
+	}
+	return string(item.Status)
 }
 
 func joinErrors(values ...string) string {

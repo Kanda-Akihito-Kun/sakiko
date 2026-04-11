@@ -22,7 +22,6 @@ import (
 	"sakiko.local/sakiko-core/storage"
 
 	"go.uber.org/zap"
-	"go.yaml.in/yaml/v3"
 )
 
 type Config struct {
@@ -123,26 +122,22 @@ func (m *Manager) Import(req interfaces.ProfileImportRequest) (interfaces.Profil
 	}
 
 	source := strings.TrimSpace(req.Source)
-	content := strings.TrimSpace(req.Content)
-	var fetched fetchedProfileSource
-	if content == "" {
-		if source == "" {
-			return interfaces.Profile{}, fmt.Errorf("either source or content is required")
-		}
-		profilesLogger().Info("fetching profile source for import",
-			zap.String("source", sourceLabel(source)),
-		)
-		var err error
-		fetched, err = m.fetchSource(source)
-		if err != nil {
-			profilesLogger().Warn("fetch profile source for import failed",
-				zap.String("source", sourceLabel(source)),
-				zap.Error(err),
-			)
-			return interfaces.Profile{}, err
-		}
-		content = fetched.Content
+	if source == "" {
+		return interfaces.Profile{}, fmt.Errorf("profile source is required")
 	}
+
+	profilesLogger().Info("fetching profile source for import",
+		zap.String("source", sourceLabel(source)),
+	)
+	fetched, err := m.fetchSource(source)
+	if err != nil {
+		profilesLogger().Warn("fetch profile source for import failed",
+			zap.String("source", sourceLabel(source)),
+			zap.Error(err),
+		)
+		return interfaces.Profile{}, err
+	}
+	content := fetched.Content
 
 	nodes, err := ParseNodes(content)
 	if err != nil {
@@ -158,7 +153,7 @@ func (m *Manager) Import(req interfaces.ProfileImportRequest) (interfaces.Profil
 		if strings.TrimSpace(fetched.Name) != "" {
 			name = fetched.Name
 		} else {
-			name = inferProfileName(source, content)
+			name = inferProfileName(source)
 		}
 	}
 
@@ -243,7 +238,7 @@ func (m *Manager) Refresh(profileID string) (interfaces.Profile, error) {
 		return interfaces.Profile{}, err
 	}
 
-	profile.Nodes = nodes
+	profile.Nodes = applyNodeSelections(profile.Nodes, nodes)
 	profile.UpdatedAt = m.now().UTC().Format(time.RFC3339)
 
 	m.lock.Lock()
@@ -270,6 +265,54 @@ func (m *Manager) Refresh(profileID string) (interfaces.Profile, error) {
 		zap.String("profile_id", profile.ID),
 		zap.String("profile_name", profile.Name),
 		zap.Int("node_count", len(profile.Nodes)),
+	)
+	return profile, nil
+}
+
+func (m *Manager) SetNodeEnabled(profileID string, nodeIndex int, enabled bool) (interfaces.Profile, error) {
+	if m == nil {
+		profilesLogger().Warn("set node enabled rejected: profile manager not initialized")
+		return interfaces.Profile{}, fmt.Errorf("profile manager not initialized")
+	}
+
+	profileID = strings.TrimSpace(profileID)
+	if profileID == "" {
+		return interfaces.Profile{}, fmt.Errorf("profile ID is required")
+	}
+	if nodeIndex < 0 {
+		return interfaces.Profile{}, fmt.Errorf("node index is required")
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	profile, ok := m.profiles[profileID]
+	if !ok {
+		return interfaces.Profile{}, fmt.Errorf("profile not found")
+	}
+	if nodeIndex >= len(profile.Nodes) {
+		return interfaces.Profile{}, fmt.Errorf("node index out of range")
+	}
+	if profile.Nodes[nodeIndex].Enabled == enabled {
+		return profile, nil
+	}
+
+	previousProfile := profile
+	profile.Nodes = cloneNodes(profile.Nodes)
+	profile.Nodes[nodeIndex].Enabled = enabled
+	profile.UpdatedAt = m.now().UTC().Format(time.RFC3339)
+	m.profiles[profileID] = profile
+
+	if err := m.persistLocked(); err != nil {
+		m.profiles[profileID] = previousProfile
+		return interfaces.Profile{}, err
+	}
+
+	profilesLogger().Info("profile node selection updated",
+		zap.String("profile_id", profileID),
+		zap.Int("node_index", nodeIndex),
+		zap.String("node_name", profile.Nodes[nodeIndex].Name),
+		zap.Bool("enabled", enabled),
 	)
 	return profile, nil
 }
@@ -392,15 +435,68 @@ func (m *Manager) fetchSource(source string) (fetchedProfileSource, error) {
 	}, nil
 }
 
-func inferProfileName(source string, content string) string {
+func inferProfileName(source string) string {
 	source = strings.TrimSpace(source)
 	if name := inferProfileNameFromSource(source); name != "" {
 		return name
 	}
-	if name := inferProfileNameFromContent(content); name != "" {
-		return name
-	}
 	return "Imported Profile"
+}
+
+func applyNodeSelections(reference []interfaces.Node, nodes []interfaces.Node) []interfaces.Node {
+	out := cloneNodes(nodes)
+	for i := range out {
+		out[i].Enabled = true
+	}
+	if len(reference) == 0 || len(out) == 0 {
+		return out
+	}
+
+	if len(reference) == len(out) {
+		namesAligned := true
+		for i := range out {
+			if strings.TrimSpace(reference[i].Name) != strings.TrimSpace(out[i].Name) {
+				namesAligned = false
+				break
+			}
+		}
+		if namesAligned {
+			for i := range out {
+				out[i].Enabled = reference[i].Enabled
+			}
+			return out
+		}
+	}
+
+	selectionsByName := make(map[string][]bool, len(reference))
+	for _, node := range reference {
+		key := strings.TrimSpace(node.Name)
+		if key == "" {
+			continue
+		}
+		selectionsByName[key] = append(selectionsByName[key], node.Enabled)
+	}
+
+	for i := range out {
+		key := strings.TrimSpace(out[i].Name)
+		flags := selectionsByName[key]
+		if len(flags) == 0 {
+			continue
+		}
+		out[i].Enabled = flags[0]
+		selectionsByName[key] = flags[1:]
+	}
+
+	return out
+}
+
+func cloneNodes(nodes []interfaces.Node) []interfaces.Node {
+	if len(nodes) == 0 {
+		return []interfaces.Node{}
+	}
+	out := make([]interfaces.Node, len(nodes))
+	copy(out, nodes)
+	return out
 }
 
 func randomID() string {
@@ -494,7 +590,7 @@ func (m *Manager) hydrateStoredProfiles(stored []interfaces.Profile) ([]interfac
 			continue
 		}
 
-		profile.Nodes = nodes
+		profile.Nodes = applyNodeSelections(profile.Nodes, nodes)
 		if strings.TrimSpace(profile.UpdatedAt) == "" {
 			profile.UpdatedAt = contentFile.UpdatedAt.UTC().Format(time.RFC3339)
 		}
@@ -564,7 +660,7 @@ func profilesLogger() *zap.Logger {
 func sourceLabel(source string) string {
 	raw := strings.TrimSpace(source)
 	if raw == "" {
-		return "inline"
+		return "empty-source"
 	}
 
 	parsed, err := url.Parse(raw)
@@ -577,7 +673,7 @@ func sourceLabel(source string) string {
 	if parsed.Scheme != "" {
 		return parsed.Scheme
 	}
-	return "inline"
+	return "empty-source"
 }
 
 func inferProfileNameFromResponse(header http.Header, source string) string {
@@ -648,29 +744,6 @@ func inferProfileNameFromSource(source string) string {
 		base = decoded
 	}
 	return strings.TrimSpace(base)
-}
-
-func inferProfileNameFromContent(content string) string {
-	trimmed := strings.TrimSpace(content)
-	if trimmed == "" {
-		return ""
-	}
-
-	type clashMeta struct {
-		Name        string `yaml:"name"`
-		ProfileName string `yaml:"profile-name"`
-		Title       string `yaml:"title"`
-	}
-
-	var meta clashMeta
-	if err := yaml.Unmarshal([]byte(trimmed), &meta); err == nil {
-		for _, candidate := range []string{meta.Name, meta.ProfileName, meta.Title} {
-			if name := strings.TrimSpace(candidate); name != "" {
-				return name
-			}
-		}
-	}
-	return ""
 }
 
 func (m *Manager) uniqueProfileNameLocked(name string, excludeID string) string {

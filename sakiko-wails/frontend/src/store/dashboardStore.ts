@@ -50,6 +50,7 @@ type DashboardState = {
   handleImport: () => Promise<void>;
   handleRefreshProfile: () => Promise<void>;
   handleDeleteProfile: () => Promise<void>;
+  handleSetProfileNodeEnabled: (nodeIndex: number, enabled: boolean) => Promise<void>;
   handleRunTask: () => Promise<void>;
   handleInspectTask: (taskId: string) => Promise<void>;
   clearError: () => void;
@@ -422,6 +423,33 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
       await refreshDashboard(nextActiveProfileId);
       set({ message: `Deleted ${activeProfile?.name || "profile"}.` });
+    } catch (err) {
+      set({ error: normalizeError(err) });
+    } finally {
+      set({ submitting: false });
+    }
+  },
+
+  handleSetProfileNodeEnabled: async (nodeIndex, enabled) => {
+    const { activeProfile, activeProfileId } = get();
+    if (!activeProfileId || !activeProfile || nodeIndex < 0 || nodeIndex >= activeProfile.nodes.length) {
+      return;
+    }
+
+    const nodeName = activeProfile.nodes[nodeIndex]?.name || `node ${nodeIndex + 1}`;
+    set({
+      submitting: true,
+      error: "",
+      message: `${enabled ? "Including" : "Skipping"} ${nodeName}...`,
+    });
+
+    try {
+      const profile = await SakikoService.SetProfileNodeEnabled(activeProfileId, nodeIndex, enabled);
+      set((state) => ({
+        activeProfile: profile,
+        profiles: upsertProfileSummary(state.profiles, profile),
+        message: `${enabled ? "Included" : "Skipped"} ${nodeName} for future tasks.`,
+      }));
     } catch (err) {
       set({ error: normalizeError(err) });
     } finally {

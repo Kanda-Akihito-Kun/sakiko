@@ -1,4 +1,10 @@
 import type { DownloadTarget, Profile, ResultArchiveTask } from "../types/sakiko";
+import { filterVisibleMediaUnlockItems } from "./mediaUnlock";
+
+export type FilteredProfileNode = {
+  index: number;
+  node: Profile["nodes"][number];
+};
 
 export function normalizeError(err: unknown): string {
   if (err instanceof Error) {
@@ -8,14 +14,6 @@ export function normalizeError(err: unknown): string {
   return String(err);
 }
 
-export function extractNodeMeta(payload: string): { type: string; server: string; port: string } {
-  return {
-    type: extractYAMLValue(payload, "type") || "unknown",
-    server: extractYAMLValue(payload, "server") || "unknown server",
-    port: extractYAMLValue(payload, "port") || "-",
-  };
-}
-
 export function getFilteredNodes(activeProfile: Profile | null, nodeFilter: string) {
   const keyword = nodeFilter.trim().toLowerCase();
   if (!activeProfile) {
@@ -23,16 +21,27 @@ export function getFilteredNodes(activeProfile: Profile | null, nodeFilter: stri
   }
 
   if (!keyword) {
-    return activeProfile.nodes;
+    return activeProfile.nodes.map((node, index) => ({ node, index }));
   }
 
-  return activeProfile.nodes.filter((node) => {
-    return node.name.toLowerCase().includes(keyword) || node.payload.toLowerCase().includes(keyword);
-  });
+  return activeProfile.nodes.flatMap((node, index) => (
+    [
+      node.name,
+      node.protocol || "",
+      node.server || "",
+      node.port || "",
+      node.udp === true ? "udp" : node.udp === false ? "no udp" : "",
+    ].some((value) => value.toLowerCase().includes(keyword))
+      ? [{ node, index }]
+      : []
+  ));
 }
 
 export function formatMatrixPayload(payload: unknown, type?: string): string {
   if (typeof payload === "number") {
+    if (isTrafficMatrix(type)) {
+      return formatMegabytes(payload);
+    }
     if (isSpeedMatrix(type)) {
       return formatMbps(payload);
     }
@@ -65,6 +74,9 @@ export function formatMatrixPayload(payload: unknown, type?: string): string {
     }
 
     if (typeof record.value === "number" || typeof record.value === "string") {
+      if (typeof record.value === "number" && isTrafficMatrix(type)) {
+        return formatMegabytes(record.value);
+      }
       if (typeof record.value === "number" && isSpeedMatrix(type)) {
         return formatMbps(record.value);
       }
@@ -81,10 +93,12 @@ export function formatMatrixPayload(payload: unknown, type?: string): string {
     }
 
     if (Array.isArray(record.items)) {
-      return record.items
-        .map((item) => formatMediaUnlockItem(item))
-        .filter(Boolean)
-        .join(" | ");
+      return (
+        filterVisibleMediaUnlockItems(record.items)
+          .map((item) => formatMediaUnlockItem(item))
+          .filter(Boolean)
+          .join(" | ")
+      ) || "-";
     }
   }
 
@@ -122,11 +136,11 @@ export function summarizeResultMetrics(preset?: string): string {
     case "geo":
       return "Inbound / Outbound Topology";
     case "speed":
-      return "Average / Max / Per-second Speed";
+      return "Average / Max / Per-second Speed / Traffic";
     case "media":
-      return "Netflix / Hulu / Bilibili 港澳台";
+      return "Netflix / Hulu / Bilibili HMT";
     case "full":
-      return "Ping / Topology / Speed / Media";
+      return "Ping / Topology / Speed / Traffic / Media";
     default:
       return "Archived metrics";
   }
@@ -210,6 +224,9 @@ export function formatReportValue(value: unknown, key?: string): string {
   }
 
   if (typeof value === "number") {
+    if ((key || "").toLowerCase().includes("trafficusedbytes")) {
+      return formatMegabytes(value);
+    }
     if ((key || "").toLowerCase().includes("bytespersecond")) {
       return formatMbps(value);
     }
@@ -237,11 +254,6 @@ export function formatReportValue(value: unknown, key?: string): string {
   return String(value);
 }
 
-function extractYAMLValue(payload: string, key: string): string {
-  const match = payload.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
-  return match?.[1]?.trim() || "";
-}
-
 function isSpeedMatrix(type?: string): boolean {
   return type === "SPEED_AVERAGE"
     || type === "SPEED_MAX"
@@ -252,12 +264,20 @@ function isPerSecondSpeedMatrix(type?: string): boolean {
   return type === "SPEED_PER_SECOND";
 }
 
+function isTrafficMatrix(type?: string): boolean {
+  return type === "SPEED_TRAFFIC_USED";
+}
+
 function formatMediaUnlockItem(value: unknown): string {
   if (!value || typeof value !== "object") {
     return String(value || "");
   }
 
   const item = value as Record<string, unknown>;
+  const display = String(item.display || "").trim();
+  if (display) {
+    return display;
+  }
   const name = String(item.name || item.platform || "Unknown").trim();
   const status = String(item.status || "unknown").trim();
   const region = String(item.region || "").trim();
@@ -285,6 +305,12 @@ function formatMediaStatus(value: unknown): string {
       return "No";
     case "originals_only":
       return "Originals Only";
+    case "web_only":
+      return "Web Only";
+    case "oversea_only":
+      return "Oversea Only";
+    case "unsupported":
+      return "Unsupported";
     case "failed":
       return "Failed";
     default:
@@ -310,10 +336,15 @@ function formatMbps(bytesPerSecond: number): string {
   return `${mbps.toFixed(2)} Mbps`;
 }
 
+function formatMegabytes(bytes: number): string {
+  const megabytes = bytes / 1_000_000;
+  return `${megabytes.toFixed(2)} MB`;
+}
+
 function formatDownloadTargetLabel(target: DownloadTarget): string {
   const location = [target.city, target.country].filter(Boolean).join(", ");
   const primary = (target.name || "").trim() || (target.host || "").trim() || "Speed Target";
-  return location ? `${primary} · ${location}` : primary;
+  return location ? `${primary} 路 ${location}` : primary;
 }
 
 function isCountryCodeField(key?: string): boolean {

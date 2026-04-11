@@ -9,6 +9,8 @@ import {
   formatProtocolLibraryLabel,
   summarizeDownloadTarget,
 } from "./dashboard";
+import { filterMediaReportSectionColumns } from "./mediaUnlock";
+import { mediaCellTone } from "./mediaMatrix";
 
 type ExportColumn = {
   key: string;
@@ -35,7 +37,7 @@ const HEADER_HEIGHT = 56;
 const FOOTER_HEIGHT = 92;
 const SECTION_GAP = 18;
 const SECTION_TITLE_HEIGHT = 28;
-const TABLE_HEADER_HEIGHT = 42;
+const TABLE_HEADER_HEIGHT = 52;
 const ROW_HEIGHT = 42;
 const EXPORT_SCALE = 2;
 const FONT_FAMILY = "'Microsoft YaHei', 'Segoe UI', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
@@ -72,7 +74,7 @@ export async function exportResultArchiveImage(archive: ResultArchive, downloadT
 
   let cursorY = PAGE_PADDING_Y + HEADER_HEIGHT;
   sections.forEach((section, index) => {
-    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, index > 0) + SECTION_GAP;
+    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, true) + (index < sections.length - 1 ? SECTION_GAP : 0);
   });
 
   drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight);
@@ -90,7 +92,11 @@ function buildExportSections(archive: ResultArchive): ExportSection[] {
   }
 
   for (const section of archive.report.sections || []) {
-    sections.push(normalizeReportSection(section));
+    const normalized = normalizeReportSection(section);
+    if (normalized.columns.length === 0) {
+      continue;
+    }
+    sections.push(normalized);
   }
 
   if (sections.length === 0) {
@@ -143,7 +149,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
     case "speed_table":
       return {
         kind: section.kind,
-        title: "Speed Test",
+        title: "SpeedTest",
         columns: [
           { key: "rank", label: "Rank", width: 72, align: "center" },
           { key: "nodeName", label: "Node", width: 470 },
@@ -153,6 +159,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
           { key: "averageBytesPerSecond", label: "Average Speed", width: 170, align: "center" },
           { key: "maxBytesPerSecond", label: "Max Speed", width: 170, align: "center" },
           { key: "perSecondBytesPerSecond", label: "Per-second Speed", width: 160, align: "center" },
+          { key: "trafficUsedBytes", label: "Traffic Used", width: 150, align: "center" },
           { key: "error", label: "Status", width: 160, align: "center" },
         ],
         rows: (section.rows || []).map((row, index) => ({
@@ -179,20 +186,28 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         rows: sortTopologyRows(section.rows || []),
       };
     case "media_unlock_table":
+      const columns = filterMediaReportSectionColumns(section.columns || []);
+      if (!columns.some((column) => column.key !== "nodeName" && column.key !== "proxyType")) {
+        return {
+          kind: section.kind,
+          title: "Media Unlock Test",
+          columns: [],
+          rows: [],
+        };
+      }
       return {
         kind: section.kind,
-        title: "Media Unlock",
-        columns: [
-          { key: "nodeName", label: "Node", width: 360 },
-          { key: "platform", label: "Platform", width: 210 },
-          { key: "status", label: "Status", width: 180, align: "center" },
-          { key: "region", label: "Region", width: 140, align: "center" },
-          { key: "unlockMode", label: "Unlock Mode", width: 150, align: "center" },
-          { key: "error", label: "Error", width: 320 },
-        ],
-        rows: (section.rows || []).map((row) => ({
-          ...row,
-        })),
+        title: "Media Unlock Test",
+        columns: columns.map((column) => {
+          if (column.key === "nodeName") {
+            return { key: column.key, label: column.label, width: 220 };
+          }
+          if (column.key === "proxyType") {
+            return { key: column.key, label: column.label, width: 110, align: "center" as const };
+          }
+          return { key: column.key, label: column.label, width: 138, align: "center" as const };
+        }),
+        rows: section.rows || [],
       };
     default:
       return {
@@ -306,8 +321,8 @@ function drawTableHeader(
     drawCellText(ctx, column.label, cursorX, y, column.width, TABLE_HEADER_HEIGHT, {
       align: column.align || "left",
       color: TEXT_COLOR,
-      font: `600 13px ${FONT_FAMILY}`,
-      wrap: false,
+      font: `600 12px ${FONT_FAMILY}`,
+      wrap: true,
     });
     cursorX += column.width;
   });
@@ -484,6 +499,18 @@ function resolveCellFill(
   if (key === "error" && value) {
     return "#fff1eb";
   }
+  if (section.kind === "media_unlock_table" && key !== "nodeName" && key !== "proxyType") {
+    switch (mediaCellTone(String(value || ""))) {
+      case "success":
+        return "#e5f7eb";
+      case "warning":
+        return "#fff6dc";
+      case "error":
+        return "#ffe9e7";
+      default:
+        return rowIndex % 2 === 0 ? "#ffffff" : "#fcfcfd";
+    }
+  }
   return rowIndex % 2 === 0 ? "#ffffff" : "#fcfcfd";
 }
 
@@ -502,6 +529,9 @@ function renderCellValue(kind: string, key: string, value: unknown, archive: Res
   if (key === "averageBytesPerSecond" || key === "maxBytesPerSecond") {
     return formatBytesAsSpeed(value);
   }
+  if (key === "trafficUsedBytes") {
+    return formatBytesAsMegabytes(value);
+  }
   if (key === "error") {
     return String(value || "OK");
   }
@@ -510,6 +540,10 @@ function renderCellValue(kind: string, key: string, value: unknown, archive: Res
   }
   if (key === "unlockMode") {
     return formatUnlockMode(value);
+  }
+  if (kind === "media_unlock_table" && key !== "nodeName" && key !== "proxyType") {
+    const text = String(value || "-");
+    return text.toLowerCase().includes("failed") ? "Test Failed" : text;
   }
   if (key === "outboundIP" || key === "inboundIP") {
     return maskIPAddress(value);
@@ -545,6 +579,7 @@ function buildFallbackMetrics(matrices: MatrixResult[]): string {
   const httpPing = extractMatrixValue(matrices, "TEST_PING_CONN");
   const avg = extractMatrixValue(matrices, "SPEED_AVERAGE");
   const max = extractMatrixValue(matrices, "SPEED_MAX");
+  const traffic = extractMatrixValue(matrices, "SPEED_TRAFFIC_USED");
   if (numericValue(rtt) > 0) {
     parts.push(`TLS ${Math.round(numericValue(rtt))}ms`);
   }
@@ -556,6 +591,9 @@ function buildFallbackMetrics(matrices: MatrixResult[]): string {
   }
   if (numericValue(max) > 0) {
     parts.push(`Peak ${formatBytesAsSpeed(max)}`);
+  }
+  if (numericValue(traffic) > 0) {
+    parts.push(`Traffic ${formatBytesAsMegabytes(traffic)}`);
   }
   return parts.join(" | ") || "-";
 }
@@ -802,6 +840,14 @@ function formatBytesAsSpeed(value: unknown): string {
   return `${Math.round(numeric)}B`;
 }
 
+function formatBytesAsMegabytes(value: unknown): string {
+  const numeric = numericValue(value);
+  if (numeric <= 0) {
+    return "0.00 MB";
+  }
+  return `${(numeric / 1_000_000).toFixed(2)} MB`;
+}
+
 function formatProxyType(value: unknown): string {
   if (!value) {
     return "Unknown";
@@ -853,6 +899,12 @@ function formatMediaStatus(value: unknown): string {
       return "No";
     case "originals_only":
       return "Originals Only";
+    case "web_only":
+      return "Web Only";
+    case "oversea_only":
+      return "Oversea Only";
+    case "unsupported":
+      return "Unsupported";
     case "failed":
       return "Failed";
     default:
