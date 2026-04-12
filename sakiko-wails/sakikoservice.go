@@ -114,6 +114,29 @@ func (s *SakikoService) SetProfileNodeEnabled(profileID string, nodeIndex int, e
 	return resp.Profile, nil
 }
 
+func (s *SakikoService) MoveProfileNode(profileID string, nodeIndex int, targetIndex int) (interfaces.Profile, error) {
+	if err := s.ensureReady(); err != nil {
+		return interfaces.Profile{}, err
+	}
+
+	resp, err := s.api.UpdateProfileNodeOrder(interfaces.ProfileNodeOrderUpdateRequest{
+		ProfileID:   profileID,
+		NodeIndex:   nodeIndex,
+		TargetIndex: targetIndex,
+	})
+	if err != nil {
+		wailsServiceLogger().Warn("update profile node order failed",
+			zap.String("profile_id", profileID),
+			zap.Int("node_index", nodeIndex),
+			zap.Int("target_index", targetIndex),
+			zap.Error(err),
+		)
+		return interfaces.Profile{}, err
+	}
+
+	return resp.Profile, nil
+}
+
 func (s *SakikoService) ListDownloadTargets() ([]interfaces.DownloadTarget, error) {
 	if err := s.ensureReady(); err != nil {
 		return nil, err

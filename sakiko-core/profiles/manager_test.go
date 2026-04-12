@@ -541,6 +541,155 @@ proxies:
 	}
 }
 
+func TestManagerMoveNodePersistsOrderAndSurvivesReload(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profiles.yaml")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+proxies:
+  - name: hk-01
+    type: ss
+    server: 1.1.1.1
+    port: 443
+    cipher: aes-128-gcm
+    password: demo
+  - name: us-02
+    type: ss
+    server: 2.2.2.2
+    port: 8443
+    cipher: aes-128-gcm
+    password: demo
+  - name: jp-03
+    type: ss
+    server: 3.3.3.3
+    port: 9443
+    cipher: aes-128-gcm
+    password: demo
+`))
+	}))
+	defer server.Close()
+
+	m, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "move-demo",
+		Source: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+
+	moved, err := m.MoveNode(profile.ID, 2, 0)
+	if err != nil {
+		t.Fatalf("MoveNode() error = %v", err)
+	}
+	if len(moved.Nodes) != 3 {
+		t.Fatalf("expected 3 nodes after move, got %d", len(moved.Nodes))
+	}
+	if moved.Nodes[0].Name != "jp-03" || moved.Nodes[0].Order != 0 {
+		t.Fatalf("expected moved node first with normalized order, got %+v", moved.Nodes[0])
+	}
+	if moved.Nodes[1].Name != "hk-01" || moved.Nodes[1].Order != 1 {
+		t.Fatalf("expected hk-01 second, got %+v", moved.Nodes[1])
+	}
+	if moved.Nodes[2].Name != "us-02" || moved.Nodes[2].Order != 2 {
+		t.Fatalf("expected us-02 third, got %+v", moved.Nodes[2])
+	}
+
+	rawIndex, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if !strings.Contains(string(rawIndex), "order: 0") || !strings.Contains(string(rawIndex), "order: 2") {
+		t.Fatalf("expected index to persist node order, got %s", string(rawIndex))
+	}
+
+	reloaded, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("reloaded NewManager() error = %v", err)
+	}
+
+	reloadedProfile, ok := reloaded.Get(profile.ID)
+	if !ok {
+		t.Fatalf("expected reloaded profile to exist")
+	}
+	if reloadedProfile.Nodes[0].Name != "jp-03" || reloadedProfile.Nodes[1].Name != "hk-01" || reloadedProfile.Nodes[2].Name != "us-02" {
+		t.Fatalf("expected reloaded profile to preserve node order, got %+v", reloadedProfile.Nodes)
+	}
+}
+
+func TestManagerRefreshPreservesCustomNodeOrderByName(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profiles.yaml")
+
+	responseBody := `
+proxies:
+  - name: hk-01
+    type: ss
+    server: 1.1.1.1
+    port: 443
+    cipher: aes-128-gcm
+    password: demo
+  - name: us-02
+    type: ss
+    server: 2.2.2.2
+    port: 8443
+    cipher: aes-128-gcm
+    password: demo
+`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(responseBody))
+	}))
+	defer server.Close()
+
+	m, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "refresh-order",
+		Source: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+
+	if _, err := m.MoveNode(profile.ID, 1, 0); err != nil {
+		t.Fatalf("MoveNode() error = %v", err)
+	}
+
+	responseBody = `
+proxies:
+  - name: us-02
+    type: ss
+    server: 9.9.9.9
+    port: 9443
+    cipher: aes-128-gcm
+    password: refreshed
+  - name: hk-01
+    type: ss
+    server: 8.8.8.8
+    port: 8443
+    cipher: aes-128-gcm
+    password: refreshed
+`
+	refreshed, err := m.Refresh(profile.ID)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if refreshed.Nodes[0].Name != "us-02" || refreshed.Nodes[1].Name != "hk-01" {
+		t.Fatalf("expected refresh to preserve custom order, got %+v", refreshed.Nodes)
+	}
+	if refreshed.Nodes[0].Order != 0 || refreshed.Nodes[1].Order != 1 {
+		t.Fatalf("expected refresh to normalize order fields, got %+v", refreshed.Nodes)
+	}
+}
+
 func TestManagerRecoversProfilesWhenIndexIsMalformed(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profiles.yaml")

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -317,6 +318,75 @@ func (m *Manager) SetNodeEnabled(profileID string, nodeIndex int, enabled bool) 
 	return profile, nil
 }
 
+func (m *Manager) MoveNode(profileID string, nodeIndex int, targetIndex int) (interfaces.Profile, error) {
+	if m == nil {
+		profilesLogger().Warn("move node rejected: profile manager not initialized")
+		return interfaces.Profile{}, fmt.Errorf("profile manager not initialized")
+	}
+	if strings.TrimSpace(profileID) == "" {
+		return interfaces.Profile{}, fmt.Errorf("profile ID is required")
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	profile, ok := m.profiles[profileID]
+	if !ok {
+		return interfaces.Profile{}, fmt.Errorf("profile not found")
+	}
+	if nodeIndex < 0 || nodeIndex >= len(profile.Nodes) {
+		return interfaces.Profile{}, fmt.Errorf("node index out of range")
+	}
+	if targetIndex < 0 || targetIndex >= len(profile.Nodes) {
+		return interfaces.Profile{}, fmt.Errorf("target index out of range")
+	}
+	if nodeIndex == targetIndex {
+		return profile, nil
+	}
+
+	profile.Nodes = cloneNodes(profile.Nodes)
+	moved := profile.Nodes[nodeIndex]
+	nextNodes := make([]interfaces.Node, 0, len(profile.Nodes))
+	for i, node := range profile.Nodes {
+		if i == nodeIndex {
+			continue
+		}
+		nextNodes = append(nextNodes, node)
+	}
+
+	if targetIndex >= len(nextNodes) {
+		nextNodes = append(nextNodes, moved)
+	} else {
+		nextNodes = append(nextNodes[:targetIndex], append([]interfaces.Node{moved}, nextNodes[targetIndex:]...)...)
+	}
+
+	profile.Nodes = normalizeNodeOrder(nextNodes)
+	previousProfile := m.profiles[profileID]
+	if err := m.saveProfileFile(profile); err != nil {
+		return interfaces.Profile{}, err
+	}
+	m.profiles[profileID] = profile
+	if err := m.persistLocked(); err != nil {
+		m.profiles[profileID] = previousProfile
+		if restoreErr := m.saveProfileFile(previousProfile); restoreErr != nil {
+			profilesLogger().Warn("restore profile file after node move failure failed",
+				zap.String("profile_id", profileID),
+				zap.Error(restoreErr),
+			)
+			return interfaces.Profile{}, errors.Join(err, restoreErr)
+		}
+		return interfaces.Profile{}, err
+	}
+
+	profilesLogger().Info("profile node moved",
+		zap.String("profile_id", profileID),
+		zap.Int("node_index", nodeIndex),
+		zap.Int("target_index", targetIndex),
+		zap.String("node_name", moved.Name),
+	)
+	return profile, nil
+}
+
 func (m *Manager) Delete(profileID string) error {
 	if m == nil {
 		profilesLogger().Warn("delete rejected: profile manager not initialized")
@@ -444,7 +514,7 @@ func inferProfileName(source string) string {
 }
 
 func applyNodeSelections(reference []interfaces.Node, nodes []interfaces.Node) []interfaces.Node {
-	out := cloneNodes(nodes)
+	out := normalizeNodeOrder(cloneNodes(nodes))
 	for i := range out {
 		out[i].Enabled = true
 	}
@@ -452,42 +522,45 @@ func applyNodeSelections(reference []interfaces.Node, nodes []interfaces.Node) [
 		return out
 	}
 
-	if len(reference) == len(out) {
-		namesAligned := true
-		for i := range out {
-			if strings.TrimSpace(reference[i].Name) != strings.TrimSpace(out[i].Name) {
-				namesAligned = false
-				break
-			}
-		}
-		if namesAligned {
-			for i := range out {
-				out[i].Enabled = reference[i].Enabled
-			}
-			return out
-		}
+	type nodeState struct {
+		enabled bool
+		order   int
 	}
 
-	selectionsByName := make(map[string][]bool, len(reference))
-	for _, node := range reference {
+	statesByName := make(map[string][]nodeState, len(reference))
+	for _, node := range normalizeNodeOrder(cloneNodes(reference)) {
 		key := strings.TrimSpace(node.Name)
 		if key == "" {
 			continue
 		}
-		selectionsByName[key] = append(selectionsByName[key], node.Enabled)
+		statesByName[key] = append(statesByName[key], nodeState{
+			enabled: node.Enabled,
+			order:   node.Order,
+		})
 	}
 
+	nextOrder := len(reference)
 	for i := range out {
 		key := strings.TrimSpace(out[i].Name)
-		flags := selectionsByName[key]
-		if len(flags) == 0 {
+		states := statesByName[key]
+		if len(states) == 0 {
+			out[i].Order = nextOrder
+			nextOrder++
 			continue
 		}
-		out[i].Enabled = flags[0]
-		selectionsByName[key] = flags[1:]
+		out[i].Enabled = states[0].enabled
+		out[i].Order = states[0].order
+		statesByName[key] = states[1:]
 	}
 
-	return out
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Order != out[j].Order {
+			return out[i].Order < out[j].Order
+		}
+		return out[i].Name < out[j].Name
+	})
+
+	return normalizeNodeOrder(out)
 }
 
 func cloneNodes(nodes []interfaces.Node) []interfaces.Node {
@@ -496,6 +569,18 @@ func cloneNodes(nodes []interfaces.Node) []interfaces.Node {
 	}
 	out := make([]interfaces.Node, len(nodes))
 	copy(out, nodes)
+	return out
+}
+
+func normalizeNodeOrder(nodes []interfaces.Node) []interfaces.Node {
+	if len(nodes) == 0 {
+		return []interfaces.Node{}
+	}
+
+	out := cloneNodes(nodes)
+	for i := range out {
+		out[i].Order = i
+	}
 	return out
 }
 

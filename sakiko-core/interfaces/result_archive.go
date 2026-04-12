@@ -37,7 +37,8 @@ type ResultReport struct {
 }
 
 type ResultArchiveNode struct {
-	Name string `json:"name"`
+	Name  string `json:"name"`
+	Order int    `json:"order,omitempty"`
 }
 
 type ResultArchiveTask struct {

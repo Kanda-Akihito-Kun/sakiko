@@ -2,6 +2,7 @@ import { Box, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typ
 import { alpha, type Theme } from "@mui/material/styles";
 import type { MediaMatrixColumn, MediaMatrixRow } from "../../utils/mediaMatrix";
 import { mediaCellTone } from "../../utils/mediaMatrix";
+import { shouldUseEmojiFont } from "../../utils/dashboard";
 
 type MediaUnlockMatrixProps = {
   columns: MediaMatrixColumn[];
@@ -53,7 +54,7 @@ export function MediaUnlockMatrix({ columns, rows, title, subtitle }: MediaUnloc
             {rows.map((row, rowIndex) => (
               <TableRow key={`${row.nodeName}-${row.proxyType}-${rowIndex}`} hover>
                 <TableCell>
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={600} className={shouldUseEmojiFont("nodeName", row.nodeName) ? "sakiko-emoji" : undefined}>
                     {row.nodeName}
                   </Typography>
                 </TableCell>

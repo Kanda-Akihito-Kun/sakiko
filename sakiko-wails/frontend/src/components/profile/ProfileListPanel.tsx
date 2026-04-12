@@ -1,6 +1,7 @@
 import StorageRounded from "@mui/icons-material/StorageRounded";
 import { Box, Chip, List, ListItemButton, ListItemText, Typography } from "@mui/material";
 import type { ProfileSummary } from "../../types/sakiko";
+import { shouldUseEmojiFont } from "../../utils/dashboard";
 import { EmptyState } from "../shared/EmptyState";
 import { SectionCard } from "../shared/SectionCard";
 
@@ -37,7 +38,7 @@ export function ProfileListPanel({ profiles, activeProfileId, onSelect }: Profil
                   </Typography>
                 </Box>
               }
-              primaryTypographyProps={{ fontWeight: 600, noWrap: true }}
+              primaryTypographyProps={{ fontWeight: 600, noWrap: true, className: shouldUseEmojiFont("nodeName", profile.name) ? "sakiko-emoji" : undefined }}
               sx={{ minWidth: 0, mr: 1 }}
             />
             <Chip label={profile.id.slice(0, 8)} size="small" variant="outlined" />

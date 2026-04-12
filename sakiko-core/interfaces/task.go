@@ -9,6 +9,7 @@ const (
 
 type Node struct {
 	Name     string `json:"name"`
+	Order    int    `json:"order,omitempty" yaml:"-"`
 	Protocol string `json:"protocol,omitempty" yaml:"-"`
 	Server   string `json:"server,omitempty" yaml:"-"`
 	Port     string `json:"port,omitempty" yaml:"-"`

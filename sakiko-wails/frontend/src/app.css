@@ -129,7 +129,15 @@
 }
 
 .sakiko-mono {
-  font-family: "SFMono-Regular", "Cascadia Code", "IBM Plex Mono", monospace;
+  font-family: var(--sakiko-font-mono);
+}
+
+.sakiko-emoji {
+  font-family: var(--sakiko-font-sans) !important;
+}
+
+.sakiko-mono.sakiko-emoji {
+  font-family: var(--sakiko-font-mono) !important;
 }
 
 .sakiko-table {

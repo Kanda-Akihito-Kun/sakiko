@@ -25,6 +25,9 @@ proxies:
 	if nodes[0].Name != "hk-1" {
 		t.Fatalf("expected first node name hk-1, got %s", nodes[0].Name)
 	}
+	if nodes[0].Order != 0 || nodes[1].Order != 1 {
+		t.Fatalf("expected parser to assign stable node order, got %d and %d", nodes[0].Order, nodes[1].Order)
+	}
 	if nodes[1].Name != "node-2" {
 		t.Fatalf("expected second node default name node-2, got %s", nodes[1].Name)
 	}

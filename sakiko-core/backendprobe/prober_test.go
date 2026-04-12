@@ -15,7 +15,49 @@ func TestBuildFallbackLocation(t *testing.T) {
 	}
 }
 
-func TestExtractLocationFromHTML(t *testing.T) {
+func TestBuildIPCNLocation(t *testing.T) {
+	info := ipCNCurrentInfo{
+		Country:  "中国",
+		Province: "福建",
+		City:     "福州",
+		District: "闽侯",
+		ISP:      "电信",
+	}
+
+	got := buildIPCNLocation(info)
+	if got != "中国 福建 福州 闽侯 电信" {
+		t.Fatalf("unexpected ip.cn location: %q", got)
+	}
+}
+
+func TestExtractCurrentInfoFromIPCNDataObject(t *testing.T) {
+	html := `
+<script>
+const state = {
+  data: {
+    ip: "59.61.129.169",
+    country: "中国",
+    province: "福建",
+    city: "福州",
+    district: "闽侯",
+    isp: "电信"
+  }
+}
+</script>`
+
+	got, err := extractCurrentInfoFromIPCN(html)
+	if err != nil {
+		t.Fatalf("extractCurrentInfoFromIPCN() error = %v", err)
+	}
+	if got.IP != "59.61.129.169" {
+		t.Fatalf("unexpected ip: %q", got.IP)
+	}
+	if buildIPCNLocation(got) != "中国 福建 福州 闽侯 电信" {
+		t.Fatalf("unexpected location: %q", buildIPCNLocation(got))
+	}
+}
+
+func TestExtractCurrentInfoFromIPCNHTMLLocation(t *testing.T) {
 	html := `
 <table>
   <tr>
@@ -24,29 +66,11 @@ func TestExtractLocationFromHTML(t *testing.T) {
   </tr>
 </table>`
 
-	got, ok := extractLocationFromHTML(html)
-	if !ok {
-		t.Fatalf("expected location match")
+	got, err := extractCurrentInfoFromIPCN(html)
+	if err != nil {
+		t.Fatalf("extractCurrentInfoFromIPCN() error = %v", err)
 	}
-	if got != "中国 福建 福州 闽侯 电信" {
-		t.Fatalf("unexpected extracted location: %q", got)
-	}
-}
-
-func TestExtractLocationFromMojibakeHTML(t *testing.T) {
-	html := `
-<table>
-  <tr>
-    <td>鎵€鍦ㄥ湴鐞嗕綅缃?/td>
-    <td>涓浗 绂忓缓 绂忓窞 闽侯 鐢典俊</td>
-  </tr>
-</table>`
-
-	got, ok := extractLocationFromHTML(html)
-	if !ok {
-		t.Fatalf("expected mojibake location match")
-	}
-	if got != "涓浗 绂忓缓 绂忓窞 闽侯 鐢典俊" {
-		t.Fatalf("unexpected extracted mojibake location: %q", got)
+	if buildIPCNLocation(got) != "中国 福建 福州 闽侯 电信" {
+		t.Fatalf("unexpected location: %q", buildIPCNLocation(got))
 	}
 }

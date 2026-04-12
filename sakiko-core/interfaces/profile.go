@@ -52,3 +52,13 @@ type ProfileNodeSelectionUpdateRequest struct {
 type ProfileNodeSelectionUpdateResponse struct {
 	Profile Profile `json:"profile"`
 }
+
+type ProfileNodeOrderUpdateRequest struct {
+	ProfileID   string `json:"profileId"`
+	NodeIndex   int    `json:"nodeIndex"`
+	TargetIndex int    `json:"targetIndex"`
+}
+
+type ProfileNodeOrderUpdateResponse struct {
+	Profile Profile `json:"profile"`
+}

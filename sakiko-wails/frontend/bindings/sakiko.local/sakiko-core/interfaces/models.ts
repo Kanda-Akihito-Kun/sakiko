@@ -194,6 +194,7 @@ export enum MatrixType {
 
 export class Node {
     "name": string;
+    "order"?: number;
     "protocol"?: string;
     "server"?: string;
     "port"?: string;
@@ -427,6 +428,7 @@ export class ResultArchiveListItem {
 
 export class ResultArchiveNode {
     "name": string;
+    "order"?: number;
 
     /** Creates a new ResultArchiveNode instance. */
     constructor($$source: Partial<ResultArchiveNode> = {}) {

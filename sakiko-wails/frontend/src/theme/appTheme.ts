@@ -3,17 +3,7 @@ import { alpha, createTheme } from "@mui/material/styles";
 export type AppThemeMode = "light" | "dark" | "system";
 export type ResolvedThemeMode = Exclude<AppThemeMode, "system">;
 
-const fontFamily = [
-  "-apple-system",
-  "BlinkMacSystemFont",
-  "\"Microsoft YaHei UI\"",
-  "\"Microsoft YaHei\"",
-  "Roboto",
-  "\"Helvetica Neue\"",
-  "Arial",
-  "sans-serif",
-  "\"Apple Color Emoji\"",
-].join(", ");
+const fontFamily = "var(--sakiko-font-sans)";
 
 const cvrThemes = {
   light: {

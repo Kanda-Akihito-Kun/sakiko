@@ -67,6 +67,7 @@ export function DashboardPage() {
     handleInspectTask: state.handleInspectTask,
     handleProfileSelect: state.handleProfileSelect,
     handleRefreshProfile: state.handleRefreshProfile,
+    handleMoveProfileNode: state.handleMoveProfileNode,
     handleSetProfileNodeEnabled: state.handleSetProfileNodeEnabled,
     handleRunTask: state.handleRunTask,
     importForm: state.importForm,
@@ -227,6 +228,7 @@ export function DashboardPage() {
                   onImport={dashboard.handleImport}
                   onImportFormChange={dashboard.updateImportForm}
                   onNodeEnabledChange={dashboard.handleSetProfileNodeEnabled}
+                  onNodeMove={dashboard.handleMoveProfileNode}
                   onNodeFilterChange={dashboard.setNodeFilter}
                   onRefreshProfile={dashboard.handleRefreshProfile}
                   onReload={dashboard.refreshDashboard}

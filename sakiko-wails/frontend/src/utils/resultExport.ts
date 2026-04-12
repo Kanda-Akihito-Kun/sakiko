@@ -31,6 +31,8 @@ type TableMergePlan = {
   skipped: Set<string>;
 };
 
+type FlagEmojiAssetMap = Map<string, HTMLImageElement | null>;
+
 const PAGE_PADDING_X = 18;
 const PAGE_PADDING_Y = 16;
 const HEADER_HEIGHT = 56;
@@ -50,11 +52,16 @@ const LATENCY_ACCENT = "#1aa36e";
 const SPEED_BASE = "#dff8ea";
 const SPEED_ACCENT = "#2cc381";
 const WATERMARK = "sakiko";
+const TWEMOJI_BASE_URL = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72";
+const FLAG_ICON_GAP = 6;
+const FLAG_BADGE_FILL = "#edf6f1";
+const FLAG_BADGE_BORDER = "#c9ddd0";
 const TOPOLOGY_INBOUND_COLUMNS = ["inboundCountryCode", "inboundASN", "inboundOrganization"] as const;
 const TOPOLOGY_OUTBOUND_COLUMNS = ["outboundCountryCode", "outboundASN", "outboundOrganization", "outboundIP"] as const;
 
 export async function exportResultArchiveImage(archive: ResultArchive, downloadTargets: DownloadTarget[] = []): Promise<void> {
   const sections = buildExportSections(archive);
+  const flagEmojiAssets = await loadFlagEmojiAssets(sections);
   const pageWidth = Math.max(1420, ...sections.map(sectionTotalWidth)) + PAGE_PADDING_X * 2;
   const pageHeight = calculatePageHeight(sections);
 
@@ -74,7 +81,7 @@ export async function exportResultArchiveImage(archive: ResultArchive, downloadT
 
   let cursorY = PAGE_PADDING_Y + HEADER_HEIGHT;
   sections.forEach((section, index) => {
-    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, true) + (index < sections.length - 1 ? SECTION_GAP : 0);
+    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, true, flagEmojiAssets) + (index < sections.length - 1 ? SECTION_GAP : 0);
   });
 
   drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight);
@@ -121,13 +128,7 @@ function buildLatencySection(archive: ResultArchive): ExportSection | null {
     return null;
   }
 
-  const sortedRows = rows
-    .sort((left, right) => {
-      const leftValue = numericValue(left.httpPingMillis) || numericValue(left.rttMillis);
-      const rightValue = numericValue(right.httpPingMillis) || numericValue(right.rttMillis);
-      return leftValue - rightValue;
-    })
-    .map((row, index) => ({ rank: index + 1, ...row }));
+  const sortedRows = rows.map((row, index) => ({ rank: index + 1, ...row }));
 
   return {
     kind: "latency_table",
@@ -281,6 +282,7 @@ function drawSection(
   y: number,
   pageWidth: number,
   separated: boolean,
+  flagEmojiAssets: FlagEmojiAssetMap,
 ): number {
   const tableWidth = sectionTotalWidth(section);
   const tableX = Math.max(PAGE_PADDING_X, Math.floor((pageWidth - tableWidth) / 2));
@@ -298,7 +300,7 @@ function drawSection(
 
   drawTableHeader(ctx, section.columns, tableX, cursorY);
   section.rows.forEach((row, rowIndex) => {
-    drawTableRow(ctx, section, archive, row, rowIndex, tableX, cursorY + TABLE_HEADER_HEIGHT + rowIndex * ROW_HEIGHT, mergePlan);
+    drawTableRow(ctx, section, archive, row, rowIndex, tableX, cursorY + TABLE_HEADER_HEIGHT + rowIndex * ROW_HEIGHT, mergePlan, flagEmojiAssets);
   });
 
   return cursorY + TABLE_HEADER_HEIGHT + section.rows.length * ROW_HEIGHT;
@@ -334,6 +336,7 @@ function drawTableRow(
   x: number,
   y: number,
   mergePlan: TableMergePlan,
+  flagEmojiAssets: FlagEmojiAssetMap,
 ) {
   let cursorX = x;
   section.columns.forEach((column) => {
@@ -352,6 +355,11 @@ function drawTableRow(
 
     if (column.key === "perSecondBytesPerSecond" && Array.isArray(value)) {
       drawSparkBars(ctx, cursorX + 10, y + 8, column.width - 20, cellHeight - 16, value);
+    } else if (column.key === "nodeName") {
+      drawNodeNameCell(ctx, formatNodeNameForExport(String(value || ""), archive), cursorX, y, column.width, cellHeight, {
+        color: TEXT_COLOR,
+        font: `500 13px ${FONT_FAMILY}`,
+      }, flagEmojiAssets);
     } else {
       drawCellText(ctx, renderCellValue(section.kind, column.key, value, archive), cursorX, y, column.width, cellHeight, {
         align: column.align || "left",
@@ -686,6 +694,55 @@ function applyMergeGroup(
   }
 }
 
+function drawNodeNameCell(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  options: {
+    color: string;
+    font: string;
+  },
+  flagEmojiAssets: FlagEmojiAssetMap,
+) {
+  const content = text || "-";
+  const flag = extractLeadingFlagEmoji(content);
+  if (!flag) {
+    drawCellText(ctx, content, x, y, width, height, {
+      align: "left",
+      color: options.color,
+      font: options.font,
+      wrap: false,
+    });
+    return;
+  }
+
+  const remainder = content.slice(flag.length).trimStart() || flagCountryCode(flag);
+  const iconSize = Math.max(14, Math.min(18, height - 14));
+  const iconX = x + 10;
+  const iconY = y + (height - iconSize) / 2;
+  const textX = iconX + iconSize + FLAG_ICON_GAP;
+  const maxTextWidth = Math.max(0, width - 20 - iconSize - FLAG_ICON_GAP);
+
+  ctx.save();
+  ctx.fillStyle = options.color;
+  ctx.font = options.font;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
+  const image = flagEmojiAssets.get(flag) || null;
+  if (image) {
+    ctx.drawImage(image, iconX, iconY, iconSize, iconSize);
+  } else {
+    drawFlagBadge(ctx, flagCountryCode(flag), iconX, iconY, iconSize);
+  }
+
+  ctx.fillText(truncateText(ctx, remainder, maxTextWidth), textX, y + height / 2);
+  ctx.restore();
+}
+
 function createMergeCellKey(columnKey: string, rowIndex: number): string {
   return `${columnKey}:${rowIndex}`;
 }
@@ -819,6 +876,97 @@ function truncateText(ctx: CanvasRenderingContext2D, text: string, maxWidth: num
 function truncateTextWithLimit(text: string, limit: number): string {
   const glyphs = Array.from(text);
   return glyphs.length <= limit ? text : `${glyphs.slice(0, limit).join("")}...`;
+}
+
+function formatNodeNameForExport(text: string, archive: ResultArchive): string {
+  return truncateTextWithLimit(text, archive.task.context?.preset === "full" ? 36 : 40);
+}
+
+async function loadFlagEmojiAssets(sections: ExportSection[]): Promise<FlagEmojiAssetMap> {
+  const flags = new Set<string>();
+  for (const section of sections) {
+    for (const row of section.rows) {
+      const flag = extractLeadingFlagEmoji(String(row.nodeName || ""));
+      if (flag) {
+        flags.add(flag);
+      }
+    }
+  }
+
+  const entries = await Promise.all(Array.from(flags).map(async (flag) => [flag, await loadFlagEmojiAsset(flag)] as const));
+  return new Map(entries);
+}
+
+function loadFlagEmojiAsset(flag: string): Promise<HTMLImageElement | null> {
+  const codepoints = Array.from(flag)
+    .map((char) => char.codePointAt(0)?.toString(16))
+    .filter(Boolean)
+    .join("-");
+  if (!codepoints) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = `${TWEMOJI_BASE_URL}/${codepoints}.png`;
+  });
+}
+
+function extractLeadingFlagEmoji(text: string): string {
+  const glyphs = Array.from(text.trimStart());
+  if (glyphs.length < 2) {
+    return "";
+  }
+  return isRegionalIndicator(glyphs[0]) && isRegionalIndicator(glyphs[1])
+    ? glyphs.slice(0, 2).join("")
+    : "";
+}
+
+function isRegionalIndicator(value: string): boolean {
+  const codepoint = value.codePointAt(0) || 0;
+  return codepoint >= 0x1F1E6 && codepoint <= 0x1F1FF;
+}
+
+function flagCountryCode(flag: string): string {
+  return Array.from(flag)
+    .map((char) => {
+      const codepoint = char.codePointAt(0) || 0;
+      return codepoint >= 0x1F1E6 && codepoint <= 0x1F1FF
+        ? String.fromCharCode(codepoint - 127397)
+        : "";
+    })
+    .join("");
+}
+
+function drawFlagBadge(ctx: CanvasRenderingContext2D, code: string, x: number, y: number, size: number) {
+  ctx.save();
+  ctx.fillStyle = FLAG_BADGE_FILL;
+  ctx.strokeStyle = FLAG_BADGE_BORDER;
+  ctx.lineWidth = 1;
+  roundRect(ctx, x, y, size, size, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.font = `600 ${Math.max(7, Math.floor(size * 0.34))}px ${FONT_FAMILY}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(code || "--", x + size / 2, y + size / 2);
+  ctx.restore();
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const nextRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + nextRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, nextRadius);
+  ctx.arcTo(x + width, y + height, x, y + height, nextRadius);
+  ctx.arcTo(x, y + height, x, y, nextRadius);
+  ctx.arcTo(x, y, x + width, y, nextRadius);
+  ctx.closePath();
 }
 
 function formatBytesAsSpeed(value: unknown): string {

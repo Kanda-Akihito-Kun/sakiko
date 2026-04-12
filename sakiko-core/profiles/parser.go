@@ -51,6 +51,7 @@ func mapsToNodes(proxies []map[string]any) ([]interfaces.Node, error) {
 		port := strings.TrimSpace(stringField(item["port"]))
 		nodes = append(nodes, interfaces.Node{
 			Name:     name,
+			Order:    i,
 			Protocol: protocol,
 			Server:   server,
 			Port:     port,

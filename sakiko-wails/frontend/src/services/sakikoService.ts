@@ -12,4 +12,9 @@ export const SakikoService = {
       return Profile.createFrom(result);
     });
   },
+  MoveProfileNode(profileID: string, nodeIndex: number, targetIndex: number): CancellablePromise<Profile> {
+    return Call.ByName("main.SakikoService.MoveProfileNode", profileID, nodeIndex, targetIndex).then((result: any) => {
+      return Profile.createFrom(result);
+    });
+  },
 };

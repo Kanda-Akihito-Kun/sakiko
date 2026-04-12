@@ -317,12 +317,44 @@ export function formatBackendLabel(task?: Pick<ResultArchiveTask, "environment">
   }
 
   const location = (backend.location || "").trim();
-
   if (location) {
     return location;
   }
 
+  const ip = (backend.ip || "").trim();
+  if (ip) {
+    return ip;
+  }
+
+  const source = (backend.source || "").trim();
+  const error = (backend.error || "").trim();
+  if (source && error) {
+    return `Probe failed (${source})`;
+  }
+  if (source) {
+    return source;
+  }
+  if (error) {
+    return "Probe failed";
+  }
+
   return "Unknown backend";
+}
+
+export function formatBackendDetail(task?: Pick<ResultArchiveTask, "environment">): string {
+  const backend = task?.environment?.backend;
+  if (!backend) {
+    return "Backend probe unavailable";
+  }
+
+  const location = (backend.location || "").trim();
+  const ip = (backend.ip || "").trim();
+  const source = (backend.source || "").trim();
+  const error = (backend.error || "").trim();
+
+  const parts = [location, ip ? `IP=${ip}` : "", source ? `Source=${source}` : "", error ? `Error=${error}` : ""]
+    .filter(Boolean);
+  return parts.join(" | ") || "Backend probe unavailable";
 }
 
 export function summarizeDownloadTarget(downloadURL?: string, downloadTargets: DownloadTarget[] = []): string {
@@ -509,6 +541,15 @@ function formatDownloadTargetLabel(target: DownloadTarget): string {
 
 function isCountryCodeField(key?: string): boolean {
   return (key || "").toLowerCase().includes("countrycode");
+}
+
+export function containsRegionalFlagEmoji(value: unknown): boolean {
+  const text = String(value || "");
+  return /[\u{1F1E6}-\u{1F1FF}]{2}/u.test(text);
+}
+
+export function shouldUseEmojiFont(key?: string, value?: unknown): boolean {
+  return isCountryCodeField(key) || containsRegionalFlagEmoji(value);
 }
 
 function formatCountryCodeWithFlag(value: unknown): string {

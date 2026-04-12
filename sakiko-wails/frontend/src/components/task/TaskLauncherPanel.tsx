@@ -6,7 +6,7 @@ import { Box, Button, Chip, LinearProgress, List, ListItemButton, ListItemText, 
 import { taskPresets } from "../../constants/dashboard";
 import type { TaskPreset, TaskPresetSelection } from "../../types/dashboard";
 import type { TaskConfig, TaskState } from "../../types/sakiko";
-import { formatTaskPresetSelectionLabel, summarizeActiveTaskNodes, summarizeDownloadTarget } from "../../utils/dashboard";
+import { formatTaskPresetSelectionLabel, shouldUseEmojiFont, summarizeActiveTaskNodes, summarizeDownloadTarget } from "../../utils/dashboard";
 import { SectionCard } from "../shared/SectionCard";
 
 type TaskLauncherPanelProps = {
@@ -129,7 +129,7 @@ export function TaskLauncherPanel({
                     <ListItemText
                       primary={task.name}
                       secondary={task.status}
-                      primaryTypographyProps={{ fontWeight: 600, noWrap: true }}
+                      primaryTypographyProps={{ fontWeight: 600, noWrap: true, className: shouldUseEmojiFont("nodeName", task.name) ? "sakiko-emoji" : undefined }}
                       secondaryTypographyProps={{ noWrap: true }}
                       sx={{ minWidth: 0 }}
                     />

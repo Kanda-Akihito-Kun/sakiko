@@ -17,6 +17,7 @@ type profilesYAML struct {
 
 type profileNodeIndexEntry struct {
 	Name    string `yaml:"name"`
+	Order   int    `yaml:"order"`
 	Enabled bool   `yaml:"enabled"`
 }
 
@@ -34,6 +35,7 @@ func newProfileIndexEntry(profile interfaces.Profile) profileIndexEntry {
 	for _, node := range profile.Nodes {
 		nodes = append(nodes, profileNodeIndexEntry{
 			Name:    node.Name,
+			Order:   node.Order,
 			Enabled: node.Enabled,
 		})
 	}
@@ -53,6 +55,7 @@ func (e profileIndexEntry) toProfile() interfaces.Profile {
 	for _, node := range e.Nodes {
 		nodes = append(nodes, interfaces.Node{
 			Name:    node.Name,
+			Order:   node.Order,
 			Enabled: node.Enabled,
 		})
 	}

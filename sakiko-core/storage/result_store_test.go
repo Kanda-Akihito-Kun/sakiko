@@ -248,6 +248,48 @@ func TestResultStoreDeleteRemovesArchiveAndSummary(t *testing.T) {
 	}
 }
 
+func TestBuildSpeedSectionPreservesTaskNodeOrder(t *testing.T) {
+	t.Parallel()
+
+	section := buildSpeedSection(interfaces.TaskArchiveSnapshot{
+		Task: interfaces.Task{
+			Context: interfaces.TaskContext{Preset: "speed"},
+		},
+		Results: []interfaces.EntryResult{
+			{
+				ProxyInfo: interfaces.ProxyInfo{Name: "node-a", Type: interfaces.ProxyShadowsocks},
+				Matrices: []interfaces.MatrixResult{
+					{Type: interfaces.MatrixAverageSpeed, Payload: uint64(1_000)},
+					{Type: interfaces.MatrixMaxSpeed, Payload: uint64(2_000)},
+				},
+			},
+			{
+				ProxyInfo: interfaces.ProxyInfo{Name: "node-b", Type: interfaces.ProxyShadowsocks},
+				Matrices: []interfaces.MatrixResult{
+					{Type: interfaces.MatrixAverageSpeed, Payload: uint64(9_000)},
+					{Type: interfaces.MatrixMaxSpeed, Payload: uint64(10_000)},
+				},
+			},
+		},
+	})
+
+	if len(section.Rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(section.Rows))
+	}
+	if got := section.Rows[0]["nodeName"]; got != "node-a" {
+		t.Fatalf("expected first row node-a, got %#v", got)
+	}
+	if got := section.Rows[1]["nodeName"]; got != "node-b" {
+		t.Fatalf("expected second row node-b, got %#v", got)
+	}
+	if got := section.Rows[0]["rank"]; got != 1 {
+		t.Fatalf("expected first row rank 1, got %#v", got)
+	}
+	if got := section.Rows[1]["rank"]; got != 2 {
+		t.Fatalf("expected second row rank 2, got %#v", got)
+	}
+}
+
 func TestBuildMediaUnlockSectionUsesNodePlatformMatrix(t *testing.T) {
 	t.Parallel()
 

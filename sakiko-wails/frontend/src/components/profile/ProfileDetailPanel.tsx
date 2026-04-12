@@ -1,5 +1,7 @@
 import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
 import HubRounded from "@mui/icons-material/HubRounded";
+import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowUpRounded from "@mui/icons-material/KeyboardArrowUpRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import SearchRounded from "@mui/icons-material/SearchRounded";
 import {
@@ -20,6 +22,7 @@ import {
 } from "@mui/material";
 import type { Profile } from "../../types/sakiko";
 import type { FilteredProfileNode } from "../../utils/dashboard";
+import { shouldUseEmojiFont } from "../../utils/dashboard";
 import { EmptyState } from "../shared/EmptyState";
 import { SectionCard } from "../shared/SectionCard";
 
@@ -29,6 +32,7 @@ type ProfileDetailPanelProps = {
   nodeFilter: string;
   submitting: boolean;
   onNodeEnabledChange: (nodeIndex: number, enabled: boolean) => void;
+  onNodeMove: (nodeIndex: number, targetIndex: number) => void;
   onNodeFilterChange: (value: string) => void;
   onRefreshProfile: () => void;
   onDeleteProfile: () => void;
@@ -40,6 +44,7 @@ export function ProfileDetailPanel({
   nodeFilter,
   submitting,
   onNodeEnabledChange,
+  onNodeMove,
   onNodeFilterChange,
   onRefreshProfile,
   onDeleteProfile,
@@ -122,6 +127,7 @@ export function ProfileDetailPanel({
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
+                  <TableCell align="center">Order</TableCell>
                   <TableCell>Node</TableCell>
                   <TableCell>Server</TableCell>
                   <TableCell align="right">Port</TableCell>
@@ -132,9 +138,34 @@ export function ProfileDetailPanel({
                 {filteredNodes.map(({ node, index }) => {
                   return (
                     <TableRow key={`${node.name}-${index}`} hover>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                          <Typography variant="body2" className="sakiko-mono" sx={{ minWidth: 24 }}>
+                            {index + 1}
+                          </Typography>
+                          <Button
+                            size="small"
+                            variant="text"
+                            disabled={submitting || index <= 0}
+                            onClick={() => onNodeMove(index, index - 1)}
+                            sx={{ minWidth: 0, px: 0.5 }}
+                          >
+                            <KeyboardArrowUpRounded fontSize="small" />
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="text"
+                            disabled={submitting || !activeProfile || index >= activeProfile.nodes.length - 1}
+                            onClick={() => onNodeMove(index, index + 1)}
+                            sx={{ minWidth: 0, px: 0.5 }}
+                          >
+                            <KeyboardArrowDownRounded fontSize="small" />
+                          </Button>
+                        </Stack>
+                      </TableCell>
                       <TableCell>
                         <Stack spacing={0.25}>
-                          <Typography fontWeight={600} noWrap>{node.name}</Typography>
+                          <Typography fontWeight={600} noWrap className={shouldUseEmojiFont("nodeName", node.name) ? "sakiko-emoji" : undefined}>{node.name}</Typography>
                           <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", pt: 0.25 }}>
                             <Chip
                               size="small"

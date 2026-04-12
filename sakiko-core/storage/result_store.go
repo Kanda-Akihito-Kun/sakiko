@@ -282,7 +282,8 @@ func buildResultArchiveTask(task interfaces.Task) interfaces.ResultArchiveTask {
 	nodes := make([]interfaces.ResultArchiveNode, 0, len(task.Nodes))
 	for _, node := range task.Nodes {
 		nodes = append(nodes, interfaces.ResultArchiveNode{
-			Name: node.Name,
+			Name:  node.Name,
+			Order: node.Order,
 		})
 	}
 
@@ -332,14 +333,7 @@ func buildResultReport(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 }
 
 func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.ResultReportSection {
-	type speedRow struct {
-		row      map[string]any
-		maxSpeed uint64
-		avgSpeed uint64
-		name     string
-	}
-
-	rows := make([]speedRow, 0, len(snapshot.Results))
+	rows := make([]map[string]any, 0, len(snapshot.Results))
 	for _, result := range snapshot.Results {
 		rtt, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixRTTPing)
 		httpPing, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixHTTPPing)
@@ -348,43 +342,26 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 		perSecond, _ := extractUint64SliceMatrix(result.Matrices, interfaces.MatrixPerSecSpeed)
 		trafficUsed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixTrafficUsed)
 
-		rows = append(rows, speedRow{
-			maxSpeed: maxSpeed,
-			avgSpeed: avgSpeed,
-			name:     result.ProxyInfo.Name,
-			row: map[string]any{
-				"nodeName":                result.ProxyInfo.Name,
-				"proxyType":               result.ProxyInfo.Type,
-				"address":                 result.ProxyInfo.Address,
-				"rttMillis":               rtt,
-				"httpPingMillis":          httpPing,
-				"averageBytesPerSecond":   avgSpeed,
-				"maxBytesPerSecond":       maxSpeed,
-				"perSecondBytesPerSecond": perSecond,
-				"trafficUsedBytes":        trafficUsed,
-				"error":                   result.Error,
-			},
+		rows = append(rows, map[string]any{
+			"nodeName":                result.ProxyInfo.Name,
+			"proxyType":               result.ProxyInfo.Type,
+			"address":                 result.ProxyInfo.Address,
+			"rttMillis":               rtt,
+			"httpPingMillis":          httpPing,
+			"averageBytesPerSecond":   avgSpeed,
+			"maxBytesPerSecond":       maxSpeed,
+			"perSecondBytesPerSecond": perSecond,
+			"trafficUsedBytes":        trafficUsed,
+			"error":                   result.Error,
 		})
 	}
 
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].maxSpeed != rows[j].maxSpeed {
-			return rows[i].maxSpeed > rows[j].maxSpeed
-		}
-		if rows[i].avgSpeed != rows[j].avgSpeed {
-			return rows[i].avgSpeed > rows[j].avgSpeed
-		}
-		return rows[i].name < rows[j].name
-	})
-
-	flatRows := make([]map[string]any, 0, len(rows))
 	successCount := 0
 	for index, row := range rows {
-		row.row["rank"] = index + 1
-		if row.row["error"] == "" {
+		row["rank"] = index + 1
+		if row["error"] == "" {
 			successCount++
 		}
-		flatRows = append(flatRows, row.row)
 	}
 
 	return interfaces.ResultReportSection{
@@ -402,7 +379,7 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 			{Key: "trafficUsedBytes", Label: "Traffic Used"},
 			{Key: "error", Label: "Error"},
 		},
-		Rows: flatRows,
+		Rows: rows,
 		Summary: map[string]any{
 			"nodeCount":    len(snapshot.Results),
 			"successCount": successCount,

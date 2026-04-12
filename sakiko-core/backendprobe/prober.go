@@ -21,16 +21,27 @@ import (
 )
 
 const (
-	defaultTTL           = 10 * time.Minute
-	defaultProbeTimeout  = 4 * time.Second
-	currentIPLookupURL   = "https://ipwho.is/"
-	locationLookupFormat = "https://ip.cn/ip/%s.html"
+	defaultTTL          = 10 * time.Minute
+	defaultProbeTimeout = 4 * time.Second
+	currentIPLookupURL  = "https://ipwho.is/"
+	ipCNLookupURL       = "https://www.ip.cn/"
 )
 
-var locationPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`所在地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
-	regexp.MustCompile(`鎵€鍦ㄥ湴鐞嗕綅缃[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
-}
+var (
+	ipPattern         = regexp.MustCompile(`(?i)(?:^|[{"',\s])ip["']?\s*[:=]\s*["']?((?:\d{1,3}\.){3}\d{1,3})["']?`)
+	ipCNFieldPatterns = map[string]*regexp.Regexp{
+		"country":  regexp.MustCompile(`(?i)(?:^|[{"',\s])country["']?\s*[:=]\s*["']([^"']+)["']`),
+		"province": regexp.MustCompile(`(?i)(?:^|[{"',\s])province["']?\s*[:=]\s*["']([^"']+)["']`),
+		"city":     regexp.MustCompile(`(?i)(?:^|[{"',\s])city["']?\s*[:=]\s*["']([^"']+)["']`),
+		"district": regexp.MustCompile(`(?i)(?:^|[{"',\s])district["']?\s*[:=]\s*["']([^"']+)["']`),
+		"isp":      regexp.MustCompile(`(?i)(?:^|[{"',\s])isp["']?\s*[:=]\s*["']([^"']+)["']`),
+	}
+	locationPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`所在地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
+		regexp.MustCompile(`归属地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
+		regexp.MustCompile(`地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
+	}
+)
 
 type Config struct {
 	TTL time.Duration
@@ -55,6 +66,15 @@ type ipWhoIsResponse struct {
 	Connection struct {
 		ISP string `json:"isp"`
 	} `json:"connection"`
+}
+
+type ipCNCurrentInfo struct {
+	IP       string
+	Country  string
+	Province string
+	City     string
+	District string
+	ISP      string
 }
 
 func New(cfg Config) *Prober {
@@ -99,32 +119,78 @@ func (p *Prober) Probe(ctx context.Context) (interfaces.BackendInfo, error) {
 }
 
 func (p *Prober) probeOnce(ctx context.Context) (interfaces.BackendInfo, error) {
+	ipCNErr := error(nil)
+	if backend, err := lookupCurrentBackendFromIPCN(ctx); err == nil {
+		backend.UpdatedAt = p.now().UTC().Format(time.RFC3339)
+		return backend, nil
+	} else {
+		ipCNErr = err
+	}
+
 	ipInfo, err := lookupCurrentIP(ctx)
 	if err != nil {
+		combinedError := joinProbeErrors(
+			formatProbeError("ip.cn", ipCNErr),
+			formatProbeError("ipwho.is", err),
+		)
 		return interfaces.BackendInfo{
-			Source: "ipwho.is",
-			Error:  err.Error(),
-		}, err
+			Source: "ip.cn -> ipwho.is",
+			Error:  combinedError,
+		}, errors.Join(ipCNErr, err)
 	}
 
-	location, locErr := lookupLocation(ctx, ipInfo.IP)
-	backend := interfaces.BackendInfo{
+	return interfaces.BackendInfo{
 		IP:        ipInfo.IP,
+		Location:  buildFallbackLocation(ipInfo),
+		Source:    "ipwho.is",
 		UpdatedAt: p.now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func lookupCurrentBackendFromIPCN(ctx context.Context) (interfaces.BackendInfo, error) {
+	resp, err := netx.RequestUnsafe(ctx, nil, interfaces.RequestOptions{
+		Method: http.MethodGet,
+		URL:    ipCNLookupURL,
+		Headers: map[string]string{
+			"Accept":     "text/html,application/xhtml+xml",
+			"User-Agent": "sakiko/0.1",
+		},
+		Network: interfaces.ROptionsTCP,
+	})
+	if err != nil {
+		return interfaces.BackendInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return interfaces.BackendInfo{}, fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 
-	if locErr == nil && location != "" {
-		backend.Location = location
-		backend.Source = "ip.cn"
-		return backend, nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return interfaces.BackendInfo{}, err
 	}
 
-	backend.Location = buildFallbackLocation(ipInfo)
-	backend.Source = "ipwho.is"
-	if locErr != nil {
-		backend.Error = locErr.Error()
+	decodedBody, err := decodeHTMLBody(resp.Header.Get("Content-Type"), body)
+	if err != nil {
+		return interfaces.BackendInfo{}, err
 	}
-	return backend, locErr
+
+	info, err := extractCurrentInfoFromIPCN(decodedBody)
+	if err != nil {
+		return interfaces.BackendInfo{}, err
+	}
+
+	location := buildIPCNLocation(info)
+	if strings.TrimSpace(info.IP) == "" && location == "" {
+		return interfaces.BackendInfo{}, fmt.Errorf("backend info not found in ip.cn response")
+	}
+
+	return interfaces.BackendInfo{
+		IP:       strings.TrimSpace(info.IP),
+		Location: location,
+		Source:   "ip.cn",
+	}, nil
 }
 
 func lookupCurrentIP(ctx context.Context) (ipWhoIsResponse, error) {
@@ -159,49 +225,6 @@ func lookupCurrentIP(ctx context.Context) (ipWhoIsResponse, error) {
 	return payload, nil
 }
 
-func lookupLocation(ctx context.Context, ip string) (string, error) {
-	if strings.TrimSpace(ip) == "" {
-		return "", fmt.Errorf("empty backend ip")
-	}
-
-	resp, err := netx.RequestUnsafe(ctx, nil, interfaces.RequestOptions{
-		Method: http.MethodGet,
-		URL:    fmt.Sprintf(locationLookupFormat, ip),
-		Headers: map[string]string{
-			"Accept":     "text/html,application/xhtml+xml",
-			"User-Agent": "sakiko/0.1",
-		},
-		Network: interfaces.ROptionsTCP,
-	})
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return "", fmt.Errorf("unexpected status: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	decodedBody, err := decodeHTMLBody(resp.Header.Get("Content-Type"), body)
-	if err != nil {
-		return "", err
-	}
-
-	location, ok := extractLocationFromHTML(decodedBody)
-	if !ok {
-		return "", fmt.Errorf("backend location not found in ip.cn response")
-	}
-	if location == "" {
-		return "", fmt.Errorf("backend location is empty")
-	}
-	return location, nil
-}
-
 func decodeHTMLBody(contentType string, body []byte) (string, error) {
 	reader, err := charset.NewReader(bytes.NewReader(body), contentType)
 	if err != nil {
@@ -213,6 +236,65 @@ func decodeHTMLBody(contentType string, body []byte) (string, error) {
 		return "", err
 	}
 	return string(decoded), nil
+}
+
+func extractCurrentInfoFromIPCN(raw string) (ipCNCurrentInfo, error) {
+	text := html.UnescapeString(raw)
+
+	info := ipCNCurrentInfo{
+		IP:       extractPatternValue(ipPattern, text),
+		Country:  extractPatternValue(ipCNFieldPatterns["country"], text),
+		Province: extractPatternValue(ipCNFieldPatterns["province"], text),
+		City:     extractPatternValue(ipCNFieldPatterns["city"], text),
+		District: extractPatternValue(ipCNFieldPatterns["district"], text),
+		ISP:      extractPatternValue(ipCNFieldPatterns["isp"], text),
+	}
+
+	if buildIPCNLocation(info) != "" || info.IP != "" {
+		return info, nil
+	}
+
+	if location, ok := extractLocationFromHTML(text); ok {
+		info.LocationTokens(location)
+		if buildIPCNLocation(info) != "" {
+			return info, nil
+		}
+	}
+
+	return ipCNCurrentInfo{}, fmt.Errorf("backend info not found in ip.cn response")
+}
+
+func (i *ipCNCurrentInfo) LocationTokens(location string) {
+	parts := strings.Fields(strings.TrimSpace(location))
+	if len(parts) == 0 {
+		return
+	}
+	if i.Country == "" && len(parts) > 0 {
+		i.Country = parts[0]
+	}
+	if i.Province == "" && len(parts) > 1 {
+		i.Province = parts[1]
+	}
+	if i.City == "" && len(parts) > 2 {
+		i.City = parts[2]
+	}
+	if i.District == "" && len(parts) > 3 {
+		i.District = parts[3]
+	}
+	if i.ISP == "" && len(parts) > 4 {
+		i.ISP = strings.Join(parts[4:], " ")
+	}
+}
+
+func extractPatternValue(pattern *regexp.Regexp, text string) string {
+	if pattern == nil {
+		return ""
+	}
+	matches := pattern.FindStringSubmatch(text)
+	if len(matches) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(matches[1])
 }
 
 func extractLocationFromHTML(raw string) (string, bool) {
@@ -229,6 +311,29 @@ func extractLocationFromHTML(raw string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func buildIPCNLocation(info ipCNCurrentInfo) string {
+	parts := make([]string, 0, 5)
+	appendUnique := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		for _, existing := range parts {
+			if existing == value {
+				return
+			}
+		}
+		parts = append(parts, value)
+	}
+
+	appendUnique(info.Country)
+	appendUnique(info.Province)
+	appendUnique(info.City)
+	appendUnique(info.District)
+	appendUnique(info.ISP)
+	return strings.Join(parts, " ")
 }
 
 func buildFallbackLocation(info ipWhoIsResponse) string {
@@ -257,4 +362,27 @@ func backendProbeError(info interfaces.BackendInfo) error {
 		return nil
 	}
 	return errors.New(info.Error)
+}
+
+func formatProbeError(source string, err error) string {
+	source = strings.TrimSpace(source)
+	if err == nil {
+		return ""
+	}
+	if source == "" {
+		return err.Error()
+	}
+	return source + ": " + err.Error()
+}
+
+func joinProbeErrors(parts ...string) string {
+	nonEmpty := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		nonEmpty = append(nonEmpty, part)
+	}
+	return strings.Join(nonEmpty, " | ")
 }

@@ -81,6 +81,12 @@ export function ListTasks(): $CancellablePromise<interfaces$0.TaskState[]> {
     });
 }
 
+export function MoveProfileNode(profileID: string, nodeIndex: number, targetIndex: number): $CancellablePromise<interfaces$0.Profile> {
+    return $Call.ByID(1514293423, profileID, nodeIndex, targetIndex).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function RefreshProfile(profileID: string): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(4151267443, profileID).then(($result: any) => {
         return $$createType1($result);

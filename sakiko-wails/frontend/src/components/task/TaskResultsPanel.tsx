@@ -3,7 +3,7 @@ import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
 import { alpha } from "@mui/material/styles";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
 import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
-import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, summarizeActiveTaskNodes } from "../../utils/dashboard";
+import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
 import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
 import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
@@ -48,7 +48,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
               <Typography variant="subtitle2" color="text.secondary">
                 Currently Testing
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" className={shouldUseEmojiFont("nodeName", activeSummary) ? "sakiko-emoji" : undefined}>
                 {activeSummary || "Waiting for node execution to start..."}
               </Typography>
               {activeNodes.length > 0 ? (
@@ -78,7 +78,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                     <Stack spacing={1.5}>
                       <Stack direction="row" justifyContent="space-between" spacing={1}>
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="h6" noWrap>
+                          <Typography variant="h6" noWrap className={shouldUseEmojiFont("nodeName", result.proxyInfo.name) ? "sakiko-emoji" : undefined}>
                             {result.proxyInfo.name || "Unnamed node"}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" noWrap>
@@ -172,7 +172,7 @@ function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
       <Stack spacing={1.25}>
         <Stack direction="row" justifyContent="space-between" spacing={1}>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" noWrap>
+            <Typography variant="subtitle1" noWrap className={shouldUseEmojiFont("nodeName", activeNode.nodeName) ? "sakiko-emoji" : undefined}>
               {activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>

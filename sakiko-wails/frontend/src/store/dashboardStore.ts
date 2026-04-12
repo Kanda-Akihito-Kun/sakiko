@@ -51,6 +51,7 @@ type DashboardState = {
   handleRefreshProfile: () => Promise<void>;
   handleDeleteProfile: () => Promise<void>;
   handleSetProfileNodeEnabled: (nodeIndex: number, enabled: boolean) => Promise<void>;
+  handleMoveProfileNode: (nodeIndex: number, targetIndex: number) => Promise<void>;
   handleRunTask: () => Promise<void>;
   handleInspectTask: (taskId: string) => Promise<void>;
   clearError: () => void;
@@ -449,6 +450,33 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         activeProfile: profile,
         profiles: upsertProfileSummary(state.profiles, profile),
         message: `${enabled ? "Included" : "Skipped"} ${nodeName} for future tasks.`,
+      }));
+    } catch (err) {
+      set({ error: normalizeError(err) });
+    } finally {
+      set({ submitting: false });
+    }
+  },
+
+  handleMoveProfileNode: async (nodeIndex, targetIndex) => {
+    const { activeProfile, activeProfileId } = get();
+    if (!activeProfileId || !activeProfile || nodeIndex < 0 || targetIndex < 0 || nodeIndex >= activeProfile.nodes.length || targetIndex >= activeProfile.nodes.length) {
+      return;
+    }
+
+    const nodeName = activeProfile.nodes[nodeIndex]?.name || `node ${nodeIndex + 1}`;
+    set({
+      submitting: true,
+      error: "",
+      message: `Reordering ${nodeName}...`,
+    });
+
+    try {
+      const profile = await SakikoService.MoveProfileNode(activeProfileId, nodeIndex, targetIndex);
+      set((state) => ({
+        activeProfile: profile,
+        profiles: upsertProfileSummary(state.profiles, profile),
+        message: `Moved ${nodeName}.`,
       }));
     } catch (err) {
       set({ error: normalizeError(err) });
