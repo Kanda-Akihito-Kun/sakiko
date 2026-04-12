@@ -2,8 +2,8 @@ import InsightsRounded from "@mui/icons-material/InsightsRounded";
 import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
 import { alpha } from "@mui/material/styles";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
-import type { TaskStatusResponse } from "../../types/sakiko";
-import { formatDuration, formatMatrixPayload } from "../../utils/dashboard";
+import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
+import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, summarizeActiveTaskNodes } from "../../utils/dashboard";
 import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
 import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
@@ -15,6 +15,8 @@ type TaskResultsPanelProps = {
 
 export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
   const mediaMatrix = buildMediaMatrixFromResults(activeTask?.results || []);
+  const activeNodes = activeTask?.task?.activeNodes || [];
+  const activeSummary = summarizeActiveTaskNodes(activeNodes);
 
   return (
     <SectionCard
@@ -27,14 +29,37 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+              gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" },
               gap: 1.5,
             }}
           >
             <ResultMetric label="Status" value={activeTask.task.status} />
             <ResultMetric label="Exit" value={`${activeTask.exitCode || "pending"}`} />
             <ResultMetric label="Progress" value={`${activeTask.task.progress}/${activeTask.task.total}`} mono />
+            <ResultMetric
+              label="Live Workload"
+              value={activeTask.task.status === "running" ? `${activeNodes.length} node(s)` : "Idle"}
+              mono={activeTask.task.status === "running"}
+            />
           </Box>
+
+          {activeTask.task.status === "running" ? (
+            <Stack spacing={1.25}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Currently Testing
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {activeSummary || "Waiting for node execution to start..."}
+              </Typography>
+              {activeNodes.length > 0 ? (
+                <div className="sakiko-results-grid">
+                  {activeNodes.map((activeNode) => (
+                    <ActiveNodeCard key={`${activeNode.nodeIndex}-${activeNode.updatedAt || activeNode.phase}`} activeNode={activeNode} />
+                  ))}
+                </div>
+              ) : null}
+            </Stack>
+          ) : null}
 
           {(activeTask.results || []).length > 0 ? (
             <Stack spacing={2}>
@@ -129,6 +154,54 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
         />
       )}
     </SectionCard>
+  );
+}
+
+type ActiveNodeCardProps = {
+  activeNode: TaskActiveNode;
+};
+
+function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
+  const phaseLabel = formatTaskRuntimePhase(activeNode.phase);
+  const matrixLabels = activeNode.matrix
+    ? [formatMatrixLabel(activeNode.matrix)]
+    : (activeNode.matrices || []).map((matrix) => formatMatrixLabel(matrix));
+
+  return (
+    <Card variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.25}>
+        <Stack direction="row" justifyContent="space-between" spacing={1}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" noWrap>
+              {activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {activeNode.nodeAddress || "Address pending"}
+            </Typography>
+          </Box>
+          <Chip
+            label={(activeNode.attempt || 0) > 1 ? `Attempt ${activeNode.attempt}` : phaseLabel}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </Stack>
+
+        <Typography variant="body2">
+          {describeTaskActiveNode(activeNode)}
+        </Typography>
+
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+          <Chip label={phaseLabel} size="small" variant="outlined" />
+          {activeNode.macro ? (
+            <Chip label={formatMacroLabel(activeNode.macro)} size="small" variant="outlined" />
+          ) : null}
+          {matrixLabels.map((label) => (
+            <Chip key={label} label={label} size="small" variant="outlined" />
+          ))}
+        </Stack>
+      </Stack>
+    </Card>
   );
 }
 

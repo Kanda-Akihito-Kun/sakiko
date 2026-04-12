@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 import { TaskLauncherPanel } from "../components/task/TaskLauncherPanel";
 import { TaskResultsPanel } from "../components/task/TaskResultsPanel";
-import type { TaskPreset } from "../types/dashboard";
+import type { TaskPreset, TaskPresetSelection } from "../types/dashboard";
 import type { TaskConfig, TaskState, TaskStatusResponse } from "../types/sakiko";
 
 type TasksSectionProps = {
@@ -10,7 +10,7 @@ type TasksSectionProps = {
   activeTaskId: string;
   submitting: boolean;
   taskConfig: TaskConfig;
-  taskPreset: TaskPreset;
+  taskPreset: TaskPresetSelection;
   tasks: TaskState[];
   onInspectTask: (taskId: string) => Promise<void>;
   onOpenSettings: () => void;

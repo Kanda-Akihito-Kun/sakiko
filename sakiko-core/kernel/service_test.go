@@ -243,6 +243,60 @@ func TestListTasksReturnsNewestFirst(t *testing.T) {
 	}
 }
 
+func TestTaskActivityTracksActiveNodes(t *testing.T) {
+	t.Parallel()
+
+	svc, err := New(Config{Mode: interfaces.ModeSerial})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer svc.Stop()
+
+	task := interfaces.Task{
+		ID:   "task-activity",
+		Name: "activity",
+		Nodes: []interfaces.Node{
+			{Name: "node-1"},
+			{Name: "node-2"},
+		},
+	}
+	svc.addTask(task, len(task.Nodes))
+
+	svc.updateTaskActivity(task.ID, interfaces.TaskActiveNode{
+		NodeIndex: 1,
+		NodeName:  "node-2",
+		Phase:     interfaces.TaskRuntimePhaseMacro,
+		Macro:     interfaces.MacroGeo,
+	})
+	state := svc.updateTaskActivity(task.ID, interfaces.TaskActiveNode{
+		NodeIndex: 0,
+		NodeName:  "node-1",
+		Phase:     interfaces.TaskRuntimePhaseMatrix,
+		Matrix:    interfaces.MatrixRTTPing,
+	})
+
+	if len(state.ActiveNodes) != 2 {
+		t.Fatalf("expected 2 active nodes, got %d", len(state.ActiveNodes))
+	}
+	if state.ActiveNodes[0].NodeIndex != 0 {
+		t.Fatalf("expected active nodes to be sorted by node index, got %d", state.ActiveNodes[0].NodeIndex)
+	}
+
+	state = svc.completeTaskNode(task.ID, 0, 2, 1, 3)
+	if len(state.ActiveNodes) != 1 {
+		t.Fatalf("expected 1 active node after completion, got %d", len(state.ActiveNodes))
+	}
+	if state.ActiveNodes[0].NodeIndex != 1 {
+		t.Fatalf("expected remaining node index 1, got %d", state.ActiveNodes[0].NodeIndex)
+	}
+	if state.Progress != 1 {
+		t.Fatalf("expected progress 1, got %d", state.Progress)
+	}
+	if state.Queuing != 3 {
+		t.Fatalf("expected queuing 3, got %d", state.Queuing)
+	}
+}
+
 type captureArchiveWriter struct {
 	mu       sync.Mutex
 	snapshot interfaces.TaskArchiveSnapshot

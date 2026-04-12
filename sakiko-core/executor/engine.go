@@ -25,6 +25,7 @@ type Config struct {
 }
 
 type Callbacks struct {
+	OnUpdate  func(taskID string, activeNode interfaces.TaskActiveNode)
 	OnProcess func(taskID string, index int, result interfaces.EntryResult, queuing int)
 	OnExit    func(taskID string, results []interfaces.EntryResult, exitCode taskpoll.ExitCode)
 }
@@ -99,6 +100,11 @@ func (e *Engine) Submit(task interfaces.Task, cb Callbacks) (string, error) {
 		matrices: task.Matrices,
 		macros:   macros,
 		results:  make([]interfaces.EntryResult, len(task.Nodes)),
+		onUpdate: func(self *pollItem, activeNode interfaces.TaskActiveNode) {
+			if cb.OnUpdate != nil {
+				cb.OnUpdate(self.id, activeNode)
+			}
+		},
 		onProcess: func(self *pollItem, idx int, result interfaces.EntryResult, c *taskpoll.Controller) {
 			if cb.OnProcess != nil {
 				cb.OnProcess(self.id, idx, result, c.AwaitingCount())
@@ -138,10 +144,18 @@ func (e *Engine) Submit(task interfaces.Task, cb Callbacks) (string, error) {
 	return task.ID, nil
 }
 
-func runMacros(v interfaces.Vendor, task *interfaces.Task, macroTypes []interfaces.MacroType) (map[interfaces.MacroType]interfaces.Macro, error) {
+func runMacros(v interfaces.Vendor, task *interfaces.Task, entries []interfaces.MatrixEntry, macroTypes []interfaces.MacroType, onUpdate func(interfaces.TaskActiveNode)) (map[interfaces.MacroType]interfaces.Macro, error) {
 	out := map[interfaces.MacroType]interfaces.Macro{}
 	errs := make([]error, 0, len(macroTypes))
 	for _, macroType := range macroExecutionOrder(macroTypes) {
+		notifyTaskActiveNode(onUpdate, interfaces.TaskActiveNode{
+			NodeName:    v.ProxyInfo().Name,
+			NodeAddress: v.ProxyInfo().Address,
+			Protocol:    v.ProxyInfo().Type,
+			Phase:       interfaces.TaskRuntimePhaseMacro,
+			Macro:       macroType,
+			Matrices:    matrixTypesForMacro(entries, macroType),
+		})
 		m := macro.Find(macroType)
 		err := m.Run(v, task)
 		if err != nil {
@@ -201,7 +215,7 @@ func macroExecutionOrder(macroTypes []interfaces.MacroType) []interfaces.MacroTy
 	return ordered
 }
 
-func extractMatrices(entries []interfaces.MatrixEntry, macroMap map[interfaces.MacroType]interfaces.Macro) []interfaces.MatrixResult {
+func extractMatrices(entries []interfaces.MatrixEntry, macroMap map[interfaces.MacroType]interfaces.Macro, onUpdate func(interfaces.TaskActiveNode)) []interfaces.MatrixResult {
 	out := make([]interfaces.MatrixResult, 0, len(entries))
 	for _, entry := range entries {
 		m := matrix.Find(entry.Type)
@@ -209,10 +223,34 @@ func extractMatrices(entries []interfaces.MatrixEntry, macroMap map[interfaces.M
 		if mac == nil {
 			mac = macro.Find(interfaces.MacroInvalid)
 		}
+		notifyTaskActiveNode(onUpdate, interfaces.TaskActiveNode{
+			Phase:    interfaces.TaskRuntimePhaseMatrix,
+			Macro:    m.MacroJob(),
+			Matrix:   entry.Type,
+			Matrices: []interfaces.MatrixType{entry.Type},
+		})
 		m.Extract(entry, mac)
 		out = append(out, interfaces.MatrixResult{Type: m.Type(), Payload: m.Payload()})
 	}
 	return out
+}
+
+func matrixTypesForMacro(entries []interfaces.MatrixEntry, target interfaces.MacroType) []interfaces.MatrixType {
+	out := make([]interfaces.MatrixType, 0, len(entries))
+	for _, entry := range entries {
+		if matrix.Find(entry.Type).MacroJob() != target {
+			continue
+		}
+		out = append(out, entry.Type)
+	}
+	return out
+}
+
+func notifyTaskActiveNode(onUpdate func(interfaces.TaskActiveNode), activeNode interfaces.TaskActiveNode) {
+	if onUpdate == nil {
+		return
+	}
+	onUpdate(activeNode)
 }
 
 func buildVendor(task interfaces.Task, idx int) interfaces.Vendor {

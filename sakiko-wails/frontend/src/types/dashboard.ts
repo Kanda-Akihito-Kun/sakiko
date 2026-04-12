@@ -4,3 +4,5 @@ export type ImportForm = {
 };
 
 export type TaskPreset = "ping" | "geo" | "speed" | "media" | "full";
+
+export type TaskPresetSelection = TaskPreset[];

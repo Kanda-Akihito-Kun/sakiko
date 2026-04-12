@@ -11,14 +11,18 @@ import (
 	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/logx"
 	"sakiko.local/sakiko-core/netx"
 
 	mihomoresolver "github.com/metacubex/mihomo/component/resolver"
+	"go.uber.org/zap"
 )
 
 var (
 	outboundLookupURL  = "https://ipwho.is/"
 	ipLookupURLPattern = "https://ipwho.is/%s"
+	lookupInboundFunc  = lookupInbound
+	lookupOutboundFunc = lookupOutbound
 )
 
 type Macro struct {
@@ -49,9 +53,10 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	if timeout <= 0 {
 		timeout = 6 * time.Second
 	}
+	attempts := geoRetryAttempts(task)
 
-	inbound, inboundErr := lookupInbound(proxy, timeout)
-	outbound, outboundErr := lookupOutbound(proxy, timeout)
+	inbound, inboundErr := retryGeoLookup("inbound", proxy, timeout, attempts, lookupInboundFunc)
+	outbound, outboundErr := retryGeoLookup("outbound", proxy, timeout, attempts, lookupOutboundFunc)
 
 	m.Inbound = inbound
 	m.Outbound = outbound
@@ -69,6 +74,56 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 		)
 	}
 	return nil
+}
+
+func geoRetryAttempts(task *interfaces.Task) int {
+	if task == nil {
+		return 1
+	}
+	attempts := int(task.Config.Normalize().TaskRetry)
+	if attempts < 1 {
+		return 1
+	}
+	return attempts
+}
+
+func retryGeoLookup(
+	name string,
+	proxy interfaces.Vendor,
+	timeout time.Duration,
+	attempts int,
+	run func(interfaces.Vendor, time.Duration) (interfaces.GeoIPInfo, error),
+) (interfaces.GeoIPInfo, error) {
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	var lastInfo interfaces.GeoIPInfo
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		info, err := run(proxy, timeout)
+		if err == nil {
+			return info, nil
+		}
+
+		lastInfo = info
+		lastErr = err
+
+		if attempt >= attempts {
+			break
+		}
+
+		geoLogger().Info("retrying geo lookup",
+			zap.String("stage", name),
+			zap.Int("attempt", attempt+1),
+			zap.Int("max_attempts", attempts),
+			zap.Duration("timeout", timeout),
+			zap.String("error", err.Error()),
+		)
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	return lastInfo, lastErr
 }
 
 func lookupInbound(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
@@ -205,4 +260,8 @@ func extractHost(address string) string {
 	}
 
 	return trimmed
+}
+
+func geoLogger() *zap.Logger {
+	return logx.Named("core.macro.geo")
 }

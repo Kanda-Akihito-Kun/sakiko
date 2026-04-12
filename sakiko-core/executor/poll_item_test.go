@@ -13,7 +13,7 @@ func TestPollItemRetriesFailedMatrices(t *testing.T) {
 	}()
 
 	attempts := 0
-	executeNodeAttemptFunc = func(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType) interfaces.EntryResult {
+	executeNodeAttemptFunc = func(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType, onUpdate func(interfaces.TaskActiveNode)) interfaces.EntryResult {
 		attempts++
 		if attempts == 1 {
 			return interfaces.EntryResult{
@@ -59,6 +59,66 @@ func TestPollItemRetriesFailedMatrices(t *testing.T) {
 	}
 	if len(item.results[0].Matrices) != 1 {
 		t.Fatalf("expected 1 matrix, got %d", len(item.results[0].Matrices))
+	}
+}
+
+func TestPollItemEmitsActiveNodeUpdates(t *testing.T) {
+	original := executeNodeAttemptFunc
+	defer func() {
+		executeNodeAttemptFunc = original
+	}()
+
+	var updates []interfaces.TaskActiveNode
+	executeNodeAttemptFunc = func(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType, onUpdate func(interfaces.TaskActiveNode)) interfaces.EntryResult {
+		if onUpdate != nil {
+			onUpdate(interfaces.TaskActiveNode{
+				Phase:    interfaces.TaskRuntimePhaseMacro,
+				Macro:    interfaces.MacroSpeed,
+				Matrices: []interfaces.MatrixType{interfaces.MatrixAverageSpeed, interfaces.MatrixMaxSpeed},
+			})
+		}
+		return interfaces.EntryResult{
+			ProxyInfo: interfaces.ProxyInfo{Name: "node-1", Address: "example.com:443"},
+			Matrices: []interfaces.MatrixResult{
+				{Type: interfaces.MatrixAverageSpeed, Payload: map[string]any{"value": uint64(123)}},
+			},
+		}
+	}
+
+	item := &pollItem{
+		id: "task-1",
+		task: interfaces.Task{
+			ID: "task-1",
+			Nodes: []interfaces.Node{
+				{Name: "node-1", Server: "example.com"},
+			},
+		},
+		matrices: []interfaces.MatrixEntry{
+			{Type: interfaces.MatrixAverageSpeed},
+		},
+		macros:  []interfaces.MacroType{interfaces.MacroSpeed},
+		results: make([]interfaces.EntryResult, 1),
+		onUpdate: func(self *pollItem, activeNode interfaces.TaskActiveNode) {
+			updates = append(updates, activeNode)
+		},
+	}
+
+	item.Yield(0, nil)
+
+	if len(updates) != 1 {
+		t.Fatalf("expected 1 active-node update, got %d", len(updates))
+	}
+	if updates[0].NodeIndex != 0 {
+		t.Fatalf("expected node index 0, got %d", updates[0].NodeIndex)
+	}
+	if updates[0].NodeName != "node-1" {
+		t.Fatalf("expected node name node-1, got %q", updates[0].NodeName)
+	}
+	if updates[0].Attempt != 1 {
+		t.Fatalf("expected attempt 1, got %d", updates[0].Attempt)
+	}
+	if updates[0].Macro != interfaces.MacroSpeed {
+		t.Fatalf("expected speed macro, got %q", updates[0].Macro)
 	}
 }
 

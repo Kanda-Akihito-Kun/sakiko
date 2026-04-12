@@ -76,6 +76,7 @@ export class ProfileTaskSubmitRequest {
     "profileId": string;
     "name"?: string;
     "preset": string;
+    "presets"?: string[];
     "config"?: interfaces$0.TaskConfig;
 
     /** Creates a new ProfileTaskSubmitRequest instance. */
@@ -95,9 +96,13 @@ export class ProfileTaskSubmitRequest {
      */
     static createFrom($$source: any = {}): ProfileTaskSubmitRequest {
         const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("presets" in $$parsedSource) {
+            $$parsedSource["presets"] = $$createField3_0($$parsedSource["presets"]);
+        }
         if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
+            $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
         }
         return new ProfileTaskSubmitRequest($$parsedSource as Partial<ProfileTaskSubmitRequest>);
     }
@@ -105,4 +110,5 @@ export class ProfileTaskSubmitRequest {
 
 // Private type creation functions
 const $$createType0 = interfaces$0.RuntimeStatus.createFrom;
-const $$createType1 = interfaces$0.TaskConfig.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = interfaces$0.TaskConfig.createFrom;

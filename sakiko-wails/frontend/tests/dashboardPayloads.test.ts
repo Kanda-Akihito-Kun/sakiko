@@ -26,13 +26,14 @@ describe("dashboard payload builders", () => {
       downloadThreading: 1,
     };
 
-    const payload = createSubmitProfileTaskPayload("profile-123", "ping", taskConfig);
+    const payload = createSubmitProfileTaskPayload("profile-123", ["ping", "geo"], taskConfig);
 
     expect(Object.getPrototypeOf(payload)).toBe(Object.prototype);
     expect(Object.getPrototypeOf(payload.config ?? {})).toBe(Object.prototype);
     expect(payload).toEqual({
       profileId: "profile-123",
-      preset: "ping",
+      preset: "ping+geo",
+      presets: ["ping", "geo"],
       config: {
         pingAddress: "https://www.gstatic.com/generate_204",
         pingAverageOver: 2,

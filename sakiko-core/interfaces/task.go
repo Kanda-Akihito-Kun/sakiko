@@ -177,15 +177,37 @@ type EntryResult struct {
 	Error          string         `json:"error,omitempty"`
 }
 
+type TaskRuntimePhase string
+
+const (
+	TaskRuntimePhasePreparing TaskRuntimePhase = "preparing"
+	TaskRuntimePhaseMacro     TaskRuntimePhase = "macro"
+	TaskRuntimePhaseMatrix    TaskRuntimePhase = "matrix"
+)
+
+type TaskActiveNode struct {
+	NodeIndex   int              `json:"nodeIndex"`
+	NodeName    string           `json:"nodeName"`
+	NodeAddress string           `json:"nodeAddress,omitempty"`
+	Protocol    ProxyType        `json:"protocol,omitempty"`
+	Attempt     int              `json:"attempt,omitempty"`
+	Phase       TaskRuntimePhase `json:"phase,omitempty"`
+	Macro       MacroType        `json:"macro,omitempty"`
+	Matrix      MatrixType       `json:"matrix,omitempty"`
+	Matrices    []MatrixType     `json:"matrices,omitempty"`
+	UpdatedAt   string           `json:"updatedAt,omitempty"`
+}
+
 type TaskState struct {
-	TaskID     string `json:"taskId"`
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Progress   int    `json:"progress"`
-	Total      int    `json:"total"`
-	Queuing    int    `json:"queuing"`
-	StartedAt  string `json:"startedAt"`
-	FinishedAt string `json:"finishedAt,omitempty"`
+	TaskID      string           `json:"taskId"`
+	Name        string           `json:"name"`
+	Status      string           `json:"status"`
+	Progress    int              `json:"progress"`
+	Total       int              `json:"total"`
+	Queuing     int              `json:"queuing"`
+	StartedAt   string           `json:"startedAt"`
+	FinishedAt  string           `json:"finishedAt,omitempty"`
+	ActiveNodes []TaskActiveNode `json:"activeNodes,omitempty"`
 }
 
 type EventType string

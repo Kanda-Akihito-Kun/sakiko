@@ -149,7 +149,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
     case "speed_table":
       return {
         kind: section.kind,
-        title: "SpeedTest",
+        title: "Speed Test",
         columns: [
           { key: "rank", label: "Rank", width: 72, align: "center" },
           { key: "nodeName", label: "Node", width: 470 },
@@ -186,8 +186,8 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         rows: sortTopologyRows(section.rows || []),
       };
     case "media_unlock_table":
-      const columns = filterMediaReportSectionColumns(section.columns || []);
-      if (!columns.some((column) => column.key !== "nodeName" && column.key !== "proxyType")) {
+      const columns = filterMediaReportSectionColumns(section.columns || []).filter((column) => column.key !== "proxyType");
+      if (!columns.some((column) => column.key !== "nodeName")) {
         return {
           kind: section.kind,
           title: "Media Unlock Test",
@@ -201,9 +201,6 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         columns: columns.map((column) => {
           if (column.key === "nodeName") {
             return { key: column.key, label: column.label, width: 220 };
-          }
-          if (column.key === "proxyType") {
-            return { key: column.key, label: column.label, width: 110, align: "center" as const };
           }
           return { key: column.key, label: column.label, width: 138, align: "center" as const };
         }),
@@ -463,19 +460,19 @@ function drawFooter(
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = `500 12px ${FONT_FAMILY}`;
   ctx.fillText(
-    `\u534f\u8bae\u5e93=${protocolLibrary}  \u540e\u7aef=${backend}  \u6d4b\u901f\u76ee\u6807=${target}  \u8ba2\u9605=${archive.task.context?.profileName || "Unknown"}  \u6307\u6807=${preset}`,
+    `Protocol Library=${protocolLibrary}  Backend=${backend}  Speed Target=${target}  Profile=${archive.task.context?.profileName || "Unknown"}  Preset=${preset}`,
     PAGE_PADDING_X,
     footerTop + 18,
   );
   ctx.fillText(
-    `\u8282\u70b9=${archive.task.nodes.length}  \u7ebf\u7a0b=${config.downloadThreading || 0}  \u8017\u65f6=${runtimeSeconds}s  Ping=${config.pingAverageOver || 0}\u6b21`,
+    `Nodes=${archive.task.nodes.length}  Threads=${config.downloadThreading || 0}  Duration=${runtimeSeconds}s  Ping Samples=${config.pingAverageOver || 0}`,
     PAGE_PADDING_X,
     footerTop + 40,
   );
 
   ctx.fillStyle = MUTED_TEXT;
   ctx.fillText(
-    `\u6d4b\u8bd5\u65f6\u95f4: ${formatUTC8DateTime(archive.state.finishedAt || archive.state.startedAt)}  \u6d4b\u8bd5\u7ed3\u679c\u4ec5\u4f9b\u53c2\u8003\uff0c\u8bf7\u4ee5\u5b9e\u9645\u60c5\u51b5\u4e3a\u51c6`,
+    `Tested At: ${formatUTC8DateTime(archive.state.finishedAt || archive.state.startedAt)}  Results are for reference only.`,
     PAGE_PADDING_X,
     footerTop + 66,
   );
@@ -620,10 +617,8 @@ function buildMainTitle(archive: ResultArchive): string {
 
 function calculatePageHeight(sections: ExportSection[]): number {
   let height = PAGE_PADDING_Y * 2 + HEADER_HEIGHT + FOOTER_HEIGHT;
-  sections.forEach((section, index) => {
-    if (index > 0) {
-      height += SECTION_TITLE_HEIGHT;
-    }
+  sections.forEach((section) => {
+    height += SECTION_TITLE_HEIGHT;
     height += TABLE_HEADER_HEIGHT + section.rows.length * ROW_HEIGHT;
   });
   height += Math.max(0, sections.length - 1) * SECTION_GAP;

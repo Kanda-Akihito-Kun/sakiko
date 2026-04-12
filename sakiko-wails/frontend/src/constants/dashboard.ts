@@ -1,5 +1,5 @@
 import { TaskConfig } from "../../bindings/sakiko.local/sakiko-core/interfaces";
-import type { ImportForm, TaskPreset } from "../types/dashboard";
+import type { ImportForm, TaskPreset, TaskPresetSelection } from "../types/dashboard";
 
 export const initialImportForm: ImportForm = {
   name: "",
@@ -17,3 +17,5 @@ export const initialTaskConfig = new TaskConfig({
 });
 
 export const taskPresets: TaskPreset[] = ["full", "ping", "geo", "speed", "media"];
+export const taskPresetChildren: TaskPreset[] = ["ping", "geo", "speed", "media"];
+export const initialTaskPresetSelection: TaskPresetSelection = ["full", "ping", "geo", "speed", "media"];

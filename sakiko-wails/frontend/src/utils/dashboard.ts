@@ -1,4 +1,6 @@
-import type { DownloadTarget, Profile, ResultArchiveTask } from "../types/sakiko";
+import type { DownloadTarget, Profile, ResultArchiveTask, TaskActiveNode } from "../types/sakiko";
+import type { TaskPreset, TaskPresetSelection } from "../types/dashboard";
+import { taskPresets, taskPresetChildren } from "../constants/dashboard";
 import { filterVisibleMediaUnlockItems } from "./mediaUnlock";
 
 export type FilteredProfileNode = {
@@ -109,6 +111,159 @@ export function formatDuration(duration: number): string {
   return `${duration} ms total`;
 }
 
+export function formatMacroLabel(value?: string): string {
+  switch ((value || "").trim().toUpperCase()) {
+    case "PING":
+      return "Ping";
+    case "GEO":
+      return "Geo";
+    case "SPEED":
+      return "Speed";
+    case "MEDIA":
+      return "Media Unlock";
+    default:
+      return value || "-";
+  }
+}
+
+export function formatMatrixLabel(value?: string): string {
+  switch ((value || "").trim().toUpperCase()) {
+    case "TEST_PING_CONN":
+      return "HTTPS Ping";
+    case "TEST_PING_RTT":
+      return "RTT Ping";
+    case "GEOIP_INBOUND":
+      return "Inbound GeoIP";
+    case "GEOIP_OUTBOUND":
+      return "Outbound GeoIP";
+    case "SPEED_AVERAGE":
+      return "Average Speed";
+    case "SPEED_MAX":
+      return "Max Speed";
+    case "SPEED_PER_SECOND":
+      return "Per-second Speed";
+    case "SPEED_TRAFFIC_USED":
+      return "Traffic Used";
+    case "MEDIA_UNLOCK":
+      return "Media Unlock";
+    default:
+      return value || "-";
+  }
+}
+
+export function formatTaskRuntimePhase(value?: string): string {
+  switch ((value || "").trim().toLowerCase()) {
+    case "preparing":
+      return "Preparing";
+    case "macro":
+      return "Running";
+    case "matrix":
+      return "Extracting";
+    default:
+      return value || "-";
+  }
+}
+
+export function describeTaskActiveNode(activeNode: TaskActiveNode): string {
+  const matrixLabels = (activeNode.matrices || []).map((matrix) => formatMatrixLabel(matrix));
+  const matrixLabel = activeNode.matrix ? formatMatrixLabel(activeNode.matrix) : "";
+  const targetLabel = matrixLabel || matrixLabels.join(" / ");
+
+  switch ((activeNode.phase || "").trim().toLowerCase()) {
+    case "preparing":
+      return "Preparing node runtime";
+    case "matrix":
+      return targetLabel ? `Extracting ${targetLabel}` : "Extracting matrix result";
+    case "macro":
+      if (targetLabel) {
+        return `${formatMacroLabel(activeNode.macro)}: ${targetLabel}`;
+      }
+      return `Running ${formatMacroLabel(activeNode.macro)}`;
+    default:
+      return targetLabel || "Running";
+  }
+}
+
+export function summarizeActiveTaskNodes(activeNodes: TaskActiveNode[] = []): string {
+  if (activeNodes.length === 0) {
+    return "";
+  }
+
+  const preview = activeNodes
+    .slice(0, 2)
+    .map((activeNode) => `${activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}: ${describeTaskActiveNode(activeNode)}`)
+    .join(" | ");
+  const moreCount = activeNodes.length - 2;
+  return moreCount > 0
+    ? `Testing ${activeNodes.length} node(s): ${preview} | +${moreCount} more`
+    : `Testing ${activeNodes.length} node(s): ${preview}`;
+}
+
+export function toggleTaskPresetSelection(current: TaskPresetSelection, target: TaskPreset): TaskPresetSelection {
+  const childSelection = new Set(current.filter((preset) => preset !== "full"));
+
+  if (target === "full") {
+    return current.includes("full")
+      ? []
+      : [...taskPresets];
+  }
+
+  if (childSelection.has(target)) {
+    childSelection.delete(target);
+  } else {
+    childSelection.add(target);
+  }
+
+  return normalizeTaskPresetSelection(Array.from(childSelection));
+}
+
+export function normalizeTaskPresetSelection(value: TaskPresetSelection): TaskPresetSelection {
+  const selectedChildren = new Set<TaskPreset>(
+    value.filter((preset): preset is Exclude<TaskPreset, "full"> => preset !== "full" && taskPresetChildren.includes(preset)),
+  );
+
+  if (value.includes("full")) {
+    for (const preset of taskPresetChildren) {
+      selectedChildren.add(preset);
+    }
+  }
+
+  const normalized = taskPresets.filter((preset) => (
+    preset === "full"
+      ? taskPresetChildren.every((item) => selectedChildren.has(item))
+      : selectedChildren.has(preset)
+  ));
+
+  return normalized;
+}
+
+export function formatTaskPresetSelectionLabel(value: TaskPresetSelection): string {
+  const normalized = normalizeTaskPresetSelection(value);
+  if (normalized.includes("full")) {
+    return "FULL";
+  }
+
+  const selectedChildren = normalized.filter((preset) => preset !== "full");
+  if (selectedChildren.length === 0) {
+    return "TASK";
+  }
+  if (selectedChildren.length <= 2) {
+    return selectedChildren.map((preset) => preset.toUpperCase()).join(" + ");
+  }
+  return `${selectedChildren.length} TESTS`;
+}
+
+function splitPresetGroups(preset?: string): string[] {
+  const normalized = (preset || "").trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+  if (normalized === "full") {
+    return ["ping", "geo", "speed", "media"];
+  }
+  return normalized.split(/[+,]/).map((item) => item.trim()).filter(Boolean);
+}
+
 export function formatDateTime(value?: string): string {
   if (!value) {
     return "N/A";
@@ -130,20 +285,25 @@ export function formatDateTime(value?: string): string {
 }
 
 export function summarizeResultMetrics(preset?: string): string {
-  switch ((preset || "").trim().toLowerCase()) {
-    case "ping":
-      return "TLS RTT / HTTPS Ping";
-    case "geo":
-      return "Inbound / Outbound Topology";
-    case "speed":
-      return "Average / Max / Per-second Speed / Traffic";
-    case "media":
-      return "Netflix / Hulu / Bilibili HMT";
-    case "full":
-      return "Ping / Topology / Speed / Traffic / Media";
-    default:
-      return "Archived metrics";
+  const groups = splitPresetGroups(preset);
+  if (groups.length === 0) {
+    return "Archived metrics";
   }
+
+  const labels: string[] = [];
+  if (groups.includes("ping")) {
+    labels.push("TLS RTT / HTTPS Ping");
+  }
+  if (groups.includes("geo")) {
+    labels.push("Inbound / Outbound Topology");
+  }
+  if (groups.includes("speed")) {
+    labels.push("Average / Max / Per-second Speed / Traffic");
+  }
+  if (groups.includes("media")) {
+    labels.push("Netflix / Hulu / Bilibili HMT");
+  }
+  return labels.join(" / ") || "Archived metrics";
 }
 
 export function formatProtocolLibraryLabel(vendor?: string): string {

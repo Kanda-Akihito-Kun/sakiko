@@ -98,8 +98,22 @@ func TestResolveProbeTimeoutRespectsTaskTimeoutWithinBounds(t *testing.T) {
 		},
 	}
 
-	if got := resolveProbeTimeout(task); got != 9*time.Second {
-		t.Fatalf("expected 9s timeout, got %v", got)
+	if got := resolveProbeTimeout(task); got != 6*time.Second {
+		t.Fatalf("expected capped 6s timeout, got %v", got)
+	}
+}
+
+func TestResolveProbeTimeoutClampsLowValues(t *testing.T) {
+	t.Parallel()
+
+	task := &interfaces.Task{
+		Config: interfaces.TaskConfig{
+			TaskTimeoutMillis: 800,
+		},
+	}
+
+	if got := resolveProbeTimeout(task); got != mediaProbeAttemptTimeout {
+		t.Fatalf("expected min timeout %v, got %v", mediaProbeAttemptTimeout, got)
 	}
 }
 

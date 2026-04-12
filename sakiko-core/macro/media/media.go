@@ -16,7 +16,10 @@ import (
 	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/logx"
 	"sakiko.local/sakiko-core/netx"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -29,13 +32,13 @@ const (
 	huluAuthBody             = "csrf=fdc1427eccde53326e27d7575c436595e28299dc420232ff26075ca06bbb28ed&password=Jam0.5cm~&scenario=web_password_login&user_email=me%40jamchoi.cc"
 	bilibiliHKMCTWHost       = "api.bilibili.com"
 	bilibiliHKMCTWURLPattern = "https://api.bilibili.com/pgc/player/web/playurl?avid=18281381&cid=29892777&qn=0&type=&otype=json&ep_id=183799&fourk=1&fnver=0&fnval=16&session=%s&module=bangumi"
-	mediaProbeAttemptTimeout = 5 * time.Second
+	mediaProbeAttemptTimeout = 2 * time.Second
 	modeProbeTimeout         = 8 * time.Second
 	publicLookupTimeout      = 4 * time.Second
 	maxModeProbeIPs          = 2
 	mediaProbeRetryAttempts  = 2
-	mediaProbeConcurrency    = 4
-	maxMediaProbeTimeout     = 12 * time.Second
+	mediaProbeConcurrency    = 5
+	maxMediaProbeTimeout     = 6 * time.Second
 )
 
 var (
@@ -74,42 +77,69 @@ type requestSpec struct {
 	NoRedir       bool
 }
 
+type mediaProbeSpec struct {
+	name string
+	run  func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult
+}
+
 func (m *Macro) Type() interfaces.MacroType {
 	return interfaces.MacroMedia
 }
 
 func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 	probeTimeout := resolveProbeTimeout(task)
-	probes := []func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult{
-		probeChatGPT,
-		probeClaude,
-		probeGemini,
-		probeYouTubePremium,
-		probeNetflix,
-		probeHulu,
-		probeHuluJP,
-		probePrimeVideo,
-		probeHBOMax,
-		probeBilibiliHKMCTW,
-		probeBilibiliTW,
-		probeAbema,
-		probeTikTok,
-		probeSpotify,
-		probeSteam,
+	probes := []mediaProbeSpec{
+		{name: "ChatGPT", run: probeChatGPT},
+		{name: "Claude", run: probeClaude},
+		{name: "Gemini", run: probeGemini},
+		{name: "YouTube Premium", run: probeYouTubePremium},
+		{name: "Netflix", run: probeNetflix},
+		{name: "Hulu", run: probeHulu},
+		{name: "Hulu Japan", run: probeHuluJP},
+		{name: "Prime Video", run: probePrimeVideo},
+		{name: "HBO Max", run: probeHBOMax},
+		{name: "Bilibili HK/MO/TW", run: probeBilibiliHKMCTW},
+		{name: "Bilibili Taiwan", run: probeBilibiliTW},
+		{name: "Abema", run: probeAbema},
+		{name: "TikTok", run: probeTikTok},
+		{name: "Spotify", run: probeSpotify},
+		{name: "Steam", run: probeSteam},
 	}
 	results := make([]interfaces.MediaUnlockPlatformResult, len(probes))
+	taskID := ""
+	if task != nil {
+		taskID = strings.TrimSpace(task.ID)
+	}
+	proxyInfo := interfaces.ProxyInfo{}
+	if proxy != nil {
+		proxyInfo = proxy.ProxyInfo()
+	}
+	logger := mediaLogger().With(
+		zap.String("task_id", taskID),
+		zap.String("proxy_name", proxyInfo.Name),
+		zap.String("proxy_addr", proxyInfo.Address),
+	)
 
 	sem := make(chan struct{}, mediaProbeConcurrency)
 	var wg sync.WaitGroup
 	for index, probe := range probes {
 		wg.Add(1)
-		go func(i int, run func(context.Context, interfaces.Vendor) interfaces.MediaUnlockPlatformResult) {
+		go func(i int, spec mediaProbeSpec) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() {
 				<-sem
 			}()
-			results[i] = runProbeWithRetry(proxy, probeTimeout, run)
+			startedAt := time.Now()
+			results[i] = runProbeWithRetry(proxy, probeTimeout, spec.run)
+			logger.Info("media probe finished",
+				zap.String("platform", spec.name),
+				zap.Duration("elapsed", time.Since(startedAt)),
+				zap.String("status", string(results[i].Status)),
+				zap.String("region", results[i].Region),
+				zap.String("mode", string(results[i].Mode)),
+				zap.String("error", results[i].Error),
+			)
 		}(index, probe)
 	}
 	wg.Wait()
@@ -732,4 +762,8 @@ func joinErrorTexts(values ...string) string {
 		}
 	}
 	return strings.Join(parts, " | ")
+}
+
+func mediaLogger() *zap.Logger {
+	return logx.Named("core.macro.media")
 }

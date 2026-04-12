@@ -114,6 +114,19 @@ export class EntryResult {
     }
 }
 
+export enum MacroType {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    MacroPing = "PING",
+    MacroSpeed = "SPEED",
+    MacroGeo = "GEO",
+    MacroMedia = "MEDIA",
+    MacroInvalid = "INVALID",
+};
+
 export class MatrixEntry {
     "type": MatrixType;
     "params"?: string;
@@ -616,6 +629,43 @@ export class RuntimeStatus {
     }
 }
 
+export class TaskActiveNode {
+    "nodeIndex": number;
+    "nodeName": string;
+    "nodeAddress"?: string;
+    "protocol"?: ProxyType;
+    "attempt"?: number;
+    "phase"?: TaskRuntimePhase;
+    "macro"?: MacroType;
+    "matrix"?: MatrixType;
+    "matrices"?: MatrixType[];
+    "updatedAt"?: string;
+
+    /** Creates a new TaskActiveNode instance. */
+    constructor($$source: Partial<TaskActiveNode> = {}) {
+        if (!("nodeIndex" in $$source)) {
+            this["nodeIndex"] = 0;
+        }
+        if (!("nodeName" in $$source)) {
+            this["nodeName"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TaskActiveNode instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TaskActiveNode {
+        const $$createField8_0 = $$createType24;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("matrices" in $$parsedSource) {
+            $$parsedSource["matrices"] = $$createField8_0($$parsedSource["matrices"]);
+        }
+        return new TaskActiveNode($$parsedSource as Partial<TaskActiveNode>);
+    }
+}
+
 export class TaskConfig {
     "pingAddress": string;
     "pingAverageOver": number;
@@ -695,7 +745,7 @@ export class TaskEnvironment {
      * Creates a new TaskEnvironment instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskEnvironment {
-        const $$createField0_0 = $$createType25;
+        const $$createField0_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("backend" in $$parsedSource) {
             $$parsedSource["backend"] = $$createField0_0($$parsedSource["backend"]);
@@ -703,6 +753,17 @@ export class TaskEnvironment {
         return new TaskEnvironment($$parsedSource as Partial<TaskEnvironment>);
     }
 }
+
+export enum TaskRuntimePhase {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    TaskRuntimePhasePreparing = "preparing",
+    TaskRuntimePhaseMacro = "macro",
+    TaskRuntimePhaseMatrix = "matrix",
+};
 
 export class TaskState {
     "taskId": string;
@@ -713,6 +774,7 @@ export class TaskState {
     "queuing": number;
     "startedAt": string;
     "finishedAt"?: string;
+    "activeNodes"?: TaskActiveNode[];
 
     /** Creates a new TaskState instance. */
     constructor($$source: Partial<TaskState> = {}) {
@@ -745,7 +807,11 @@ export class TaskState {
      * Creates a new TaskState instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskState {
+        const $$createField8_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("activeNodes" in $$parsedSource) {
+            $$parsedSource["activeNodes"] = $$createField8_0($$parsedSource["activeNodes"]);
+        }
         return new TaskState($$parsedSource as Partial<TaskState>);
     }
 }
@@ -817,5 +883,8 @@ const $$createType20 = ResultReportColumn.createFrom;
 const $$createType21 = $Create.Array($$createType20);
 const $$createType22 = $Create.Map($Create.Any, $Create.Any);
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = BackendInfo.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
+const $$createType24 = $Create.Array($Create.Any);
+const $$createType25 = BackendInfo.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = TaskActiveNode.createFrom;
+const $$createType28 = $Create.Array($$createType27);

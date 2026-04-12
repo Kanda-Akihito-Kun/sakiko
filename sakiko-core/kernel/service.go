@@ -34,10 +34,11 @@ type Service struct {
 }
 
 type taskRecord struct {
-	task     interfaces.Task
-	state    interfaces.TaskState
-	results  []interfaces.EntryResult
-	exitCode string
+	task        interfaces.Task
+	state       interfaces.TaskState
+	results     []interfaces.EntryResult
+	exitCode    string
+	activeNodes map[int]interfaces.TaskActiveNode
 }
 
 func New(cfg Config) (*Service, error) {
@@ -91,8 +92,20 @@ func (s *Service) Submit(task interfaces.Task, onEvent func(interfaces.Event)) (
 	s.addTask(task, total)
 
 	taskID, err := s.engine.Submit(task, executor.Callbacks{
+		OnUpdate: func(taskID string, activeNode interfaces.TaskActiveNode) {
+			state := s.updateTaskActivity(taskID, activeNode)
+			kernelLogger().Debug("task activity",
+				zap.String("task_id", taskID),
+				zap.Int("node_index", activeNode.NodeIndex),
+				zap.String("node_name", activeNode.NodeName),
+				zap.String("phase", string(activeNode.Phase)),
+				zap.String("macro", string(activeNode.Macro)),
+				zap.String("matrix", string(activeNode.Matrix)),
+				zap.Int("active_nodes", len(state.ActiveNodes)),
+			)
+		},
 		OnProcess: func(taskID string, index int, result interfaces.EntryResult, queuing int) {
-			state := s.updateTaskProgress(taskID, total, index+1, queuing)
+			state := s.completeTaskNode(taskID, index, total, index+1, queuing)
 			kernelLogger().Debug("task progress",
 				zap.String("task_id", taskID),
 				zap.Int("progress", index+1),
@@ -202,16 +215,18 @@ func (s *Service) addTask(task interfaces.Task, total int) {
 	s.tasks[task.ID] = &taskRecord{
 		task: task,
 		state: interfaces.TaskState{
-			TaskID:    task.ID,
-			Name:      task.Name,
-			Status:    "running",
-			Total:     total,
-			StartedAt: s.now().UTC().Format(time.RFC3339),
+			TaskID:      task.ID,
+			Name:        task.Name,
+			Status:      "running",
+			Total:       total,
+			StartedAt:   s.now().UTC().Format(time.RFC3339),
+			ActiveNodes: []interfaces.TaskActiveNode{},
 		},
+		activeNodes: map[int]interfaces.TaskActiveNode{},
 	}
 }
 
-func (s *Service) updateTaskProgress(taskID string, total int, progress int, queuing int) interfaces.TaskState {
+func (s *Service) updateTaskActivity(taskID string, activeNode interfaces.TaskActiveNode) interfaces.TaskState {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -219,9 +234,28 @@ func (s *Service) updateTaskProgress(taskID string, total int, progress int, que
 	if !ok {
 		return interfaces.TaskState{}
 	}
+	if task.activeNodes == nil {
+		task.activeNodes = map[int]interfaces.TaskActiveNode{}
+	}
+	activeNode.UpdatedAt = s.now().UTC().Format(time.RFC3339)
+	task.activeNodes[activeNode.NodeIndex] = activeNode
+	task.state.ActiveNodes = buildActiveNodes(task.activeNodes)
+	return task.state
+}
+
+func (s *Service) completeTaskNode(taskID string, nodeIndex int, total int, progress int, queuing int) interfaces.TaskState {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	task, ok := s.tasks[taskID]
+	if !ok {
+		return interfaces.TaskState{}
+	}
+	delete(task.activeNodes, nodeIndex)
 	task.state.Total = total
 	task.state.Progress = progress
 	task.state.Queuing = queuing
+	task.state.ActiveNodes = buildActiveNodes(task.activeNodes)
 	return task.state
 }
 
@@ -234,9 +268,12 @@ func (s *Service) finishTask(taskID string, results []interfaces.EntryResult, ex
 		return interfaces.TaskState{}, interfaces.TaskArchiveSnapshot{}
 	}
 	task.state.Status = "finished"
+	task.state.ActiveNodes = nil
+	task.state.Queuing = 0
 	task.state.FinishedAt = s.now().UTC().Format(time.RFC3339)
 	task.results = append([]interfaces.EntryResult{}, results...)
 	task.exitCode = string(exitCode)
+	task.activeNodes = map[int]interfaces.TaskActiveNode{}
 	return task.state, interfaces.TaskArchiveSnapshot{
 		Task:     task.task,
 		State:    task.state,
@@ -288,4 +325,22 @@ func parseTaskTimestamp(value string) time.Time {
 		return time.Time{}
 	}
 	return parsed
+}
+
+func buildActiveNodes(activeNodes map[int]interfaces.TaskActiveNode) []interfaces.TaskActiveNode {
+	if len(activeNodes) == 0 {
+		return []interfaces.TaskActiveNode{}
+	}
+
+	out := make([]interfaces.TaskActiveNode, 0, len(activeNodes))
+	for _, activeNode := range activeNodes {
+		out = append(out, activeNode)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].NodeIndex != out[j].NodeIndex {
+			return out[i].NodeIndex < out[j].NodeIndex
+		}
+		return out[i].UpdatedAt > out[j].UpdatedAt
+	})
+	return out
 }

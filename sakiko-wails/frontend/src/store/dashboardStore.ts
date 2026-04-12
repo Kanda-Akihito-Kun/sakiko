@@ -6,9 +6,9 @@ import {
 } from "../../bindings/sakiko.local/sakiko-core/interfaces";
 import { initialImportForm, initialTaskConfig } from "../constants/dashboard";
 import { createImportProfilePayload, createSubmitProfileTaskPayload } from "./dashboardPayloads";
-import type { ImportForm, TaskPreset } from "../types/dashboard";
+import type { ImportForm, TaskPreset, TaskPresetSelection } from "../types/dashboard";
 import type { DownloadTarget, Profile, ProfileSummary, ResultArchive, ResultArchiveListItem, TaskState, TaskStatusResponse } from "../types/sakiko";
-import { normalizeError } from "../utils/dashboard";
+import { formatTaskPresetSelectionLabel, normalizeError, toggleTaskPresetSelection } from "../utils/dashboard";
 
 type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading">>;
 
@@ -28,7 +28,7 @@ type DashboardState = {
   downloadTargets: DownloadTarget[];
   downloadTargetsLoading: boolean;
   importForm: ImportForm;
-  taskPreset: TaskPreset;
+  taskPreset: TaskPresetSelection;
   taskConfig: TaskConfig;
   nodeFilter: string;
   loading: boolean;
@@ -72,7 +72,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   downloadTargets: [],
   downloadTargetsLoading: false,
   importForm: initialImportForm,
-  taskPreset: "ping",
+  taskPreset: ["full", "ping", "geo", "speed", "media"],
   taskConfig: initialTaskConfig,
   nodeFilter: "",
   loading: true,
@@ -81,7 +81,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   error: "",
 
   setNodeFilter: (value) => set({ nodeFilter: value }),
-  setTaskPreset: (value) => set({ taskPreset: value }),
+  setTaskPreset: (value) => set((state) => ({ taskPreset: toggleTaskPresetSelection(state.taskPreset, value) })),
   updateImportForm: (field, value) => {
     set((state) => ({
       importForm: {
@@ -464,15 +464,21 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       taskPreset,
     } = get();
 
+    const selectedPresetCount = taskPreset.filter((preset) => preset !== "full").length;
+
     if (!activeProfileId) {
       set({ error: "Select a profile first." });
+      return;
+    }
+    if (selectedPresetCount === 0) {
+      set({ error: "Select at least one test group." });
       return;
     }
 
     set({
       submitting: true,
       error: "",
-      message: `Starting ${taskPreset} task...`,
+      message: `Starting ${formatTaskPresetSelectionLabel(taskPreset)} task...`,
     });
 
     try {

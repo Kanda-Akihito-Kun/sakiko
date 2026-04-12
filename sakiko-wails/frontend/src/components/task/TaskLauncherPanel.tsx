@@ -4,9 +4,9 @@ import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
 import { Box, Button, Chip, LinearProgress, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { taskPresets } from "../../constants/dashboard";
-import type { TaskPreset } from "../../types/dashboard";
+import type { TaskPreset, TaskPresetSelection } from "../../types/dashboard";
 import type { TaskConfig, TaskState } from "../../types/sakiko";
-import { summarizeDownloadTarget } from "../../utils/dashboard";
+import { formatTaskPresetSelectionLabel, summarizeActiveTaskNodes, summarizeDownloadTarget } from "../../utils/dashboard";
 import { SectionCard } from "../shared/SectionCard";
 
 type TaskLauncherPanelProps = {
@@ -14,7 +14,7 @@ type TaskLauncherPanelProps = {
   activeTaskId: string;
   submitting: boolean;
   taskConfig: TaskConfig;
-  taskPreset: TaskPreset;
+  taskPreset: TaskPresetSelection;
   tasks: TaskState[];
   onInspectTask: (taskId: string) => void;
   onOpenSettings: () => void;
@@ -37,19 +37,13 @@ export function TaskLauncherPanel({
   return (
     <SectionCard
       title="Task Launcher"
-      subtitle="Choose a task preset"
+      subtitle="Choose test groups"
       icon={<TuneRounded color="primary" />}
     >
       <Stack spacing={2}>
         <Box sx={{ maxWidth: "100%", overflowX: "auto", pb: 0.25 }}>
           <ToggleButtonGroup
-            exclusive
             value={taskPreset}
-            onChange={(_event, value: TaskPreset | null) => {
-              if (value) {
-                onTaskPresetChange(value);
-              }
-            }}
             sx={{
               display: "inline-flex",
               flexWrap: "nowrap",
@@ -62,7 +56,7 @@ export function TaskLauncherPanel({
             }}
           >
             {taskPresets.map((preset) => (
-              <ToggleButton key={preset} value={preset}>
+              <ToggleButton key={preset} value={preset} onClick={() => onTaskPresetChange(preset)}>
                 {preset.toUpperCase()}
               </ToggleButton>
             ))}
@@ -106,10 +100,10 @@ export function TaskLauncherPanel({
           <Button
             variant="contained"
             startIcon={<PlayCircleFilledWhiteRounded />}
-            disabled={submitting || !activeProfileId}
+            disabled={submitting || !activeProfileId || taskPreset.filter((preset) => preset !== "full").length === 0}
             onClick={onRunTask}
           >
-            Run {taskPreset.toUpperCase()}
+            Run {formatTaskPresetSelectionLabel(taskPreset)}
           </Button>
           <Chip
             icon={<ScheduleRounded />}
@@ -120,34 +114,43 @@ export function TaskLauncherPanel({
         </Stack>
 
         <List disablePadding>
-          {tasks.map((task) => (
-            <ListItemButton
-              key={task.taskId}
-              selected={task.taskId === activeTaskId}
-              onClick={() => void onInspectTask(task.taskId)}
-              sx={{ alignItems: "flex-start", flexDirection: "column" }}
-            >
-              <Stack width="100%" spacing={1}>
-                <Stack direction="row" justifyContent="space-between" spacing={1}>
-                  <ListItemText
-                    primary={task.name}
-                    secondary={task.status}
-                    primaryTypographyProps={{ fontWeight: 600, noWrap: true }}
-                    secondaryTypographyProps={{ noWrap: true }}
-                    sx={{ minWidth: 0 }}
+          {tasks.map((task) => {
+            const activeSummary = task.status === "running" ? summarizeActiveTaskNodes(task.activeNodes || []) : "";
+
+            return (
+              <ListItemButton
+                key={task.taskId}
+                selected={task.taskId === activeTaskId}
+                onClick={() => void onInspectTask(task.taskId)}
+                sx={{ alignItems: "flex-start", flexDirection: "column" }}
+              >
+                <Stack width="100%" spacing={1}>
+                  <Stack direction="row" justifyContent="space-between" spacing={1}>
+                    <ListItemText
+                      primary={task.name}
+                      secondary={task.status}
+                      primaryTypographyProps={{ fontWeight: 600, noWrap: true }}
+                      secondaryTypographyProps={{ noWrap: true }}
+                      sx={{ minWidth: 0 }}
+                    />
+                    <Typography variant="caption" className="sakiko-mono" color="text.secondary">
+                      {task.progress}/{task.total}
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant={task.total > 0 ? "determinate" : "indeterminate"}
+                    value={task.total > 0 ? (task.progress / task.total) * 100 : 0}
+                    sx={{ width: "100%", height: 6, borderRadius: 999 }}
                   />
-                  <Typography variant="caption" className="sakiko-mono" color="text.secondary">
-                    {task.progress}/{task.total}
-                  </Typography>
+                  {activeSummary ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {activeSummary}
+                    </Typography>
+                  ) : null}
                 </Stack>
-                <LinearProgress
-                  variant={task.total > 0 ? "determinate" : "indeterminate"}
-                  value={task.total > 0 ? (task.progress / task.total) * 100 : 0}
-                  sx={{ width: "100%", height: 6, borderRadius: 999 }}
-                />
-              </Stack>
-            </ListItemButton>
-          ))}
+              </ListItemButton>
+            );
+          })}
         </List>
       </Stack>
     </SectionCard>

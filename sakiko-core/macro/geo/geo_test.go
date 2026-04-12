@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"testing"
+	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/vendors/local"
@@ -121,6 +122,111 @@ func TestResolveHostPrefersMihomoResolverForProxyHosts(t *testing.T) {
 	}
 	if ip != "198.51.100.9" {
 		t.Fatalf("resolveHost() = %q, want %q", ip, "198.51.100.9")
+	}
+}
+
+func TestMacroRunRetriesInboundAndOutboundIndependently(t *testing.T) {
+	previousLookupInbound := lookupInboundFunc
+	previousLookupOutbound := lookupOutboundFunc
+	defer func() {
+		lookupInboundFunc = previousLookupInbound
+		lookupOutboundFunc = previousLookupOutbound
+	}()
+
+	inboundAttempts := 0
+	outboundAttempts := 0
+	lookupInboundFunc = func(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+		_ = proxy
+		_ = timeout
+		inboundAttempts++
+		if inboundAttempts == 1 {
+			return interfaces.GeoIPInfo{Address: "198.51.100.5"}, fmt.Errorf("temporary inbound failure")
+		}
+		return interfaces.GeoIPInfo{
+			Address:     "198.51.100.5",
+			IP:          "198.51.100.5",
+			CountryCode: "JP",
+		}, nil
+	}
+	lookupOutboundFunc = func(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+		_ = proxy
+		_ = timeout
+		outboundAttempts++
+		if outboundAttempts == 1 {
+			return interfaces.GeoIPInfo{}, fmt.Errorf("temporary outbound failure")
+		}
+		return interfaces.GeoIPInfo{
+			IP:          "203.0.113.10",
+			CountryCode: "US",
+		}, nil
+	}
+
+	macro := &Macro{}
+	err := macro.Run((&local.Vendor{}).Build(interfaces.Node{Name: "node-1", Payload: "198.51.100.5"}), &interfaces.Task{
+		Config: interfaces.TaskConfig{
+			TaskRetry:         2,
+			TaskTimeoutMillis: 1000,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if inboundAttempts != 2 {
+		t.Fatalf("expected 2 inbound attempts, got %d", inboundAttempts)
+	}
+	if outboundAttempts != 2 {
+		t.Fatalf("expected 2 outbound attempts, got %d", outboundAttempts)
+	}
+	if macro.Inbound.CountryCode != "JP" {
+		t.Fatalf("expected inbound country JP, got %q", macro.Inbound.CountryCode)
+	}
+	if macro.Outbound.CountryCode != "US" {
+		t.Fatalf("expected outbound country US, got %q", macro.Outbound.CountryCode)
+	}
+}
+
+func TestMacroRunReturnsSingleSideSuccessAfterOtherSideRetriesExhausted(t *testing.T) {
+	previousLookupInbound := lookupInboundFunc
+	previousLookupOutbound := lookupOutboundFunc
+	defer func() {
+		lookupInboundFunc = previousLookupInbound
+		lookupOutboundFunc = previousLookupOutbound
+	}()
+
+	inboundAttempts := 0
+	lookupInboundFunc = func(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+		_ = proxy
+		_ = timeout
+		inboundAttempts++
+		return interfaces.GeoIPInfo{Address: "198.51.100.5"}, fmt.Errorf("inbound still failing")
+	}
+	lookupOutboundFunc = func(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+		_ = proxy
+		_ = timeout
+		return interfaces.GeoIPInfo{
+			IP:          "203.0.113.10",
+			CountryCode: "US",
+		}, nil
+	}
+
+	macro := &Macro{}
+	err := macro.Run((&local.Vendor{}).Build(interfaces.Node{Name: "node-1", Payload: "198.51.100.5"}), &interfaces.Task{
+		Config: interfaces.TaskConfig{
+			TaskRetry:         2,
+			TaskTimeoutMillis: 1000,
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected partial geo success to keep node alive, got %v", err)
+	}
+	if inboundAttempts != 2 {
+		t.Fatalf("expected 2 inbound attempts, got %d", inboundAttempts)
+	}
+	if macro.Inbound.Error != "inbound still failing" {
+		t.Fatalf("expected inbound error to be preserved, got %q", macro.Inbound.Error)
+	}
+	if macro.Outbound.CountryCode != "US" {
+		t.Fatalf("expected outbound country US, got %q", macro.Outbound.CountryCode)
 	}
 }
 

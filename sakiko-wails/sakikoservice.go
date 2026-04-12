@@ -26,6 +26,7 @@ type ProfileTaskSubmitRequest struct {
 	ProfileID string                `json:"profileId"`
 	Name      string                `json:"name,omitempty"`
 	Preset    string                `json:"preset"`
+	Presets   []string              `json:"presets,omitempty"`
 	Config    interfaces.TaskConfig `json:"config,omitempty"`
 }
 
@@ -235,6 +236,7 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 	wailsServiceLogger().Info("submit profile task requested",
 		zap.String("profile_id", req.ProfileID),
 		zap.String("preset", req.Preset),
+		zap.Strings("presets", req.Presets),
 		zap.String("task_name", req.Name),
 	)
 
@@ -260,19 +262,22 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 		return "", fmt.Errorf("profile has no enabled nodes")
 	}
 
-	matrices, err := presetMatrices(req.Preset)
+	selectedPresets := normalizeTaskPresets(req.Presets, req.Preset)
+	matrices, err := presetMatrices(selectedPresets)
 	if err != nil {
 		wailsServiceLogger().Warn("resolve task preset failed",
 			zap.String("profile_id", req.ProfileID),
 			zap.String("preset", req.Preset),
+			zap.Strings("presets", selectedPresets),
 			zap.Error(err),
 		)
 		return "", err
 	}
+	presetLabel := formatPresetLabel(selectedPresets)
 
 	taskName := strings.TrimSpace(req.Name)
 	if taskName == "" {
-		taskName = defaultTaskName(profileResp.Profile.Name, req.Preset)
+		taskName = defaultTaskName(profileResp.Profile.Name, presetLabel)
 	}
 
 	resp, err := s.api.SubmitTask(interfaces.TaskSubmitRequest{
@@ -280,7 +285,7 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 			Name:   taskName,
 			Vendor: interfaces.VendorMihomo,
 			Context: interfaces.TaskContext{
-				Preset:        strings.ToLower(strings.TrimSpace(req.Preset)),
+				Preset:        presetLabel,
 				ProfileID:     profileResp.Profile.ID,
 				ProfileName:   profileResp.Profile.Name,
 				ProfileSource: profileResp.Profile.Source,
@@ -293,7 +298,8 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 	if err != nil {
 		wailsServiceLogger().Warn("submit profile task failed",
 			zap.String("profile_id", req.ProfileID),
-			zap.String("preset", req.Preset),
+			zap.String("preset", presetLabel),
+			zap.Strings("presets", selectedPresets),
 			zap.Error(err),
 		)
 		return "", err
@@ -301,7 +307,8 @@ func (s *SakikoService) SubmitProfileTask(req ProfileTaskSubmitRequest) (string,
 	wailsServiceLogger().Info("profile task submitted",
 		zap.String("profile_id", req.ProfileID),
 		zap.String("task_id", resp.TaskID),
-		zap.String("preset", req.Preset),
+		zap.String("preset", presetLabel),
+		zap.Strings("presets", selectedPresets),
 		zap.Int("node_count", len(selectedNodes)),
 	)
 	return resp.TaskID, nil
@@ -326,44 +333,47 @@ func resolveProfilesPath() (string, error) {
 	return filepath.Join(configDir, "sakiko", "profiles.yaml"), nil
 }
 
-func presetMatrices(preset string) ([]interfaces.MatrixEntry, error) {
-	switch strings.ToLower(strings.TrimSpace(preset)) {
-	case "", "ping":
-		return []interfaces.MatrixEntry{
-			{Type: interfaces.MatrixHTTPPing},
-			{Type: interfaces.MatrixRTTPing},
-		}, nil
-	case "geo":
-		return []interfaces.MatrixEntry{
-			{Type: interfaces.MatrixInboundGeoIP},
-			{Type: interfaces.MatrixOutboundGeoIP},
-		}, nil
-	case "speed":
-		return []interfaces.MatrixEntry{
-			{Type: interfaces.MatrixAverageSpeed},
-			{Type: interfaces.MatrixMaxSpeed},
-			{Type: interfaces.MatrixPerSecSpeed},
-			{Type: interfaces.MatrixTrafficUsed},
-		}, nil
-	case "media":
-		return []interfaces.MatrixEntry{
-			{Type: interfaces.MatrixMediaUnlock},
-		}, nil
-	case "full":
-		return []interfaces.MatrixEntry{
-			{Type: interfaces.MatrixHTTPPing},
-			{Type: interfaces.MatrixRTTPing},
-			{Type: interfaces.MatrixInboundGeoIP},
-			{Type: interfaces.MatrixOutboundGeoIP},
-			{Type: interfaces.MatrixAverageSpeed},
-			{Type: interfaces.MatrixMaxSpeed},
-			{Type: interfaces.MatrixPerSecSpeed},
-			{Type: interfaces.MatrixTrafficUsed},
-			{Type: interfaces.MatrixMediaUnlock},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unsupported task preset: %s", preset)
+func presetMatrices(presets []string) ([]interfaces.MatrixEntry, error) {
+	selected := normalizeTaskPresets(presets, "")
+	if len(selected) == 0 {
+		selected = []string{"ping"}
 	}
+
+	matrixMap := map[interfaces.MatrixType]interfaces.MatrixEntry{}
+	matrixOrder := make([]interfaces.MatrixType, 0, 9)
+	appendMatrix := func(entry interfaces.MatrixEntry) {
+		if _, exists := matrixMap[entry.Type]; exists {
+			return
+		}
+		matrixMap[entry.Type] = entry
+		matrixOrder = append(matrixOrder, entry.Type)
+	}
+
+	for _, preset := range selected {
+		switch preset {
+		case "ping":
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixHTTPPing})
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixRTTPing})
+		case "geo":
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixInboundGeoIP})
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixOutboundGeoIP})
+		case "speed":
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixAverageSpeed})
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixMaxSpeed})
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixPerSecSpeed})
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixTrafficUsed})
+		case "media":
+			appendMatrix(interfaces.MatrixEntry{Type: interfaces.MatrixMediaUnlock})
+		default:
+			return nil, fmt.Errorf("unsupported task preset: %s", preset)
+		}
+	}
+
+	out := make([]interfaces.MatrixEntry, 0, len(matrixOrder))
+	for _, matrixType := range matrixOrder {
+		out = append(out, matrixMap[matrixType])
+	}
+	return out, nil
 }
 
 func defaultTaskName(profileName string, preset string) string {
@@ -376,6 +386,48 @@ func defaultTaskName(profileName string, preset string) string {
 		preset = "PING"
 	}
 	return fmt.Sprintf("%s %s %s", name, preset, time.Now().Format("15:04:05"))
+}
+
+func normalizeTaskPresets(presets []string, fallback string) []string {
+	input := append([]string{}, presets...)
+	if len(input) == 0 && strings.TrimSpace(fallback) != "" {
+		input = strings.FieldsFunc(fallback, func(r rune) bool {
+			return r == '+' || r == ','
+		})
+	}
+
+	selected := map[string]struct{}{}
+	order := []string{"ping", "geo", "speed", "media"}
+
+	for _, preset := range input {
+		switch strings.ToLower(strings.TrimSpace(preset)) {
+		case "full":
+			for _, item := range order {
+				selected[item] = struct{}{}
+			}
+		case "ping", "geo", "speed", "media":
+			selected[strings.ToLower(strings.TrimSpace(preset))] = struct{}{}
+		}
+	}
+
+	out := make([]string, 0, len(selected))
+	for _, preset := range order {
+		if _, ok := selected[preset]; ok {
+			out = append(out, preset)
+		}
+	}
+	return out
+}
+
+func formatPresetLabel(presets []string) string {
+	selected := normalizeTaskPresets(presets, "")
+	if len(selected) == 0 {
+		return "ping"
+	}
+	if len(selected) == 4 {
+		return "full"
+	}
+	return strings.Join(selected, "+")
 }
 
 func (s *SakikoService) ensureReady() error {

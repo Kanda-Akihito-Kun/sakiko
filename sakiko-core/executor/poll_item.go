@@ -20,6 +20,7 @@ type pollItem struct {
 	macros   []interfaces.MacroType
 	results  []interfaces.EntryResult
 
+	onUpdate  func(self *pollItem, activeNode interfaces.TaskActiveNode)
 	onProcess func(self *pollItem, idx int, result interfaces.EntryResult, c *taskpoll.Controller)
 	onExit    func(self *pollItem, exitCode taskpoll.ExitCode)
 
@@ -62,7 +63,9 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 
 	bestScore := -1
 	for attempt := 1; attempt <= attempts; attempt++ {
-		candidate := executeNodeAttemptFunc(p.task, idx, p.matrices, p.macros)
+		candidate := executeNodeAttemptFunc(p.task, idx, p.matrices, p.macros, func(activeNode interfaces.TaskActiveNode) {
+			p.emitNodeUpdate(idx, attempt, activeNode)
+		})
 		score := countMatrixFailures(p.matrices, candidate)
 		if bestScore < 0 || score < bestScore || (score == bestScore && strings.TrimSpace(result.Error) != "" && strings.TrimSpace(candidate.Error) == "") {
 			result = candidate
@@ -93,6 +96,25 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 	)
 }
 
+func (p *pollItem) emitNodeUpdate(idx int, attempt int, activeNode interfaces.TaskActiveNode) {
+	if p.onUpdate == nil {
+		return
+	}
+
+	node := p.task.Nodes[idx]
+	activeNode.NodeIndex = idx
+	if strings.TrimSpace(activeNode.NodeName) == "" {
+		activeNode.NodeName = node.Name
+	}
+	if strings.TrimSpace(activeNode.NodeAddress) == "" {
+		activeNode.NodeAddress = node.Server
+	}
+	if activeNode.Attempt == 0 {
+		activeNode.Attempt = attempt
+	}
+	p.onUpdate(p, activeNode)
+}
+
 func nodeRetryAttempts(task interfaces.Task, macros []interfaces.MacroType) int {
 	attempts := int(task.Config.TaskRetry)
 	if attempts < 1 {
@@ -111,12 +133,18 @@ func nodeRetryAttempts(task interfaces.Task, macros []interfaces.MacroType) int 
 	return attempts
 }
 
-func executeNodeAttempt(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType) interfaces.EntryResult {
+func executeNodeAttempt(task interfaces.Task, idx int, matrices []interfaces.MatrixEntry, macros []interfaces.MacroType, onUpdate func(interfaces.TaskActiveNode)) interfaces.EntryResult {
 	start := time.Now().UnixMilli()
 	result := interfaces.EntryResult{}
 
 	vendor := buildVendor(task, idx)
 	result.ProxyInfo = vendor.ProxyInfo()
+	notifyTaskActiveNode(onUpdate, interfaces.TaskActiveNode{
+		NodeName:    result.ProxyInfo.Name,
+		NodeAddress: result.ProxyInfo.Address,
+		Protocol:    result.ProxyInfo.Type,
+		Phase:       interfaces.TaskRuntimePhasePreparing,
+	})
 	if vendor.Status() != interfaces.VStatusOperational {
 		result.Error = "vendor not ready"
 		result.InvokeDuration = time.Now().UnixMilli() - start
@@ -128,7 +156,7 @@ func executeNodeAttempt(task interfaces.Task, idx int, matrices []interfaces.Mat
 		)
 		return result
 	}
-	macroMap, err := runMacros(vendor, &task, macros)
+	macroMap, err := runMacros(vendor, &task, matrices, macros, onUpdate)
 	result.InvokeDuration = time.Now().UnixMilli() - start
 	if err != nil {
 		result.Error = err.Error()
@@ -139,7 +167,7 @@ func executeNodeAttempt(task interfaces.Task, idx int, matrices []interfaces.Mat
 			zap.Error(err),
 		)
 	}
-	result.Matrices = extractMatrices(matrices, macroMap)
+	result.Matrices = extractMatrices(matrices, macroMap, onUpdate)
 	return result
 }
 

@@ -1,6 +1,7 @@
 package backendprobe
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,8 @@ import (
 
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/netx"
+
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -24,7 +27,10 @@ const (
 	locationLookupFormat = "https://ip.cn/ip/%s.html"
 )
 
-var locationPattern = regexp.MustCompile(`所在地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`)
+var locationPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`所在地理位置[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
+	regexp.MustCompile(`鎵€鍦ㄥ湴鐞嗕綅缃[\s\S]*?<td[^>]*>\s*([^<]+?)\s*</td>`),
+}
 
 type Config struct {
 	TTL time.Duration
@@ -181,16 +187,48 @@ func lookupLocation(ctx context.Context, ip string) (string, error) {
 		return "", err
 	}
 
-	matches := locationPattern.FindStringSubmatch(html.UnescapeString(string(body)))
-	if len(matches) < 2 {
-		return "", fmt.Errorf("backend location not found in ip.cn response")
+	decodedBody, err := decodeHTMLBody(resp.Header.Get("Content-Type"), body)
+	if err != nil {
+		return "", err
 	}
 
-	location := strings.Join(strings.Fields(matches[1]), " ")
+	location, ok := extractLocationFromHTML(decodedBody)
+	if !ok {
+		return "", fmt.Errorf("backend location not found in ip.cn response")
+	}
 	if location == "" {
 		return "", fmt.Errorf("backend location is empty")
 	}
 	return location, nil
+}
+
+func decodeHTMLBody(contentType string, body []byte) (string, error) {
+	reader, err := charset.NewReader(bytes.NewReader(body), contentType)
+	if err != nil {
+		return string(body), nil
+	}
+
+	decoded, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
+}
+
+func extractLocationFromHTML(raw string) (string, bool) {
+	text := html.UnescapeString(raw)
+	for _, pattern := range locationPatterns {
+		matches := pattern.FindStringSubmatch(text)
+		if len(matches) < 2 {
+			continue
+		}
+
+		location := strings.Join(strings.Fields(matches[1]), " ")
+		if location != "" {
+			return location, true
+		}
+	}
+	return "", false
 }
 
 func buildFallbackLocation(info ipWhoIsResponse) string {

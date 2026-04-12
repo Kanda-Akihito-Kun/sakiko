@@ -1,4 +1,4 @@
-import type { ImportForm, TaskPreset } from "../types/dashboard";
+import type { ImportForm, TaskPresetSelection } from "../types/dashboard";
 
 type ImportProfilePayload = {
   name: string;
@@ -18,6 +18,7 @@ type TaskConfigShape = {
 type SubmitProfileTaskPayload = {
   profileId: string;
   preset: string;
+  presets: string[];
   config: TaskConfigShape;
 };
 
@@ -30,12 +31,18 @@ export function createImportProfilePayload(importForm: ImportForm): ImportProfil
 
 export function createSubmitProfileTaskPayload(
   activeProfileId: string,
-  taskPreset: TaskPreset,
+  taskPreset: TaskPresetSelection,
   taskConfig: TaskConfigShape,
 ): SubmitProfileTaskPayload {
+  const normalizedPresets = taskPreset.filter((preset) => preset !== "full");
+  const presetLabel = normalizedPresets.length === 4
+    ? "full"
+    : normalizedPresets.join("+");
+
   return {
     profileId: activeProfileId,
-    preset: taskPreset,
+    preset: presetLabel,
+    presets: normalizedPresets,
     config: {
       pingAddress: taskConfig.pingAddress,
       pingAverageOver: taskConfig.pingAverageOver,

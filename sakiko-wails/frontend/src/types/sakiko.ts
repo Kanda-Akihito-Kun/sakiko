@@ -5,6 +5,7 @@ export type {
 export type {
   DownloadTarget,
   EntryResult,
+  TaskActiveNode,
   MatrixResult,
   Profile,
   ResultArchive,
