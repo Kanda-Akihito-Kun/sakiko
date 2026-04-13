@@ -1,5 +1,6 @@
 import StorageRounded from "@mui/icons-material/StorageRounded";
 import { Box, Chip, List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { ProfileSummary } from "../../types/sakiko";
 import { shouldUseEmojiFont } from "../../utils/dashboard";
 import { EmptyState } from "../shared/EmptyState";
@@ -12,10 +13,12 @@ type ProfileListPanelProps = {
 };
 
 export function ProfileListPanel({ profiles, activeProfileId, onSelect }: ProfileListPanelProps) {
+  const { t } = useTranslation();
+
   return (
     <SectionCard
-      title="Profiles"
-      subtitle={`${profiles.length} loaded`}
+      title={t("dashboard.profiles.list.title")}
+      subtitle={t("dashboard.profiles.list.loaded", { count: profiles.length })}
       icon={<StorageRounded color="primary" />}
     >
       <List disablePadding>
@@ -27,14 +30,14 @@ export function ProfileListPanel({ profiles, activeProfileId, onSelect }: Profil
             sx={{ alignItems: "flex-start", px: 1.75, py: 1.5 }}
           >
             <ListItemText
-              primary={profile.name || "Unnamed profile"}
+              primary={profile.name || t("shared.states.unnamedProfile")}
               secondary={
                 <Box sx={{ display: "grid", gap: 0.75, mt: 0.75 }}>
                   <Typography variant="body2" color="text.secondary" noWrap>
-                    {profile.nodeCount} nodes
+                    {t("shared.formats.nodeCount", { count: profile.nodeCount })}
                   </Typography>
                   <Typography variant="caption" className="sakiko-mono" color="text.secondary" noWrap>
-                    {profile.updatedAt || "No timestamp"}
+                    {profile.updatedAt || t("dashboard.profiles.list.noTimestamp")}
                   </Typography>
                 </Box>
               }
@@ -47,8 +50,8 @@ export function ProfileListPanel({ profiles, activeProfileId, onSelect }: Profil
 
         {profiles.length === 0 && (
           <EmptyState
-            title="No profiles yet"
-            description="Import a subscription to start the desktop flow."
+            title={t("dashboard.profiles.list.noProfilesTitle")}
+            description={t("dashboard.profiles.list.noProfilesDescription")}
           />
         )}
       </List>

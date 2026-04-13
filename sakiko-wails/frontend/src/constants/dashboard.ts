@@ -14,6 +14,7 @@ export const initialTaskConfig = new TaskConfig({
   downloadURL: "https://speed.cloudflare.com/__down?bytes=10000000",
   downloadDuration: 10,
   downloadThreading: 8,
+  backendIdentity: "",
 });
 
 export const taskPresets: TaskPreset[] = ["full", "ping", "geo", "speed", "media"];

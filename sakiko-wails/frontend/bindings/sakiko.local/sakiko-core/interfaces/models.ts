@@ -676,6 +676,7 @@ export class TaskConfig {
     "downloadURL": string;
     "downloadDuration": number;
     "downloadThreading": number;
+    "backendIdentity"?: string;
 
     /** Creates a new TaskConfig instance. */
     constructor($$source: Partial<TaskConfig> = {}) {
@@ -735,6 +736,7 @@ export class TaskContext {
 }
 
 export class TaskEnvironment {
+    "identity"?: string;
     "backend"?: BackendInfo | null;
 
     /** Creates a new TaskEnvironment instance. */
@@ -747,10 +749,10 @@ export class TaskEnvironment {
      * Creates a new TaskEnvironment instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskEnvironment {
-        const $$createField0_0 = $$createType26;
+        const $$createField1_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("backend" in $$parsedSource) {
-            $$parsedSource["backend"] = $$createField0_0($$parsedSource["backend"]);
+            $$parsedSource["backend"] = $$createField1_0($$parsedSource["backend"]);
         }
         return new TaskEnvironment($$parsedSource as Partial<TaskEnvironment>);
     }

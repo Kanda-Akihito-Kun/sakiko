@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { lazy, Suspense, startTransition, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardLifecycle } from "../hooks/useDashboardLifecycle";
 import { useDashboardStore } from "../store/dashboardStore";
@@ -34,17 +35,15 @@ export type DashboardSection = "overview" | "profiles" | "tasks" | "results" | "
 
 type NavItem = {
   id: DashboardSection;
-  label: string;
-  subtitle: string;
   icon: typeof HomeRounded;
 };
 
 const navItems: NavItem[] = [
-  { id: "overview", label: "Overview", subtitle: "Status", icon: HomeRounded },
-  { id: "profiles", label: "Profiles", subtitle: "Profiles", icon: StorageRounded },
-  { id: "tasks", label: "Tasks", subtitle: "Tasks", icon: TuneRounded },
-  { id: "results", label: "Results", subtitle: "Archives", icon: InsightsRounded },
-  { id: "settings", label: "Settings", subtitle: "Settings", icon: SettingsRounded },
+  { id: "overview", icon: HomeRounded },
+  { id: "profiles", icon: StorageRounded },
+  { id: "tasks", icon: TuneRounded },
+  { id: "results", icon: InsightsRounded },
+  { id: "settings", icon: SettingsRounded },
 ];
 
 export function DashboardPage() {
@@ -52,6 +51,7 @@ export function DashboardPage() {
 
   const [section, setSection] = useState<DashboardSection>("overview");
   const { mode, resolvedMode } = useThemeMode();
+  const { t } = useTranslation();
   const dashboard = useDashboardStore(useShallow((state) => ({
     activeProfile: state.activeProfile,
     activeProfileId: state.activeProfileId,
@@ -59,6 +59,7 @@ export function DashboardPage() {
     activeTaskId: state.activeTaskId,
     ensureResultArchive: state.ensureResultArchive,
     downloadTargets: state.downloadTargets,
+    downloadTargetSearch: state.downloadTargetSearch,
     downloadTargetsLoading: state.downloadTargetsLoading,
     error: state.error,
     handleDeleteResultArchive: state.handleDeleteResultArchive,
@@ -86,6 +87,7 @@ export function DashboardPage() {
     resultArchivesLoading: state.resultArchivesLoading,
     resultArchivesVisibleCount: state.resultArchivesVisibleCount,
     loadMoreResultArchives: state.loadMoreResultArchives,
+    setDownloadTargetSearch: state.setDownloadTargetSearch,
     setNodeFilter: state.setNodeFilter,
     setTaskPreset: state.setTaskPreset,
     submitting: state.submitting,
@@ -94,7 +96,12 @@ export function DashboardPage() {
     tasks: state.tasks,
     updateImportForm: state.updateImportForm,
   })));
-  const activeNav = navItems.find((item) => item.id === section) || navItems[0];
+  const localizedNavItems = navItems.map((item) => ({
+    ...item,
+    label: t(`dashboard.nav.${item.id}.label`),
+    subtitle: t(`dashboard.nav.${item.id}.subtitle`),
+  }));
+  const activeNav = localizedNavItems.find((item) => item.id === section) || localizedNavItems[0];
 
   return (
     <Box className="sakiko-shell">
@@ -108,15 +115,15 @@ export function DashboardPage() {
                 <MenuRounded fontSize="small" />
               </Box>
               <Box>
-                <Typography variant="subtitle1">sakiko</Typography>
+                <Typography variant="subtitle1">{t("dashboard.app.title")}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Workspace
+                  {t("dashboard.app.workspace")}
                 </Typography>
               </Box>
             </Stack>
 
             <Chip
-              label={dashboard.loading ? "Syncing workspace" : "Workspace ready"}
+              label={dashboard.loading ? t("dashboard.workspace.syncing") : t("dashboard.workspace.ready")}
               color={dashboard.loading ? "warning" : "success"}
               size="small"
               sx={{ alignSelf: "flex-start" }}
@@ -124,7 +131,7 @@ export function DashboardPage() {
           </Stack>
 
           <List disablePadding className="sakiko-sidebar__nav">
-            {navItems.map((item) => {
+            {localizedNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <ListItemButton
@@ -166,7 +173,11 @@ export function DashboardPage() {
 
             {section === "settings" ? (
               <Chip
-                label={mode === "system" ? `System (${resolvedMode})` : `Theme: ${resolvedMode}`}
+                label={
+                  mode === "system"
+                    ? `${t("settings.themeOptions.system")} (${t(`settings.themeOptions.${resolvedMode}`)})`
+                    : `${t("settings.appliedTheme.label")}: ${t(`settings.themeOptions.${resolvedMode}`)}`
+                }
                 icon={<SettingsRounded />}
                 color="primary"
                 variant="outlined"
@@ -175,7 +186,7 @@ export function DashboardPage() {
             ) : (
               <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: "0 0 auto" }}>
                 <Chip
-                  label={dashboard.activeProfile?.name || "No active profile"}
+                  label={dashboard.activeProfile?.name || t("dashboard.workspace.noActiveProfile")}
                   icon={<HubRounded />}
                   variant="outlined"
                   sx={{
@@ -193,7 +204,7 @@ export function DashboardPage() {
                   disabled={dashboard.loading}
                   onClick={() => void dashboard.refreshDashboard(dashboard.activeProfileId)}
                 >
-                  Refresh Workspace
+                  {t("dashboard.workspace.refreshWorkspace")}
                 </Button>
               </Stack>
             )}
@@ -270,12 +281,14 @@ export function DashboardPage() {
               {section === "settings" && (
                 <SettingsSection
                   downloadTargets={dashboard.downloadTargets}
+                  downloadTargetSearch={dashboard.downloadTargetSearch}
                   downloadTargetsLoading={dashboard.downloadTargetsLoading}
                   mode={mode}
                   profilesPath={dashboard.profilesPath}
                   resolvedMode={resolvedMode}
                   taskConfig={dashboard.taskConfig}
                   onPatchTaskConfig={dashboard.patchTaskConfig}
+                  onDownloadTargetSearchChange={dashboard.setDownloadTargetSearch}
                   onRefreshDownloadTargets={dashboard.refreshDownloadTargets}
                 />
               )}
@@ -292,11 +305,13 @@ type SectionLoadingFallbackProps = {
 };
 
 function SectionLoadingFallback({ label }: SectionLoadingFallbackProps) {
+  const { t } = useTranslation();
+
   return (
     <Stack spacing={1.5} alignItems="center" justifyContent="center" sx={{ minHeight: 240 }}>
       <CircularProgress size={28} />
       <Typography variant="body2" color="text.secondary">
-        Loading {label}...
+        {t("shared.states.loadingSection", { label })}
       </Typography>
     </Stack>
   );

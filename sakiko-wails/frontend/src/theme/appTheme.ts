@@ -1,6 +1,7 @@
 import { alpha, createTheme } from "@mui/material/styles";
 
 export type AppThemeMode = "light" | "dark" | "system";
+export type ExportPictureMode = "follow-theme" | "light" | "dark";
 export type ResolvedThemeMode = Exclude<AppThemeMode, "system">;
 
 const fontFamily = "var(--sakiko-font-sans)";

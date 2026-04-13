@@ -9,5 +9,6 @@ type BackendInfo struct {
 }
 
 type TaskEnvironment struct {
-	Backend *BackendInfo `json:"backend,omitempty"`
+	Identity string       `json:"identity,omitempty"`
+	Backend  *BackendInfo `json:"backend,omitempty"`
 }

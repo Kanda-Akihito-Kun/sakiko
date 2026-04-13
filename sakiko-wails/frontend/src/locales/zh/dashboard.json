@@ -1,0 +1,205 @@
+{
+  "app": {
+    "title": "sakiko",
+    "workspace": "工作区"
+  },
+  "nav": {
+    "overview": {
+      "label": "概览",
+      "subtitle": "状态"
+    },
+    "profiles": {
+      "label": "配置",
+      "subtitle": "订阅配置"
+    },
+    "tasks": {
+      "label": "任务",
+      "subtitle": "测试任务"
+    },
+    "results": {
+      "label": "结果",
+      "subtitle": "历史归档"
+    },
+    "settings": {
+      "label": "设置",
+      "subtitle": "应用设置"
+    }
+  },
+  "workspace": {
+    "ready": "工作区已就绪",
+    "syncing": "正在同步工作区",
+    "noActiveProfile": "未选择配置",
+    "refreshWorkspace": "刷新工作区"
+  },
+  "overview": {
+    "summary": {
+      "title": "工作区摘要",
+      "subtitle": "当前状态快照",
+      "profilesPath": "配置路径",
+      "activeTask": "当前任务",
+      "runtimeMessage": "运行消息",
+      "loading": "加载中...",
+      "noActiveTask": "未选择任务"
+    },
+    "hero": {
+      "chip": "工作区",
+      "descriptionStart": "基于",
+      "descriptionEnd": "的本地配置管理与任务执行入口。你可以在同一个工作区中导入订阅、查看节点并启动测试任务。",
+      "profileCount_one": "{{count}} 个配置",
+      "profileCount_other": "{{count}} 个配置",
+      "taskCount_one": "{{count}} 个任务",
+      "taskCount_other": "{{count}} 个任务",
+      "focused": "当前聚焦：{{name}}",
+      "noFocusedTask": "未选择任务",
+      "profileStore": "配置存储",
+      "runtimeState": "运行状态",
+      "focusedTask": "聚焦任务"
+    },
+    "status": {
+      "title": "工作区状态"
+    }
+  },
+  "profiles": {
+    "import": {
+      "title": "导入配置",
+      "subtitle": "通过订阅 URL 导入",
+      "name": "自定义配置名",
+      "namePlaceholder": "默认使用订阅中的配置名称",
+      "source": "来源 URL",
+      "sourcePlaceholder": "https://example.com/sub.yaml"
+    },
+    "list": {
+      "title": "配置列表",
+      "loaded": "已加载 {{count}} 个",
+      "noProfilesTitle": "还没有配置",
+      "noProfilesDescription": "先导入一个订阅，桌面端主流程才会启动。",
+      "noTimestamp": "无时间戳"
+    },
+    "detail": {
+      "title": "配置详情",
+      "pickProfile": "选择一个配置",
+      "selected": "当前配置",
+      "nodes": "节点数",
+      "enabled": "已启用",
+      "updated": "更新时间",
+      "updatedUnknown": "未知",
+      "filterPlaceholder": "按名称、协议、服务器或 UDP 状态筛选节点",
+      "refreshSubscription": "刷新订阅",
+      "deleteConfirm": "确认删除配置“{{name}}”？",
+      "matchingNodes": "{{count}} 个匹配节点",
+      "enabledForTasks": "{{count}} 个已加入任务",
+      "recoveredLocalProfile": "恢复的本地配置",
+      "dragRows": "拖拽行以调整顺序",
+      "dragRowsDisabled": "至少需要 2 个可见节点才能调整顺序",
+      "columns": {
+        "order": "顺序",
+        "node": "节点",
+        "server": "服务器",
+        "port": "端口",
+        "taskScope": "任务范围"
+      },
+      "scopeIncluded": "已加入",
+      "scopeSkipped": "已跳过",
+      "scopeUdp": "UDP",
+      "scopeNoUdp": "无 UDP",
+      "scopeUnknownUdp": "UDP ?",
+      "noProfileTitle": "未选择配置",
+      "noProfileDescription": "从左侧选一个配置，再查看节点或启动任务。"
+    }
+  },
+  "tasks": {
+    "launcher": {
+      "title": "任务启动器",
+      "subtitle": "选择测试组",
+      "singleThread": "单线程",
+      "runPreset": "启动 {{preset}}",
+      "targetProfileSelected": "已选择目标配置",
+      "selectProfileToRun": "先选择一个配置再启动任务"
+    },
+    "results": {
+      "title": "任务结果",
+      "currentlyTesting": "当前测试中",
+      "waitingForExecution": "等待节点开始执行...",
+      "mediaUnlockTitle": "媒体解锁测试",
+      "mediaUnlockSubtitle": "节点按纵向排列，每个平台列直接显示对应解锁状态。",
+      "labels": {
+        "status": "状态",
+        "exit": "退出码",
+        "progress": "进度",
+        "liveWorkload": "实时负载"
+      },
+      "noResultsTitle": "还没有结果",
+      "noResultsDescription": "先启动一个任务，或者等待当前任务完成。",
+      "noTaskTitle": "未选择任务",
+      "noTaskDescription": "这里会显示最近任务以及每个节点的结果。"
+    }
+  },
+  "results": {
+    "title": "结果",
+    "archivedCount": "{{count}} 条归档测试结果",
+    "loading": "正在加载历史结果...",
+    "syncing": "同步中",
+    "noArchivesTitle": "还没有归档结果",
+    "noArchivesDescription": "先运行一个任务，完成后的测试会自动出现在这里。",
+    "deleteConfirm": "确认删除归档结果“{{name}}”？",
+    "archiveUnavailable": "归档不可用。",
+    "loadingArchive": "正在加载完整归档...",
+    "archiveUnavailableTitle": "归档不可用",
+    "archiveUnavailableDescription": "无法加载当前选中的结果归档。",
+    "scrollToLoadMore": "继续滚动可再加载 10 条记录...",
+    "summary": {
+      "testTime": "测试时间",
+      "profile": "配置",
+      "metrics": "指标",
+      "nodes": "节点",
+      "protocolLibrary": "协议库",
+      "backend": "后端"
+    },
+    "detail": {
+      "preset": "预设",
+      "protocolLibrary": "协议库",
+      "backend": "后端",
+      "speedTarget": "测速目标",
+      "exitCode": "退出码",
+      "started": "开始时间",
+      "finished": "结束时间",
+      "profileSource": "配置来源",
+      "pingUrl": "Ping URL",
+      "timeout": "超时设置",
+      "downloadUrl": "下载 URL",
+      "speedSettings": "测速设置",
+      "testedNodes": "测试节点",
+      "reportSections": "报告分区",
+      "mediaUnlockTitle": "媒体解锁测试",
+      "noReportSectionsTitle": "没有报告分区",
+      "noReportSectionsDescription": "当前归档还没有生成报告分区。",
+      "rawResults": "原始结果",
+      "noRawResultsTitle": "没有原始结果",
+      "noRawResultsDescription": "当前归档不包含逐节点原始结果。"
+    }
+  },
+  "messages": {
+    "deletedArchive": "已删除归档结果 {{name}}。",
+    "deletedProfile": "已删除 {{name}}。",
+    "deletingArchive": "正在删除归档结果 {{name}}...",
+    "deletingProfile": "正在删除 {{name}}...",
+    "downloadTargetsLoaded": "已加载 {{count}} 个 Speedtest 目标。",
+    "downloadTargetsLoadedForSearch": "已为“{{search}}”加载 {{count}} 个 Speedtest 目标。",
+    "importedProfile": "已导入 {{name}}（{{count}} 个节点）。",
+    "importingProfile": "正在导入配置...",
+    "includedNode": "已将 {{name}} 纳入后续任务。",
+    "includingNode": "正在纳入 {{name}}...",
+    "movedNode": "已移动 {{name}}。",
+    "reorderingNode": "正在调整 {{name}} 的顺序...",
+    "refreshedProfile": "已刷新 {{name}}。",
+    "refreshingProfile": "正在刷新配置...",
+    "resultArchivesLoaded": "已加载 {{count}} 条归档结果。",
+    "selectProfileFirst": "请先选择一个配置。",
+    "selectTestGroup": "请至少选择一个测试组。",
+    "skippedNode": "已将 {{name}} 排除出后续任务。",
+    "skippingNode": "正在跳过 {{name}}...",
+    "startingTask": "正在启动 {{preset}} 任务...",
+    "taskAccepted": "任务 {{taskId}} 已受理。",
+    "taskFinished": "任务 {{name}} 已完成，共 {{count}} 条结果。"
+  }
+}

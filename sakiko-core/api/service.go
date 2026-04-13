@@ -1,11 +1,10 @@
 package api
 
 import (
-	"context"
 	"fmt"
+	"strings"
 	"time"
 
-	"sakiko.local/sakiko-core/backendprobe"
 	"sakiko.local/sakiko-core/downloadtargets"
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/kernel"
@@ -30,7 +29,6 @@ type Service struct {
 	profiles        *profiles.Manager
 	downloadTargets *downloadtargets.Manager
 	resultStore     *storage.ResultStore
-	backendProbe    *backendprobe.Prober
 }
 
 func New(cfg Config) (*Service, error) {
@@ -57,7 +55,6 @@ func New(cfg Config) (*Service, error) {
 		profiles:        pm,
 		downloadTargets: downloadtargets.NewManager(downloadtargets.Config{}),
 		resultStore:     resultStore,
-		backendProbe:    backendprobe.New(backendprobe.Config{}),
 	}
 	apiLogger().Info("service initialized",
 		zap.String("mode", string(cfg.Mode)),
@@ -83,15 +80,9 @@ func (s *Service) SubmitTask(req interfaces.TaskSubmitRequest, onEvent func(inte
 		return interfaces.TaskSubmitResponse{}, fmt.Errorf("service not initialized")
 	}
 	task := req.Task
-	if s.backendProbe != nil {
-		backend, probeErr := s.backendProbe.Probe(context.Background())
-		if probeErr != nil {
-			apiLogger().Warn("probe backend environment failed", zap.Error(probeErr))
-		}
-		if backend.IP != "" || backend.Location != "" || backend.Error != "" {
-			task.Environment = &interfaces.TaskEnvironment{
-				Backend: &backend,
-			}
+	if identity := strings.TrimSpace(task.Config.BackendIdentity); identity != "" {
+		task.Environment = &interfaces.TaskEnvironment{
+			Identity: identity,
 		}
 	}
 	taskID, err := s.kernel.Submit(task, onEvent)
@@ -250,6 +241,24 @@ func (s *Service) ListDownloadTargets() (interfaces.DownloadTargetListResponse, 
 	targets, err := s.downloadTargets.List()
 	if err != nil {
 		apiLogger().Warn("list download targets failed", zap.Error(err))
+		return interfaces.DownloadTargetListResponse{}, err
+	}
+
+	return interfaces.DownloadTargetListResponse{Targets: targets}, nil
+}
+
+func (s *Service) SearchDownloadTargets(search string) (interfaces.DownloadTargetListResponse, error) {
+	if s == nil || s.downloadTargets == nil {
+		apiLogger().Warn("search download targets rejected: service not initialized")
+		return interfaces.DownloadTargetListResponse{}, fmt.Errorf("service not initialized")
+	}
+
+	targets, err := s.downloadTargets.ListBySearch(search)
+	if err != nil {
+		apiLogger().Warn("search download targets failed",
+			zap.String("search", search),
+			zap.Error(err),
+		)
 		return interfaces.DownloadTargetListResponse{}, err
 	}
 

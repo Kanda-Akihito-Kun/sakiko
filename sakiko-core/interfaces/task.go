@@ -1,10 +1,13 @@
 package interfaces
 
+import "strings"
+
 const (
 	defaultDownloadURL      = "https://speed.cloudflare.com/__down?bytes=10000000"
 	defaultDownloadDuration = int64(10)
 	minDownloadDuration     = int64(5)
 	maxDownloadDuration     = int64(20)
+	maxBackendIdentityRunes = 20
 )
 
 type Node struct {
@@ -26,6 +29,7 @@ type TaskConfig struct {
 	DownloadURL       string `json:"downloadURL"`
 	DownloadDuration  int64  `json:"downloadDuration"`
 	DownloadThreading uint   `json:"downloadThreading"`
+	BackendIdentity   string `json:"backendIdentity,omitempty"`
 }
 
 func (c TaskConfig) Normalize() TaskConfig {
@@ -56,7 +60,16 @@ func (c TaskConfig) Normalize() TaskConfig {
 	if c.DownloadThreading == 0 {
 		c.DownloadThreading = 1
 	}
+	c.BackendIdentity = clampIdentity(c.BackendIdentity)
 	return c
+}
+
+func clampIdentity(value string) string {
+	runes := []rune(strings.TrimSpace(value))
+	if len(runes) <= maxBackendIdentityRunes {
+		return string(runes)
+	}
+	return string(runes[:maxBackendIdentityRunes])
 }
 
 type Task struct {

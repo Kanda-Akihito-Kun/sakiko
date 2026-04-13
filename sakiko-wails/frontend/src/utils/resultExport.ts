@@ -7,8 +7,9 @@
 import {
   formatBackendLabel,
   formatProtocolLibraryLabel,
-  summarizeDownloadTarget,
+  summarizeDownloadTargetFooter,
 } from "./dashboard";
+import type { ResolvedThemeMode } from "../theme/appTheme";
 import { filterMediaReportSectionColumns } from "./mediaUnlock";
 import { mediaCellTone } from "./mediaMatrix";
 
@@ -33,6 +34,29 @@ type TableMergePlan = {
 
 type FlagEmojiAssetMap = Map<string, HTMLImageElement | null>;
 
+type ExportPalette = {
+  background: string;
+  watermark: string;
+  border: string;
+  divider: string;
+  headerFill: string;
+  text: string;
+  mutedText: string;
+  latencyBase: string;
+  latencyAccent: string;
+  speedBase: string;
+  speedAccent: string;
+  errorText: string;
+  errorFill: string;
+  mediaSuccessFill: string;
+  mediaWarningFill: string;
+  mediaErrorFill: string;
+  rowEvenFill: string;
+  rowOddFill: string;
+  flagBadgeFill: string;
+  flagBadgeBorder: string;
+};
+
 const PAGE_PADDING_X = 18;
 const PAGE_PADDING_Y = 16;
 const HEADER_HEIGHT = 56;
@@ -43,23 +67,65 @@ const TABLE_HEADER_HEIGHT = 52;
 const ROW_HEIGHT = 42;
 const EXPORT_SCALE = 2;
 const FONT_FAMILY = "'Microsoft YaHei', 'Segoe UI', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
-const BORDER_COLOR = "#d6e8dd";
-const HEADER_FILL = "#f3fbf6";
-const TEXT_COLOR = "#151515";
-const MUTED_TEXT = "#56635d";
-const LATENCY_BASE = "#dcf6e7";
-const LATENCY_ACCENT = "#1aa36e";
-const SPEED_BASE = "#dff8ea";
-const SPEED_ACCENT = "#2cc381";
 const WATERMARK = "sakiko";
 const TWEMOJI_BASE_URL = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72";
 const FLAG_ICON_GAP = 6;
-const FLAG_BADGE_FILL = "#edf6f1";
-const FLAG_BADGE_BORDER = "#c9ddd0";
 const TOPOLOGY_INBOUND_COLUMNS = ["inboundCountryCode", "inboundASN", "inboundOrganization"] as const;
 const TOPOLOGY_OUTBOUND_COLUMNS = ["outboundCountryCode", "outboundASN", "outboundOrganization", "outboundIP"] as const;
 
-export async function exportResultArchiveImage(archive: ResultArchive, downloadTargets: DownloadTarget[] = []): Promise<void> {
+const exportPalettes: Record<ResolvedThemeMode, ExportPalette> = {
+  light: {
+    background: "#ffffff",
+    watermark: "rgba(44, 195, 129, 0.04)",
+    border: "#d6e8dd",
+    divider: "#e3efe7",
+    headerFill: "#f3fbf6",
+    text: "#151515",
+    mutedText: "#56635d",
+    latencyBase: "#dcf6e7",
+    latencyAccent: "#1aa36e",
+    speedBase: "#dff8ea",
+    speedAccent: "#2cc381",
+    errorText: "#9a3412",
+    errorFill: "#fff1eb",
+    mediaSuccessFill: "#e5f7eb",
+    mediaWarningFill: "#fff6dc",
+    mediaErrorFill: "#ffe9e7",
+    rowEvenFill: "#ffffff",
+    rowOddFill: "#fcfcfd",
+    flagBadgeFill: "#edf6f1",
+    flagBadgeBorder: "#c9ddd0",
+  },
+  dark: {
+    background: "#17191f",
+    watermark: "rgba(10, 132, 255, 0.08)",
+    border: "#39424d",
+    divider: "#2b3440",
+    headerFill: "#222833",
+    text: "#f5f7fb",
+    mutedText: "#a8b3c2",
+    latencyBase: "#1d3b32",
+    latencyAccent: "#30d158",
+    speedBase: "#1b3b33",
+    speedAccent: "#34c77b",
+    errorText: "#ffb39f",
+    errorFill: "#4a2d2a",
+    mediaSuccessFill: "#203b30",
+    mediaWarningFill: "#43371f",
+    mediaErrorFill: "#492e2b",
+    rowEvenFill: "#1b2028",
+    rowOddFill: "#212732",
+    flagBadgeFill: "#24303a",
+    flagBadgeBorder: "#415262",
+  },
+};
+
+export async function exportResultArchiveImage(
+  archive: ResultArchive,
+  downloadTargets: DownloadTarget[] = [],
+  mode: ResolvedThemeMode = "light",
+): Promise<void> {
+  const palette = exportPalettes[mode];
   const sections = buildExportSections(archive);
   const flagEmojiAssets = await loadFlagEmojiAssets(sections);
   const pageWidth = Math.max(1420, ...sections.map(sectionTotalWidth)) + PAGE_PADDING_X * 2;
@@ -76,18 +142,18 @@ export async function exportResultArchiveImage(archive: ResultArchive, downloadT
 
   ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
 
-  drawBackground(ctx, pageWidth, pageHeight);
-  drawHeader(ctx, archive, pageWidth);
+  drawBackground(ctx, pageWidth, pageHeight, palette);
+  drawHeader(ctx, archive, pageWidth, palette);
 
   let cursorY = PAGE_PADDING_Y + HEADER_HEIGHT;
   sections.forEach((section, index) => {
-    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, true, flagEmojiAssets) + (index < sections.length - 1 ? SECTION_GAP : 0);
+    cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, true, flagEmojiAssets, palette) + (index < sections.length - 1 ? SECTION_GAP : 0);
   });
 
-  drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight);
+  drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight, palette);
 
   const blob = await canvasToBlob(canvas);
-  downloadBlob(blob, buildFileName(archive));
+  downloadBlob(blob, buildFileName(archive, mode));
 }
 
 function buildExportSections(archive: ResultArchive): ExportSection[] {
@@ -242,11 +308,11 @@ function buildFallbackSection(archive: ResultArchive): ExportSection {
   };
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  ctx.fillStyle = "#ffffff";
+function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, palette: ExportPalette) {
+  ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = "rgba(44, 195, 129, 0.04)";
+  ctx.fillStyle = palette.watermark;
   ctx.font = `600 58px ${FONT_FAMILY}`;
   ctx.textAlign = "center";
   for (let y = 110; y < height - 80; y += 220) {
@@ -254,21 +320,21 @@ function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
   }
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, archive: ResultArchive, width: number) {
+function drawHeader(ctx: CanvasRenderingContext2D, archive: ResultArchive, width: number, palette: ExportPalette) {
   const mainTitle = buildMainTitle(archive);
   const profileName = archive.task.context?.profileName || "Unknown Profile";
 
-  ctx.fillStyle = TEXT_COLOR;
+  ctx.fillStyle = palette.text;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = `700 24px ${FONT_FAMILY}`;
   ctx.fillText(`sakiko - ${mainTitle} | ${profileName}`, width / 2, PAGE_PADDING_Y + 20);
 
-  ctx.fillStyle = "#6a7770";
+  ctx.fillStyle = palette.mutedText;
   ctx.font = `500 12px ${FONT_FAMILY}`;
   ctx.fillText(`Task: ${archive.task.id}`, width / 2, PAGE_PADDING_Y + 42);
 
-  ctx.strokeStyle = "#e3efe7";
+  ctx.strokeStyle = palette.divider;
   ctx.beginPath();
   ctx.moveTo(PAGE_PADDING_X, PAGE_PADDING_Y + HEADER_HEIGHT - 2);
   ctx.lineTo(width - PAGE_PADDING_X, PAGE_PADDING_Y + HEADER_HEIGHT - 2);
@@ -283,6 +349,7 @@ function drawSection(
   pageWidth: number,
   separated: boolean,
   flagEmojiAssets: FlagEmojiAssetMap,
+  palette: ExportPalette,
 ): number {
   const tableWidth = sectionTotalWidth(section);
   const tableX = Math.max(PAGE_PADDING_X, Math.floor((pageWidth - tableWidth) / 2));
@@ -290,7 +357,7 @@ function drawSection(
   let cursorY = y;
 
   if (separated) {
-    ctx.fillStyle = TEXT_COLOR;
+    ctx.fillStyle = palette.text;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = `700 18px ${FONT_FAMILY}`;
@@ -298,9 +365,20 @@ function drawSection(
     cursorY += SECTION_TITLE_HEIGHT;
   }
 
-  drawTableHeader(ctx, section.columns, tableX, cursorY);
+  drawTableHeader(ctx, section.columns, tableX, cursorY, palette);
   section.rows.forEach((row, rowIndex) => {
-    drawTableRow(ctx, section, archive, row, rowIndex, tableX, cursorY + TABLE_HEADER_HEIGHT + rowIndex * ROW_HEIGHT, mergePlan, flagEmojiAssets);
+    drawTableRow(
+      ctx,
+      section,
+      archive,
+      row,
+      rowIndex,
+      tableX,
+      cursorY + TABLE_HEADER_HEIGHT + rowIndex * ROW_HEIGHT,
+      mergePlan,
+      flagEmojiAssets,
+      palette,
+    );
   });
 
   return cursorY + TABLE_HEADER_HEIGHT + section.rows.length * ROW_HEIGHT;
@@ -311,15 +389,16 @@ function drawTableHeader(
   columns: ExportColumn[],
   x: number,
   y: number,
+  palette: ExportPalette,
 ) {
   let cursorX = x;
   columns.forEach((column) => {
-    ctx.fillStyle = HEADER_FILL;
+    ctx.fillStyle = palette.headerFill;
     ctx.fillRect(cursorX, y, column.width, TABLE_HEADER_HEIGHT);
-    strokeCell(ctx, cursorX, y, column.width, TABLE_HEADER_HEIGHT);
+    strokeCell(ctx, cursorX, y, column.width, TABLE_HEADER_HEIGHT, palette);
     drawCellText(ctx, column.label, cursorX, y, column.width, TABLE_HEADER_HEIGHT, {
       align: column.align || "left",
-      color: TEXT_COLOR,
+      color: palette.text,
       font: `600 12px ${FONT_FAMILY}`,
       wrap: true,
     });
@@ -337,6 +416,7 @@ function drawTableRow(
   y: number,
   mergePlan: TableMergePlan,
   flagEmojiAssets: FlagEmojiAssetMap,
+  palette: ExportPalette,
 ) {
   let cursorX = x;
   section.columns.forEach((column) => {
@@ -348,22 +428,22 @@ function drawTableRow(
 
     const value = row[column.key];
     const cellHeight = ROW_HEIGHT * (mergePlan.spans.get(mergeKey) || 1);
-    const fill = resolveCellFill(section, column.key, value, rowIndex);
+    const fill = resolveCellFill(section, column.key, value, rowIndex, palette);
     ctx.fillStyle = fill;
     ctx.fillRect(cursorX, y, column.width, cellHeight);
-    strokeCell(ctx, cursorX, y, column.width, cellHeight);
+    strokeCell(ctx, cursorX, y, column.width, cellHeight, palette);
 
     if (column.key === "perSecondBytesPerSecond" && Array.isArray(value)) {
-      drawSparkBars(ctx, cursorX + 10, y + 8, column.width - 20, cellHeight - 16, value);
+      drawSparkBars(ctx, cursorX + 10, y + 8, column.width - 20, cellHeight - 16, value, palette);
     } else if (column.key === "nodeName") {
       drawNodeNameCell(ctx, formatNodeNameForExport(String(value || ""), archive), cursorX, y, column.width, cellHeight, {
-        color: TEXT_COLOR,
+        color: palette.text,
         font: `500 13px ${FONT_FAMILY}`,
-      }, flagEmojiAssets);
+      }, flagEmojiAssets, palette);
     } else {
       drawCellText(ctx, renderCellValue(section.kind, column.key, value, archive), cursorX, y, column.width, cellHeight, {
         align: column.align || "left",
-        color: value && column.key === "error" ? "#9a3412" : TEXT_COLOR,
+        color: value && column.key === "error" ? palette.errorText : palette.text,
         font: `500 13px ${FONT_FAMILY}`,
         wrap: shouldWrap(column.key),
       });
@@ -417,12 +497,13 @@ function drawSparkBars(
   width: number,
   height: number,
   values: unknown[],
+  palette: ExportPalette,
 ) {
   const numeric = values.map(numericValue).filter((value) => value > 0);
   if (numeric.length === 0) {
     drawCellText(ctx, "-", x, y, width, height, {
       align: "center",
-      color: MUTED_TEXT,
+      color: palette.mutedText,
       font: `500 13px ${FONT_FAMILY}`,
       wrap: false,
     });
@@ -437,7 +518,7 @@ function drawSparkBars(
     const barWidth = Math.max(1, right - left);
     const barHeight = Math.max(3, Math.round((value / max) * height));
     const barY = y + height - barHeight;
-    ctx.fillStyle = mixColor("#e4f8ec", SPEED_ACCENT, 0.35 + (value / max) * 0.65);
+    ctx.fillStyle = mixColor(palette.speedBase, palette.speedAccent, 0.35 + (value / max) * 0.65);
     ctx.fillRect(left, barY, barWidth, barHeight);
   });
 }
@@ -448,6 +529,7 @@ function drawFooter(
   downloadTargets: DownloadTarget[],
   width: number,
   height: number,
+  palette: ExportPalette,
 ) {
   const footerTop = height - FOOTER_HEIGHT;
   const preset = buildMainTitle(archive);
@@ -455,9 +537,9 @@ function drawFooter(
   const config = archive.task.config;
   const protocolLibrary = formatProtocolLibraryLabel(archive.task.vendor);
   const backend = formatBackendLabel(archive.task);
-  const target = summarizeDownloadTarget(config.downloadURL, downloadTargets);
+  const target = summarizeDownloadTargetFooter(config.downloadURL, downloadTargets);
 
-  ctx.strokeStyle = "#e3efe7";
+  ctx.strokeStyle = palette.divider;
   ctx.beginPath();
   ctx.moveTo(PAGE_PADDING_X, footerTop);
   ctx.lineTo(width - PAGE_PADDING_X, footerTop);
@@ -465,10 +547,10 @@ function drawFooter(
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = TEXT_COLOR;
+  ctx.fillStyle = palette.text;
   ctx.font = `500 12px ${FONT_FAMILY}`;
   ctx.fillText(
-    `Protocol Library=${protocolLibrary}  Backend=${backend}  Speed Target=${target}  Profile=${archive.task.context?.profileName || "Unknown"}  Preset=${preset}`,
+    `Protocol Library=${protocolLibrary}  Backend=${backend}  SpeedTest Target=${target}  Profile=${archive.task.context?.profileName || "Unknown"}  Preset=${preset}`,
     PAGE_PADDING_X,
     footerTop + 18,
   );
@@ -478,7 +560,7 @@ function drawFooter(
     footerTop + 40,
   );
 
-  ctx.fillStyle = MUTED_TEXT;
+  ctx.fillStyle = palette.mutedText;
   ctx.fillText(
     `Tested At: ${formatUTC8DateTime(archive.state.finishedAt || archive.state.startedAt)}  Results are for reference only.`,
     PAGE_PADDING_X,
@@ -491,32 +573,33 @@ function resolveCellFill(
   key: string,
   value: unknown,
   rowIndex: number,
+  palette: ExportPalette,
 ): string {
   if (key === "rttMillis" || key === "httpPingMillis") {
-    return heatColor(numericValue(value), collectNumericValues(section.rows, key), LATENCY_BASE, LATENCY_ACCENT);
+    return heatColor(numericValue(value), collectNumericValues(section.rows, key), palette.latencyBase, palette.latencyAccent, palette.rowEvenFill);
   }
   if (key === "averageBytesPerSecond" || key === "maxBytesPerSecond") {
-    return heatColor(numericValue(value), collectNumericValues(section.rows, key), SPEED_BASE, SPEED_ACCENT);
+    return heatColor(numericValue(value), collectNumericValues(section.rows, key), palette.speedBase, palette.speedAccent, palette.rowEvenFill);
   }
   if (key === "perSecondBytesPerSecond") {
-    return "#ffffff";
+    return rowIndex % 2 === 0 ? palette.rowEvenFill : palette.rowOddFill;
   }
   if (key === "error" && value) {
-    return "#fff1eb";
+    return palette.errorFill;
   }
   if (section.kind === "media_unlock_table" && key !== "nodeName" && key !== "proxyType") {
     switch (mediaCellTone(String(value || ""))) {
       case "success":
-        return "#e5f7eb";
+        return palette.mediaSuccessFill;
       case "warning":
-        return "#fff6dc";
+        return palette.mediaWarningFill;
       case "error":
-        return "#ffe9e7";
+        return palette.mediaErrorFill;
       default:
-        return rowIndex % 2 === 0 ? "#ffffff" : "#fcfcfd";
+        return rowIndex % 2 === 0 ? palette.rowEvenFill : palette.rowOddFill;
     }
   }
-  return rowIndex % 2 === 0 ? "#ffffff" : "#fcfcfd";
+  return rowIndex % 2 === 0 ? palette.rowEvenFill : palette.rowOddFill;
 }
 
 function renderCellValue(kind: string, key: string, value: unknown, archive: ResultArchive): string {
@@ -637,8 +720,15 @@ function sectionTotalWidth(section: ExportSection): number {
   return section.columns.reduce((sum, column) => sum + column.width, 0);
 }
 
-function strokeCell(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-  ctx.strokeStyle = BORDER_COLOR;
+function strokeCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  palette: ExportPalette,
+) {
+  ctx.strokeStyle = palette.border;
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, width, height);
 }
@@ -706,6 +796,7 @@ function drawNodeNameCell(
     font: string;
   },
   flagEmojiAssets: FlagEmojiAssetMap,
+  palette: ExportPalette,
 ) {
   const content = text || "-";
   const flag = extractLeadingFlagEmoji(content);
@@ -736,7 +827,7 @@ function drawNodeNameCell(
   if (image) {
     ctx.drawImage(image, iconX, iconY, iconSize, iconSize);
   } else {
-    drawFlagBadge(ctx, flagCountryCode(flag), iconX, iconY, iconSize);
+    drawFlagBadge(ctx, flagCountryCode(flag), iconX, iconY, iconSize, palette);
   }
 
   ctx.fillText(truncateText(ctx, remainder, maxTextWidth), textX, y + height / 2);
@@ -792,9 +883,9 @@ function compareMergeGroup(left: unknown, right: unknown): number {
   return leftValue.localeCompare(rightValue, "en");
 }
 
-function heatColor(value: number, allValues: number[], from: string, to: string): string {
+function heatColor(value: number, allValues: number[], from: string, to: string, fallback: string): string {
   if (value <= 0 || allValues.length === 0) {
-    return "#ffffff";
+    return fallback;
   }
   const max = Math.max(...allValues, 1);
   const ratio = Math.min(1, value / max);
@@ -941,16 +1032,23 @@ function flagCountryCode(flag: string): string {
     .join("");
 }
 
-function drawFlagBadge(ctx: CanvasRenderingContext2D, code: string, x: number, y: number, size: number) {
+function drawFlagBadge(
+  ctx: CanvasRenderingContext2D,
+  code: string,
+  x: number,
+  y: number,
+  size: number,
+  palette: ExportPalette,
+) {
   ctx.save();
-  ctx.fillStyle = FLAG_BADGE_FILL;
-  ctx.strokeStyle = FLAG_BADGE_BORDER;
+  ctx.fillStyle = palette.flagBadgeFill;
+  ctx.strokeStyle = palette.flagBadgeBorder;
   ctx.lineWidth = 1;
   roundRect(ctx, x, y, size, size, 4);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = TEXT_COLOR;
+  ctx.fillStyle = palette.text;
   ctx.font = `600 ${Math.max(7, Math.floor(size * 0.34))}px ${FONT_FAMILY}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -1097,11 +1195,12 @@ function calculateRuntimeSeconds(archive: ResultArchive): number {
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
-function buildFileName(archive: ResultArchive): string {
+function buildFileName(archive: ResultArchive, mode: ResolvedThemeMode): string {
   const profile = sanitizeFileName(archive.task.context?.profileName || "result");
   const preset = sanitizeFileName(archive.task.context?.preset || "report");
   const timestamp = buildUTC8FileTimestamp(archive.state.finishedAt || archive.state.startedAt || new Date().toISOString());
-  return `${profile}_${preset}_${timestamp}.png`;
+  const theme = mode === "dark" ? "Dark" : "Light";
+  return `${profile}_${preset}_${timestamp}_${theme}.png`;
 }
 
 function sanitizeFileName(input: string): string {

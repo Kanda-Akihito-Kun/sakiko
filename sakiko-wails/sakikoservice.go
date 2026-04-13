@@ -18,6 +18,7 @@ import (
 type SakikoService struct {
 	api          *coreapi.Service
 	profilesPath string
+	settingsPath string
 	once         sync.Once
 	initErr      error
 }
@@ -41,6 +42,42 @@ type ProfileSummary struct {
 	Source    string `json:"source"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 	NodeCount int    `json:"nodeCount"`
+}
+
+func (s *SakikoService) GetAppSettings() (AppSettings, error) {
+	if err := s.ensureReady(); err != nil {
+		return AppSettings{}, err
+	}
+	return loadAppSettings(s.settingsPath)
+}
+
+func (s *SakikoService) UpdateAppSettings(patch AppSettingsPatch) (AppSettings, error) {
+	if err := s.ensureReady(); err != nil {
+		return AppSettings{}, err
+	}
+
+	settings, err := loadAppSettings(s.settingsPath)
+	if err != nil {
+		return AppSettings{}, err
+	}
+
+	if strings.TrimSpace(patch.Language) != "" {
+		settings.Language = patch.Language
+	}
+	settings = settings.Normalize()
+
+	if err := saveAppSettings(s.settingsPath, settings); err != nil {
+		wailsServiceLogger().Warn("save app settings failed",
+			zap.String("settings_path", s.settingsPath),
+			zap.Error(err),
+		)
+		return AppSettings{}, err
+	}
+
+	wailsServiceLogger().Info("app settings updated",
+		zap.String("language", settings.Language),
+	)
+	return settings, nil
 }
 
 func (s *SakikoService) DesktopStatus() (DesktopStatus, error) {
@@ -142,6 +179,17 @@ func (s *SakikoService) ListDownloadTargets() ([]interfaces.DownloadTarget, erro
 		return nil, err
 	}
 	resp, err := s.api.ListDownloadTargets()
+	if err != nil {
+		return nil, err
+	}
+	return resp.Targets, nil
+}
+
+func (s *SakikoService) SearchDownloadTargets(search string) ([]interfaces.DownloadTarget, error) {
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	resp, err := s.api.SearchDownloadTargets(search)
 	if err != nil {
 		return nil, err
 	}
@@ -468,6 +516,14 @@ func (s *SakikoService) ensureReady() error {
 		}
 		wailsServiceLogger().Info("resolved profiles path", zap.String("profiles_path", profilesPath))
 
+		settingsPath, err := resolveSettingsPath()
+		if err != nil {
+			wailsServiceLogger().Error("resolve settings path failed", zap.Error(err))
+			s.initErr = err
+			return
+		}
+		wailsServiceLogger().Info("resolved settings path", zap.String("settings_path", settingsPath))
+
 		apiService, err := coreapi.New(coreapi.Config{
 			Mode:                interfaces.ModeParallel,
 			ConnConcurrency:     24,
@@ -484,6 +540,7 @@ func (s *SakikoService) ensureReady() error {
 
 		s.api = apiService
 		s.profilesPath = profilesPath
+		s.settingsPath = settingsPath
 		wailsServiceLogger().Info("sakiko service ready", zap.String("profiles_path", profilesPath))
 	})
 

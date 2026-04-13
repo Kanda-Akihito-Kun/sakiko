@@ -1,6 +1,7 @@
 import CloudUploadRounded from "@mui/icons-material/CloudUploadRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import { Button, Stack, TextField } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { ImportForm } from "../../types/dashboard";
 import { SectionCard } from "../shared/SectionCard";
 
@@ -23,27 +24,29 @@ export function ImportProfilePanel({
   onImportFormChange,
   onReload,
 }: ImportProfilePanelProps) {
+  const { t } = useTranslation();
+
   return (
     <SectionCard
-      title="Import Profile"
-      subtitle="Subscription URL import"
+      title={t("dashboard.profiles.import.title")}
+      subtitle={t("dashboard.profiles.import.subtitle")}
       icon={<CloudUploadRounded color="primary" />}
     >
       <Stack spacing={2}>
         <TextField
-          label="Custome Profile Name"
+          label={t("dashboard.profiles.import.name")}
           fullWidth
           value={importForm.name}
           onChange={(event) => onImportFormChange("name", event.target.value)}
-          placeholder="Use profile's name in default"
+          placeholder={t("dashboard.profiles.import.namePlaceholder")}
         />
 
         <TextField
-          label="Source URL"
+          label={t("dashboard.profiles.import.source")}
           fullWidth
           value={importForm.source}
           onChange={(event) => onImportFormChange("source", event.target.value)}
-          placeholder="https://example.com/sub.yaml"
+          placeholder={t("dashboard.profiles.import.sourcePlaceholder")}
         />
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -53,7 +56,7 @@ export function ImportProfilePanel({
             disabled={submitting}
             onClick={onImport}
           >
-            Import
+            {t("shared.actions.import")}
           </Button>
           <Button
             variant="outlined"
@@ -61,7 +64,7 @@ export function ImportProfilePanel({
             disabled={loading}
             onClick={() => void onReload(activeProfileId)}
           >
-            Reload
+            {t("shared.actions.reload")}
           </Button>
         </Stack>
       </Stack>

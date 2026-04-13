@@ -35,8 +35,12 @@ type Manager struct {
 	cacheTTL     time.Duration
 	now          func() time.Time
 
-	mu        sync.RWMutex
-	cached    []interfaces.DownloadTarget
+	mu     sync.RWMutex
+	caches map[string]cacheEntry
+}
+
+type cacheEntry struct {
+	targets   []interfaces.DownloadTarget
 	expiresAt time.Time
 }
 
@@ -78,21 +82,35 @@ func NewManager(cfg Config) *Manager {
 		fetchTimeout: fetchTimeout,
 		cacheTTL:     cacheTTL,
 		now:          now,
+		caches:       map[string]cacheEntry{},
 	}
 }
 
 func (m *Manager) List() ([]interfaces.DownloadTarget, error) {
-	if targets := m.cachedTargets(); len(targets) > 0 {
+	return m.ListBySearch("")
+}
+
+func (m *Manager) ListBySearch(search string) ([]interfaces.DownloadTarget, error) {
+	if targets := m.cachedTargets(search); len(targets) > 0 {
 		return targets, nil
 	}
-	return m.Refresh()
+	return m.RefreshBySearch(search)
 }
 
 func (m *Manager) Refresh() ([]interfaces.DownloadTarget, error) {
+	return m.RefreshBySearch("")
+}
+
+func (m *Manager) RefreshBySearch(search string) ([]interfaces.DownloadTarget, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), m.fetchTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, m.endpoint, nil)
+	requestURL, err := m.requestURL(search)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -133,24 +151,43 @@ func (m *Manager) Refresh() ([]interfaces.DownloadTarget, error) {
 	}
 
 	m.mu.Lock()
-	m.cached = cloneTargets(targets)
-	m.expiresAt = m.now().Add(m.cacheTTL)
+	m.caches[normalizeSearchKey(search)] = cacheEntry{
+		targets:   cloneTargets(targets),
+		expiresAt: m.now().Add(m.cacheTTL),
+	}
 	m.mu.Unlock()
 
 	return cloneTargets(targets), nil
 }
 
-func (m *Manager) cachedTargets() []interfaces.DownloadTarget {
+func (m *Manager) cachedTargets(search string) []interfaces.DownloadTarget {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if len(m.cached) == 0 {
+	entry, ok := m.caches[normalizeSearchKey(search)]
+	if !ok || len(entry.targets) == 0 {
 		return nil
 	}
-	if !m.expiresAt.IsZero() && !m.now().Before(m.expiresAt) {
+	if !entry.expiresAt.IsZero() && !m.now().Before(entry.expiresAt) {
 		return nil
 	}
-	return cloneTargets(m.cached)
+	return cloneTargets(entry.targets)
+}
+
+func (m *Manager) requestURL(search string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(m.endpoint))
+	if err != nil {
+		return "", err
+	}
+
+	query := parsed.Query()
+	if trimmed := strings.TrimSpace(search); trimmed != "" {
+		query.Set("search", trimmed)
+	} else {
+		query.Del("search")
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
 }
 
 func normalizeTarget(raw speedtestServer) (interfaces.DownloadTarget, bool) {
@@ -228,4 +265,8 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeSearchKey(search string) string {
+	return strings.ToLower(strings.TrimSpace(search))
 }

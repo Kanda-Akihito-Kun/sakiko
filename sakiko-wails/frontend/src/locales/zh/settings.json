@@ -1,0 +1,78 @@
+{
+  "title": "基础设置",
+  "language": {
+    "label": "语言",
+    "description": "选择 sakiko 界面使用的语言。",
+    "switching": "正在切换语言..."
+  },
+  "themeMode": {
+    "label": "主题模式",
+    "description": "选择界面的显示模式。"
+  },
+  "exportPictureMode": {
+    "label": "导出图片模式",
+    "description": "选择导出图片时跟随应用主题，还是固定使用浅色/深色样式。"
+  },
+  "appliedTheme": {
+    "label": "当前生效主题",
+    "systemDescription": "界面会跟随当前操作系统外观。",
+    "fixedDescription": "界面使用你当前选择的固定外观。",
+    "lightActive": "当前浅色",
+    "darkActive": "当前深色",
+    "exportLight": "导出浅色",
+    "exportDark": "导出深色"
+  },
+  "taskDefaults": {
+    "title": "任务默认值",
+    "subtitle": "提交任务时共用的配置",
+    "description": "让启动器只关注任务类型选择，共享运行参数统一在这里调整。",
+    "pingUrl": "Ping URL",
+    "pingUrlHelper": "用于 ping 和 full 任务",
+    "timeout": "超时（ms）",
+    "downloadUrl": "下载 URL",
+    "downloadUrlHelper": "用于 speed 和 full 任务的手动覆盖",
+    "duration": "持续时间（秒）",
+    "durationHelper": "用于 speed 和 full 任务，范围 5-20 秒",
+    "backendIdentity": "后端标识",
+    "backendIdentityHelper": "{{count}}/50。留空时导出为 “empty”。",
+    "downloadTarget": {
+      "title": "下载目标",
+      "description": "选择一个 Speedtest 目标来填充下载 URL，或者继续使用 Cloudflare 默认目标。",
+      "useDefault": "使用 {{name}}",
+      "searchLabel": "搜索 Speedtest 目标",
+      "searchPlaceholder": "按城市或国家搜索远程 Speedtest 服务器...",
+      "searchHelper": "搜索请求会发送到 Speedtest API。留空时加载默认附近列表。",
+      "results": "“{{search}}”共找到 {{count}} 个结果",
+      "targets": "{{count}} 个目标",
+      "loading": "正在加载 Speedtest 目标...",
+      "notFound": "没有找到与 “{{search}}” 匹配的 Speedtest 目标。",
+      "notLoaded": "还没有加载任何 Speedtest 目标。",
+      "unknownSponsor": "未知运营方",
+      "selected": "已选中"
+    },
+    "speedMode": {
+      "title": "测速模式",
+      "single": "单线程",
+      "multi": "多线程",
+      "singleDescription": "使用 1 条下载流",
+      "multiDescription": "使用 {{count}} 条并行下载流"
+    }
+  },
+  "environment": {
+    "title": "环境信息",
+    "subtitle": "当前外观与工作区状态",
+    "mode": "模式",
+    "workspace": "工作区",
+    "workspaceUnavailable": "配置工作区不可用"
+  },
+  "themeOptions": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "followTheme": "跟随主题"
+  },
+  "languageOptions": {
+    "en": "English",
+    "zh": "简体中文"
+  }
+}

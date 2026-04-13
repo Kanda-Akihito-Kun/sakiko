@@ -7,6 +7,8 @@ export {
 };
 
 export {
+    AppSettings,
+    AppSettingsPatch,
     DesktopStatus,
     ProfileSummary,
     ProfileTaskSubmitRequest

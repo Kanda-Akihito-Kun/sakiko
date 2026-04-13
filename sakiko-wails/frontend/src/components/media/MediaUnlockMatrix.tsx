@@ -1,5 +1,6 @@
 import { Box, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
+import { useTranslation } from "react-i18next";
 import type { MediaMatrixColumn, MediaMatrixRow } from "../../utils/mediaMatrix";
 import { mediaCellTone } from "../../utils/mediaMatrix";
 import { shouldUseEmojiFont } from "../../utils/dashboard";
@@ -12,6 +13,7 @@ type MediaUnlockMatrixProps = {
 };
 
 export function MediaUnlockMatrix({ columns, rows, title, subtitle }: MediaUnlockMatrixProps) {
+  const { t } = useTranslation();
   if (columns.length === 0 || rows.length === 0) {
     return null;
   }
@@ -41,8 +43,8 @@ export function MediaUnlockMatrix({ columns, rows, title, subtitle }: MediaUnloc
         <Table size="small" stickyHeader sx={{ minWidth: 880 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 220 }}>Node</TableCell>
-              <TableCell sx={{ minWidth: 120 }}>Protocol</TableCell>
+              <TableCell sx={{ minWidth: 220 }}>{t("dashboard.profiles.detail.columns.node")}</TableCell>
+              <TableCell sx={{ minWidth: 120 }}>{t("shared.labels.protocol")}</TableCell>
               {columns.map((column) => (
                 <TableCell key={column.key} align="center" sx={{ minWidth: 136 }}>
                   {column.label}

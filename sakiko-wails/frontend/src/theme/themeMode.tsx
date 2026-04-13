@@ -7,14 +7,18 @@ import {
   useMemo,
   useState,
 } from "react";
-import { AppThemeMode, createAppTheme, ResolvedThemeMode } from "./appTheme";
+import { AppThemeMode, createAppTheme, ExportPictureMode, ResolvedThemeMode } from "./appTheme";
 
-const STORAGE_KEY = "sakiko.theme-mode";
+const THEME_MODE_STORAGE_KEY = "sakiko.theme-mode";
+const EXPORT_PICTURE_MODE_STORAGE_KEY = "sakiko.export-picture-mode";
 
 type ThemeModeContextValue = {
   mode: AppThemeMode;
   resolvedMode: ResolvedThemeMode;
+  exportPictureMode: ExportPictureMode;
+  resolvedExportPictureMode: ResolvedThemeMode;
   setMode: (mode: AppThemeMode) => void;
+  setExportPictureMode: (mode: ExportPictureMode) => void;
 };
 
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
@@ -24,12 +28,18 @@ function getSystemThemeMode(): ResolvedThemeMode {
 }
 
 function getStoredThemeMode(): AppThemeMode {
-  const mode = window.localStorage.getItem(STORAGE_KEY);
+  const mode = window.localStorage.getItem(THEME_MODE_STORAGE_KEY);
   return mode === "light" || mode === "dark" || mode === "system" ? mode : "system";
+}
+
+function getStoredExportPictureMode(): ExportPictureMode {
+  const mode = window.localStorage.getItem(EXPORT_PICTURE_MODE_STORAGE_KEY);
+  return mode === "follow-theme" || mode === "light" || mode === "dark" ? mode : "follow-theme";
 }
 
 export function AppThemeProvider({ children }: PropsWithChildren) {
   const [mode, setMode] = useState<AppThemeMode>(() => getStoredThemeMode());
+  const [exportPictureMode, setExportPictureMode] = useState<ExportPictureMode>(() => getStoredExportPictureMode());
   const [systemMode, setSystemMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode());
 
   useEffect(() => {
@@ -50,18 +60,26 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    window.localStorage.setItem(THEME_MODE_STORAGE_KEY, mode);
   }, [mode]);
 
+  useEffect(() => {
+    window.localStorage.setItem(EXPORT_PICTURE_MODE_STORAGE_KEY, exportPictureMode);
+  }, [exportPictureMode]);
+
   const resolvedMode = mode === "system" ? systemMode : mode;
+  const resolvedExportPictureMode = exportPictureMode === "follow-theme" ? resolvedMode : exportPictureMode;
   const theme = useMemo(() => createAppTheme(resolvedMode), [resolvedMode]);
   const value = useMemo(
     () => ({
       mode,
       resolvedMode,
+      exportPictureMode,
+      resolvedExportPictureMode,
       setMode,
+      setExportPictureMode,
     }),
-    [mode, resolvedMode],
+    [exportPictureMode, mode, resolvedExportPictureMode, resolvedMode],
   );
 
   return (

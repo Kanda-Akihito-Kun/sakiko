@@ -4,6 +4,7 @@ import HubRounded from "@mui/icons-material/HubRounded";
 import PlayCircleOutlineRounded from "@mui/icons-material/PlayCircleOutlineRounded";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import { useTranslation } from "react-i18next";
 
 type DashboardHeroProps = {
   activeTaskName?: string;
@@ -20,6 +21,8 @@ export function DashboardHero({
   profilesPath,
   taskCount,
 }: DashboardHeroProps) {
+  const { t } = useTranslation();
+
   return (
     <Card variant="outlined" sx={{ p: { xs: 2.25, md: 2.75 } }}>
       <Box
@@ -34,16 +37,16 @@ export function DashboardHero({
           <Stack spacing={1.25}>
             <Chip
               icon={<AutoAwesomeRounded />}
-              label="Workspace"
+              label={t("dashboard.overview.hero.chip")}
               color="primary"
               variant="outlined"
               sx={{ alignSelf: "flex-start" }}
             />
-            <Typography variant="h4">sakiko</Typography>
+            <Typography variant="h4">{t("dashboard.app.title")}</Typography>
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 720 }}>
-              Local profile management and task execution backed by{" "}
+              {t("dashboard.overview.hero.descriptionStart")}{" "}
               <Box component="span" className="sakiko-mono">sakiko-core</Box>.
-              Import subscriptions, inspect nodes, and launch test jobs from one workspace.
+              {" "}{t("dashboard.overview.hero.descriptionEnd")}
             </Typography>
           </Stack>
 
@@ -54,18 +57,18 @@ export function DashboardHero({
           >
             <Chip
               icon={<DnsRounded />}
-              label={`${profileCount} profile${profileCount === 1 ? "" : "s"}`}
+              label={t("dashboard.overview.hero.profileCount", { count: profileCount })}
               color="primary"
             />
             <Chip
               icon={<HubRounded />}
-              label={`${taskCount} task${taskCount === 1 ? "" : "s"}`}
+              label={t("dashboard.overview.hero.taskCount", { count: taskCount })}
               color="secondary"
               variant="outlined"
             />
             <Chip
               icon={<PlayCircleOutlineRounded />}
-              label={activeTaskName ? `Focused: ${activeTaskName}` : "No active task selected"}
+              label={activeTaskName ? t("dashboard.overview.hero.focused", { name: activeTaskName }) : t("dashboard.overview.hero.noFocusedTask")}
               variant="outlined"
             />
           </Stack>
@@ -81,18 +84,18 @@ export function DashboardHero({
           >
             <Stack divider={<Divider flexItem sx={{ borderColor: "divider" }} />}>
               <WorkspaceRow
-                label="Profile Store"
-                value={profilesPath || "Loading..."}
+                label={t("dashboard.overview.hero.profileStore")}
+                value={profilesPath || t("dashboard.overview.summary.loading")}
                 mono
               />
               <WorkspaceRow
-                label="Runtime State"
-                value={loading ? "Syncing" : "Ready"}
+                label={t("dashboard.overview.hero.runtimeState")}
+                value={loading ? t("shared.states.syncing") : t("shared.states.ready")}
                 accent={loading ? "warning" : "success"}
               />
               <WorkspaceRow
-                label="Focused Task"
-                value={activeTaskName || "No active task selected"}
+                label={t("dashboard.overview.hero.focusedTask")}
+                value={activeTaskName || t("dashboard.overview.hero.noFocusedTask")}
               />
             </Stack>
           </Card>

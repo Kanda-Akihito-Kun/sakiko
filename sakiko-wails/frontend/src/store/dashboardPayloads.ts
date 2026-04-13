@@ -13,6 +13,7 @@ type TaskConfigShape = {
   downloadURL: string;
   downloadDuration: number;
   downloadThreading: number;
+  backendIdentity?: string;
 };
 
 type SubmitProfileTaskPayload = {
@@ -51,6 +52,7 @@ export function createSubmitProfileTaskPayload(
       downloadURL: taskConfig.downloadURL,
       downloadDuration: taskConfig.downloadDuration,
       downloadThreading: taskConfig.downloadThreading,
+      backendIdentity: taskConfig.backendIdentity?.trim() || "",
     },
   };
 }

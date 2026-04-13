@@ -27,75 +27,87 @@ export function DesktopStatus(): $CancellablePromise<$models.DesktopStatus> {
     });
 }
 
+export function GetAppSettings(): $CancellablePromise<$models.AppSettings> {
+    return $Call.ByID(3806880337).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function GetProfile(profileID: string): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(2905535086, profileID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
 export function GetResultArchive(taskID: string): $CancellablePromise<interfaces$0.ResultArchive> {
     return $Call.ByID(962886202, taskID).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 export function GetTask(taskID: string): $CancellablePromise<interfaces$0.TaskStatusResponse> {
     return $Call.ByID(3172388588, taskID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
 export function ImportProfile(req: interfaces$0.ProfileImportRequest): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(3970473967, req).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
 export function ListDownloadTargets(): $CancellablePromise<interfaces$0.DownloadTarget[]> {
     return $Call.ByID(494326779).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
 export function ListProfileSummaries(): $CancellablePromise<$models.ProfileSummary[]> {
     return $Call.ByID(1419878352).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
 export function ListProfiles(): $CancellablePromise<interfaces$0.Profile[]> {
     return $Call.ByID(3019865565).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
 export function ListResultArchives(): $CancellablePromise<interfaces$0.ResultArchiveListItem[]> {
     return $Call.ByID(1131350281).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
 export function ListTasks(): $CancellablePromise<interfaces$0.TaskState[]> {
     return $Call.ByID(3175697171).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType13($result);
     });
 }
 
 export function MoveProfileNode(profileID: string, nodeIndex: number, targetIndex: number): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(1514293423, profileID, nodeIndex, targetIndex).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
 export function RefreshProfile(profileID: string): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(4151267443, profileID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
+    });
+}
+
+export function SearchDownloadTargets(search: string): $CancellablePromise<interfaces$0.DownloadTarget[]> {
+    return $Call.ByID(1965905147, search).then(($result: any) => {
+        return $$createType6($result);
     });
 }
 
 export function SetProfileNodeEnabled(profileID: string, nodeIndex: number, enabled: boolean): $CancellablePromise<interfaces$0.Profile> {
     return $Call.ByID(3960989747, profileID, nodeIndex, enabled).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -103,17 +115,24 @@ export function SubmitProfileTask(req: $models.ProfileTaskSubmitRequest): $Cance
     return $Call.ByID(737454241, req);
 }
 
+export function UpdateAppSettings(patch: $models.AppSettingsPatch): $CancellablePromise<$models.AppSettings> {
+    return $Call.ByID(764100292, patch).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.DesktopStatus.createFrom;
-const $$createType1 = interfaces$0.Profile.createFrom;
-const $$createType2 = interfaces$0.ResultArchive.createFrom;
-const $$createType3 = interfaces$0.TaskStatusResponse.createFrom;
-const $$createType4 = interfaces$0.DownloadTarget.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.ProfileSummary.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($$createType1);
-const $$createType9 = interfaces$0.ResultArchiveListItem.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = interfaces$0.TaskState.createFrom;
-const $$createType12 = $Create.Array($$createType11);
+const $$createType1 = $models.AppSettings.createFrom;
+const $$createType2 = interfaces$0.Profile.createFrom;
+const $$createType3 = interfaces$0.ResultArchive.createFrom;
+const $$createType4 = interfaces$0.TaskStatusResponse.createFrom;
+const $$createType5 = interfaces$0.DownloadTarget.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.ProfileSummary.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Array($$createType2);
+const $$createType10 = interfaces$0.ResultArchiveListItem.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = interfaces$0.TaskState.createFrom;
+const $$createType13 = $Create.Array($$createType12);

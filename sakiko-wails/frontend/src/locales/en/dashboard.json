@@ -1,0 +1,205 @@
+{
+  "app": {
+    "title": "sakiko",
+    "workspace": "Workspace"
+  },
+  "nav": {
+    "overview": {
+      "label": "Overview",
+      "subtitle": "Status"
+    },
+    "profiles": {
+      "label": "Profiles",
+      "subtitle": "Profiles"
+    },
+    "tasks": {
+      "label": "Tasks",
+      "subtitle": "Tasks"
+    },
+    "results": {
+      "label": "Results",
+      "subtitle": "Archives"
+    },
+    "settings": {
+      "label": "Settings",
+      "subtitle": "Settings"
+    }
+  },
+  "workspace": {
+    "ready": "Workspace ready",
+    "syncing": "Syncing workspace",
+    "noActiveProfile": "No active profile",
+    "refreshWorkspace": "Refresh Workspace"
+  },
+  "overview": {
+    "summary": {
+      "title": "Workspace Summary",
+      "subtitle": "Current state snapshot",
+      "profilesPath": "Profiles Path",
+      "activeTask": "Active Task",
+      "runtimeMessage": "Runtime Message",
+      "loading": "Loading...",
+      "noActiveTask": "No active task selected"
+    },
+    "hero": {
+      "chip": "Workspace",
+      "descriptionStart": "Local profile management and task execution backed by",
+      "descriptionEnd": "Import subscriptions, inspect nodes, and launch test jobs from one workspace.",
+      "profileCount_one": "{{count}} profile",
+      "profileCount_other": "{{count}} profiles",
+      "taskCount_one": "{{count}} task",
+      "taskCount_other": "{{count}} tasks",
+      "focused": "Focused: {{name}}",
+      "noFocusedTask": "No active task selected",
+      "profileStore": "Profile Store",
+      "runtimeState": "Runtime State",
+      "focusedTask": "Focused Task"
+    },
+    "status": {
+      "title": "Workspace Status"
+    }
+  },
+  "profiles": {
+    "import": {
+      "title": "Import Profile",
+      "subtitle": "Subscription URL import",
+      "name": "Custom Profile Name",
+      "namePlaceholder": "Use the profile name from the subscription by default",
+      "source": "Source URL",
+      "sourcePlaceholder": "https://example.com/sub.yaml"
+    },
+    "list": {
+      "title": "Profiles",
+      "loaded": "{{count}} loaded",
+      "noProfilesTitle": "No profiles yet",
+      "noProfilesDescription": "Import a subscription to start the desktop flow.",
+      "noTimestamp": "No timestamp"
+    },
+    "detail": {
+      "title": "Profile Detail",
+      "pickProfile": "Pick a profile",
+      "selected": "Selected",
+      "nodes": "Nodes",
+      "enabled": "Enabled",
+      "updated": "Updated",
+      "updatedUnknown": "Unknown",
+      "filterPlaceholder": "Filter nodes by name, protocol, server, or UDP state",
+      "refreshSubscription": "Refresh Subscription",
+      "deleteConfirm": "Delete profile \"{{name}}\"?",
+      "matchingNodes": "{{count}} matching nodes",
+      "enabledForTasks": "{{count}} enabled for tasks",
+      "recoveredLocalProfile": "Recovered local profile",
+      "dragRows": "Drag rows to reorder",
+      "dragRowsDisabled": "Need at least 2 visible rows to reorder",
+      "columns": {
+        "order": "Order",
+        "node": "Node",
+        "server": "Server",
+        "port": "Port",
+        "taskScope": "Task Scope"
+      },
+      "scopeIncluded": "Included",
+      "scopeSkipped": "Skipped",
+      "scopeUdp": "UDP",
+      "scopeNoUdp": "No UDP",
+      "scopeUnknownUdp": "UDP ?",
+      "noProfileTitle": "No profile selected",
+      "noProfileDescription": "Choose one on the left to inspect nodes and launch tasks."
+    }
+  },
+  "tasks": {
+    "launcher": {
+      "title": "Task Launcher",
+      "subtitle": "Choose test groups",
+      "singleThread": "Single-thread",
+      "runPreset": "Run {{preset}}",
+      "targetProfileSelected": "Target profile selected",
+      "selectProfileToRun": "Select a profile to run tasks"
+    },
+    "results": {
+      "title": "Task Results",
+      "currentlyTesting": "Currently Testing",
+      "waitingForExecution": "Waiting for node execution to start...",
+      "mediaUnlockTitle": "Media Unlock Test",
+      "mediaUnlockSubtitle": "Nodes are listed vertically; each platform column shows the unlock status directly.",
+      "labels": {
+        "status": "Status",
+        "exit": "Exit",
+        "progress": "Progress",
+        "liveWorkload": "Live Workload"
+      },
+      "noResultsTitle": "No results yet",
+      "noResultsDescription": "Run a task or wait for the current job to finish.",
+      "noTaskTitle": "No task selected",
+      "noTaskDescription": "Recent tasks appear here with per-node results."
+    }
+  },
+  "results": {
+    "title": "Results",
+    "archivedCount": "{{count}} archived test result(s)",
+    "loading": "Loading archived results...",
+    "syncing": "Syncing",
+    "noArchivesTitle": "No archived results",
+    "noArchivesDescription": "Run a task first. Finished tests will appear here automatically.",
+    "deleteConfirm": "Delete archived result \"{{name}}\"?",
+    "archiveUnavailable": "Archive unavailable.",
+    "loadingArchive": "Loading full archive...",
+    "archiveUnavailableTitle": "Archive unavailable",
+    "archiveUnavailableDescription": "The selected result could not be loaded.",
+    "scrollToLoadMore": "Scrolling loads 10 more records...",
+    "summary": {
+      "testTime": "Test Time",
+      "profile": "Profile",
+      "metrics": "Metrics",
+      "nodes": "Nodes",
+      "protocolLibrary": "Protocol Library",
+      "backend": "Backend"
+    },
+    "detail": {
+      "preset": "Preset",
+      "protocolLibrary": "Protocol Library",
+      "backend": "Backend",
+      "speedTarget": "Speed Target",
+      "exitCode": "Exit Code",
+      "started": "Started",
+      "finished": "Finished",
+      "profileSource": "Profile Source",
+      "pingUrl": "Ping URL",
+      "timeout": "Timeout",
+      "downloadUrl": "Download URL",
+      "speedSettings": "Speed Settings",
+      "testedNodes": "Tested Nodes",
+      "reportSections": "Report Sections",
+      "mediaUnlockTitle": "Media Unlock Test",
+      "noReportSectionsTitle": "No report sections",
+      "noReportSectionsDescription": "This archive does not include report sections yet.",
+      "rawResults": "Raw Results",
+      "noRawResultsTitle": "No raw results",
+      "noRawResultsDescription": "This archive does not contain raw per-node results."
+    }
+  },
+  "messages": {
+    "deletedArchive": "Deleted archived result {{name}}.",
+    "deletedProfile": "Deleted {{name}}.",
+    "deletingArchive": "Deleting archived result {{name}}...",
+    "deletingProfile": "Deleting {{name}}...",
+    "downloadTargetsLoaded": "Loaded {{count}} Speedtest target(s).",
+    "downloadTargetsLoadedForSearch": "Loaded {{count}} Speedtest target(s) for \"{{search}}\".",
+    "importedProfile": "Imported {{name}} ({{count}} nodes).",
+    "importingProfile": "Importing profile...",
+    "includedNode": "Included {{name}} for future tasks.",
+    "includingNode": "Including {{name}}...",
+    "movedNode": "Moved {{name}}.",
+    "reorderingNode": "Reordering {{name}}...",
+    "refreshedProfile": "Refreshed {{name}}.",
+    "refreshingProfile": "Refreshing profile...",
+    "resultArchivesLoaded": "Loaded {{count}} archived result(s).",
+    "selectProfileFirst": "Select a profile first.",
+    "selectTestGroup": "Select at least one test group.",
+    "skippedNode": "Skipped {{name}} for future tasks.",
+    "skippingNode": "Skipping {{name}}...",
+    "startingTask": "Starting {{preset}} task...",
+    "taskAccepted": "Task {{taskId}} accepted.",
+    "taskFinished": "Task {{name}} finished with {{count}} result(s)."
+  }
+}

@@ -18,8 +18,12 @@
     "@mui/material": "^7.3.9",
     "@wailsio/runtime": "3.0.0-alpha.79",
     "build": "^0.1.4",
+    "i18next": "^25.5.3",
     "react": "^18.2.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.2.0",
+    "react-i18next": "^15.7.3",
     "run": "^1.5.0",
     "zustand": "^5.0.12"
   },

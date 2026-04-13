@@ -2,8 +2,9 @@ import InsightsRounded from "@mui/icons-material/InsightsRounded";
 import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
 import { alpha } from "@mui/material/styles";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
-import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
+import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
 import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
 import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
@@ -14,14 +15,15 @@ type TaskResultsPanelProps = {
 };
 
 export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
+  const { t } = useTranslation();
   const mediaMatrix = buildMediaMatrixFromResults(activeTask?.results || []);
   const activeNodes = activeTask?.task?.activeNodes || [];
   const activeSummary = summarizeActiveTaskNodes(activeNodes);
 
   return (
     <SectionCard
-      title="Task Results"
-      subtitle={activeTask?.task?.name || "Select a task"}
+      title={t("dashboard.tasks.results.title")}
+      subtitle={activeTask?.task?.name || t("shared.states.selectTask")}
       icon={<InsightsRounded color="primary" />}
     >
       {activeTask ? (
@@ -33,12 +35,12 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
               gap: 1.5,
             }}
           >
-            <ResultMetric label="Status" value={activeTask.task.status} />
-            <ResultMetric label="Exit" value={`${activeTask.exitCode || "pending"}`} />
-            <ResultMetric label="Progress" value={`${activeTask.task.progress}/${activeTask.task.total}`} mono />
+            <ResultMetric label={t("dashboard.tasks.results.labels.status")} value={formatTaskStatus(activeTask.task.status)} />
+            <ResultMetric label={t("dashboard.tasks.results.labels.exit")} value={`${activeTask.exitCode || t("shared.states.pending")}`} />
+            <ResultMetric label={t("dashboard.tasks.results.labels.progress")} value={`${activeTask.task.progress}/${activeTask.task.total}`} mono />
             <ResultMetric
-              label="Live Workload"
-              value={activeTask.task.status === "running" ? `${activeNodes.length} node(s)` : "Idle"}
+              label={t("dashboard.tasks.results.labels.liveWorkload")}
+              value={activeTask.task.status === "running" ? t("shared.formats.nodesCount", { count: activeNodes.length }) : t("shared.states.idle")}
               mono={activeTask.task.status === "running"}
             />
           </Box>
@@ -46,10 +48,10 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
           {activeTask.task.status === "running" ? (
             <Stack spacing={1.25}>
               <Typography variant="subtitle2" color="text.secondary">
-                Currently Testing
+                {t("dashboard.tasks.results.currentlyTesting")}
               </Typography>
               <Typography variant="body2" color="text.secondary" className={shouldUseEmojiFont("nodeName", activeSummary) ? "sakiko-emoji" : undefined}>
-                {activeSummary || "Waiting for node execution to start..."}
+                {activeSummary || t("dashboard.tasks.results.waitingForExecution")}
               </Typography>
               {activeNodes.length > 0 ? (
                 <div className="sakiko-results-grid">
@@ -67,8 +69,8 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                 <MediaUnlockMatrix
                   columns={mediaMatrix.columns}
                   rows={mediaMatrix.rows}
-                  title="Media Unlock Test"
-                  subtitle="Nodes are listed vertically; each platform column shows the unlock status directly."
+                  title={t("dashboard.tasks.results.mediaUnlockTitle")}
+                  subtitle={t("dashboard.tasks.results.mediaUnlockSubtitle")}
                 />
               ) : null}
 
@@ -79,14 +81,14 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                       <Stack direction="row" justifyContent="space-between" spacing={1}>
                         <Box sx={{ minWidth: 0 }}>
                           <Typography variant="h6" noWrap className={shouldUseEmojiFont("nodeName", result.proxyInfo.name) ? "sakiko-emoji" : undefined}>
-                            {result.proxyInfo.name || "Unnamed node"}
+                            {result.proxyInfo.name || t("shared.states.unnamedNode")}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" noWrap>
-                            {result.proxyInfo.address || "No address"}
+                            {result.proxyInfo.address || t("shared.states.noAddress")}
                           </Typography>
                         </Box>
                         <Chip
-                          label={result.proxyInfo.type || "unknown"}
+                          label={result.proxyInfo.type || t("shared.states.unknown")}
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -100,7 +102,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                           size="small"
                         />
                         <Chip
-                          label={`${result.matrices.length} matrices`}
+                          label={t("shared.formats.matricesCount", { count: result.matrices.length })}
                           size="small"
                           variant="outlined"
                         />
@@ -127,7 +129,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                             })}
                           >
                             <Typography variant="body2" color="text.secondary">
-                              {matrix.type}
+                              {formatMatrixLabel(matrix.type)}
                             </Typography>
                             <Typography variant="body2" className="sakiko-mono" noWrap sx={{ minWidth: 0, textAlign: "right" }}>
                               {formatMatrixPayload(matrix.payload, matrix.type)}
@@ -142,15 +144,15 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
             </Stack>
           ) : (
             <EmptyState
-              title="No results yet"
-              description="Run a task or wait for the current job to finish."
+              title={t("dashboard.tasks.results.noResultsTitle")}
+              description={t("dashboard.tasks.results.noResultsDescription")}
             />
           )}
         </Stack>
       ) : (
         <EmptyState
-          title="No task selected"
-          description="Recent tasks appear here with per-node results."
+          title={t("dashboard.tasks.results.noTaskTitle")}
+          description={t("dashboard.tasks.results.noTaskDescription")}
         />
       )}
     </SectionCard>
@@ -162,6 +164,7 @@ type ActiveNodeCardProps = {
 };
 
 function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
+  const { t } = useTranslation();
   const phaseLabel = formatTaskRuntimePhase(activeNode.phase);
   const matrixLabels = activeNode.matrix
     ? [formatMatrixLabel(activeNode.matrix)]
@@ -173,14 +176,14 @@ function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
         <Stack direction="row" justifyContent="space-between" spacing={1}>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle1" noWrap className={shouldUseEmojiFont("nodeName", activeNode.nodeName) ? "sakiko-emoji" : undefined}>
-              {activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}
+              {activeNode.nodeName || t("shared.formats.nodeNumber", { index: activeNode.nodeIndex + 1 })}
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>
-              {activeNode.nodeAddress || "Address pending"}
+              {activeNode.nodeAddress || t("shared.states.addressPending")}
             </Typography>
           </Box>
           <Chip
-            label={(activeNode.attempt || 0) > 1 ? `Attempt ${activeNode.attempt}` : phaseLabel}
+            label={(activeNode.attempt || 0) > 1 ? t("shared.formats.attempt", { count: activeNode.attempt }) : phaseLabel}
             size="small"
             color="primary"
             variant="outlined"

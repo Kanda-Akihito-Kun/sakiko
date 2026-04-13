@@ -9,6 +9,45 @@ import { Create as $Create } from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as interfaces$0 from "../sakiko.local/sakiko-core/interfaces/models.js";
 
+export class AppSettings {
+    "language": string;
+
+    /** Creates a new AppSettings instance. */
+    constructor($$source: Partial<AppSettings> = {}) {
+        if (!("language" in $$source)) {
+            this["language"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AppSettings instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AppSettings {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AppSettings($$parsedSource as Partial<AppSettings>);
+    }
+}
+
+export class AppSettingsPatch {
+    "language"?: string;
+
+    /** Creates a new AppSettingsPatch instance. */
+    constructor($$source: Partial<AppSettingsPatch> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AppSettingsPatch instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AppSettingsPatch {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AppSettingsPatch($$parsedSource as Partial<AppSettingsPatch>);
+    }
+}
+
 export class DesktopStatus {
     "profilesPath": string;
     "runtime": interfaces$0.RuntimeStatus;

@@ -1,0 +1,131 @@
+{
+  "actions": {
+    "browse": "Browse",
+    "clear": "Clear",
+    "delete": "Delete",
+    "export": "Export",
+    "import": "Import",
+    "openSettings": "Open Settings",
+    "refresh": "Refresh",
+    "reload": "Reload",
+    "run": "Run"
+  },
+  "labels": {
+    "protocol": "Protocol"
+  },
+  "states": {
+    "addressPending": "Address pending",
+    "booleanFalse": "false",
+    "booleanTrue": "true",
+    "empty": "empty",
+    "idle": "Idle",
+    "loading": "Loading...",
+    "loadingSection": "Loading {{label}}...",
+    "noAddress": "No address",
+    "none": "N/A",
+    "pending": "pending",
+    "profile": "profile",
+    "ready": "Ready",
+    "readyWithPeriod": "Ready.",
+    "selectTask": "Select a task",
+    "syncing": "Syncing",
+    "unknown": "unknown",
+    "unknownProfile": "Unknown profile",
+    "unknownServer": "unknown server",
+    "unnamedNode": "Unnamed node",
+    "unnamedProfile": "Unnamed profile"
+  },
+  "statuses": {
+    "canceled": "Canceled",
+    "failed": "Failed",
+    "pending": "Pending",
+    "queued": "Queued",
+    "running": "Running",
+    "success": "Success"
+  },
+  "formats": {
+    "archivedMetrics": "Archived metrics",
+    "attempt": "Attempt {{count}}",
+    "backendProbeFailed": "Probe failed",
+    "customTarget": "Custom target",
+    "durationMillisTotal": "{{value}} ms total",
+    "durationSeconds": "{{value}}s",
+    "loadDetailToInspect": "Load detail to inspect",
+    "matricesCount": "{{count}} matrices",
+    "matchingNodes": "{{count}} matching nodes",
+    "moreActiveNodes": "+{{count}} more",
+    "nodeCount": "{{count}} nodes",
+    "nodeNumber": "Node {{index}}",
+    "nodeNumberLower": "node {{index}}",
+    "nodesCount": "{{count}} node(s)",
+    "resultsCount": "{{count}} result(s)",
+    "testCount": "{{count}} tests",
+    "testingNodeDetail": "{{name}}: {{detail}}",
+    "testingNodes": "Testing {{count}} node(s): {{preview}}",
+    "testingNodesMore": "Testing {{count}} node(s): {{preview}} | +{{moreCount}} more",
+    "threadsCount": "{{count}} threads",
+    "timeoutMillis": "Timeout {{value}} ms"
+  },
+  "presets": {
+    "full": "Full",
+    "geo": "Geo",
+    "media": "Media",
+    "ping": "Ping",
+    "speed": "Speed",
+    "task": "Task"
+  },
+  "macros": {
+    "geo": "Geo",
+    "media": "Media Unlock",
+    "ping": "Ping",
+    "speed": "Speed"
+  },
+  "matrices": {
+    "geoipInbound": "Inbound GeoIP",
+    "geoipOutbound": "Outbound GeoIP",
+    "mediaUnlock": "Media Unlock",
+    "speedAverage": "Average Speed",
+    "speedMax": "Max Speed",
+    "speedPerSecond": "Per-second Speed",
+    "speedTrafficUsed": "Traffic Used",
+    "testPingConn": "HTTPS Ping",
+    "testPingRtt": "RTT Ping"
+  },
+  "phases": {
+    "extracting": "Extracting",
+    "preparing": "Preparing",
+    "running": "Running"
+  },
+  "runtime": {
+    "extractingMatrix": "Extracting matrix result",
+    "extractingTarget": "Extracting {{target}}",
+    "preparingNode": "Preparing node runtime",
+    "runningMacro": "Running {{macro}}",
+    "runningMacroTarget": "{{macro}}: {{target}}"
+  },
+  "metrics": {
+    "geo": "Inbound / Outbound Topology",
+    "media": "Netflix / Hulu / Bilibili HMT",
+    "ping": "TLS RTT / HTTPS Ping",
+    "speed": "Average / Max / Per-second Speed / Traffic"
+  },
+  "targets": {
+    "cloudflareDefault": "Cloudflare default",
+    "speedtestTarget": "Speedtest target",
+    "unavailable": "Target unavailable"
+  },
+  "mediaStatus": {
+    "failed": "Failed",
+    "no": "No",
+    "originalsOnly": "Originals Only",
+    "overseaOnly": "Oversea Only",
+    "unsupported": "Unsupported",
+    "webOnly": "Web Only",
+    "yes": "Yes"
+  },
+  "unlockMode": {
+    "dns": "DNS",
+    "native": "Native",
+    "unknown": "Unknown"
+  }
+}

@@ -13,12 +13,20 @@ import (
 	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/logx"
+
+	"go.uber.org/zap"
 )
 
 type Macro struct {
 	RTT   uint16
 	Delay uint16
 }
+
+var (
+	pingViaTraceFunc  = pingViaTrace
+	pingViaNetcatFunc = pingViaNetcat
+)
 
 func (m *Macro) Type() interfaces.MacroType {
 	return interfaces.MacroPing
@@ -42,31 +50,79 @@ func ping(proxy interfaces.Vendor, rawURL string, avg uint16, retry int, timeout
 	if avg == 0 {
 		avg = 1
 	}
+	if retry < 1 {
+		retry = 1
+	}
 
 	var rtts []uint16
 	var delays []uint16
-	failures := 0
-	for len(rtts) < int(avg) && len(rtts)+failures < retry {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMS)*time.Millisecond)
-		var rtt, delay uint16
-		var err error
-		if strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://") {
-			rtt, delay, err = pingViaTrace(ctx, proxy, rawURL)
-		} else {
-			rtt, delay, err = pingViaNetcat(ctx, proxy, rawURL)
-		}
-		cancel()
-		if err != nil || (rtt == 0 && delay == 0) {
-			failures++
+	for sampleIndex := 0; sampleIndex < int(avg); sampleIndex++ {
+		rtt, delay, ok := retryPingSample(proxy, rawURL, timeoutMS, retry, sampleIndex+1, int(avg))
+		if !ok {
 			continue
 		}
 		rtts = append(rtts, rtt)
 		delays = append(delays, delay)
 	}
-	if len(rtts) == 0 {
+	if len(delays) == 0 {
 		return 0, 0
 	}
-	return avgUint16(rtts), avgUint16(delays)
+	return avgPositiveUint16(rtts), avgPositiveUint16(delays)
+}
+
+func retryPingSample(
+	proxy interfaces.Vendor,
+	rawURL string,
+	timeoutMS uint,
+	attempts int,
+	sampleIndex int,
+	sampleTotal int,
+) (uint16, uint16, bool) {
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMS)*time.Millisecond)
+		rtt, delay, err := measurePingSample(ctx, proxy, rawURL)
+		cancel()
+		if err == nil && (rtt > 0 || delay > 0) {
+			return rtt, delay, true
+		}
+
+		if attempt >= attempts {
+			break
+		}
+
+		pingLogger().Info("retrying ping sample",
+			zap.Int("sample", sampleIndex),
+			zap.Int("sample_total", sampleTotal),
+			zap.Int("attempt", attempt+1),
+			zap.Int("max_attempts", attempts),
+			zap.String("url", rawURL),
+			zap.String("error", pingAttemptError(err, rtt, delay)),
+		)
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	return 0, 0, false
+}
+
+func measurePingSample(ctx context.Context, proxy interfaces.Vendor, rawURL string) (uint16, uint16, error) {
+	if strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://") {
+		return pingViaTraceFunc(ctx, proxy, rawURL)
+	}
+	return pingViaNetcatFunc(ctx, proxy, rawURL)
+}
+
+func pingAttemptError(err error, rtt uint16, delay uint16) string {
+	if err != nil {
+		return err.Error()
+	}
+	if rtt == 0 && delay == 0 {
+		return "empty ping result"
+	}
+	return ""
 }
 
 func pingViaTrace(ctx context.Context, proxy interfaces.Vendor, rawURL string) (uint16, uint16, error) {
@@ -158,10 +214,22 @@ func pingViaNetcat(ctx context.Context, proxy interfaces.Vendor, rawURL string) 
 	return uint16(firstByteAt - start), uint16(firstByteAt - start), nil
 }
 
-func avgUint16(values []uint16) uint16 {
+func avgPositiveUint16(values []uint16) uint16 {
 	var total uint64
+	count := 0
 	for _, value := range values {
+		if value == 0 {
+			continue
+		}
 		total += uint64(value)
+		count++
 	}
-	return uint16(total / uint64(len(values)))
+	if count == 0 {
+		return 0
+	}
+	return uint16(total / uint64(count))
+}
+
+func pingLogger() *zap.Logger {
+	return logx.Named("core.macro.ping")
 }

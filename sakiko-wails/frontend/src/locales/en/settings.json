@@ -1,0 +1,78 @@
+{
+  "title": "Basic",
+  "language": {
+    "label": "Language",
+    "description": "Choose the interface language used by sakiko.",
+    "switching": "Switching language..."
+  },
+  "themeMode": {
+    "label": "Theme Mode",
+    "description": "Choose the appearance mode."
+  },
+  "exportPictureMode": {
+    "label": "Export Picture Mode",
+    "description": "Choose whether exported images follow the app theme or always use a fixed light/dark style."
+  },
+  "appliedTheme": {
+    "label": "Applied Theme",
+    "systemDescription": "The interface follows the current operating system appearance.",
+    "fixedDescription": "The interface uses the selected fixed appearance.",
+    "lightActive": "Light Active",
+    "darkActive": "Dark Active",
+    "exportLight": "Export Light",
+    "exportDark": "Export Dark"
+  },
+  "taskDefaults": {
+    "title": "Task Defaults",
+    "subtitle": "Shared configuration applied when tasks are submitted",
+    "description": "Keep launcher tabs focused on task type selection. Adjust shared runtime defaults here instead.",
+    "pingUrl": "Ping URL",
+    "pingUrlHelper": "Used by ping and full tasks",
+    "timeout": "Timeout (ms)",
+    "downloadUrl": "Download URL",
+    "downloadUrlHelper": "Manual override for speed and full tasks",
+    "duration": "Duration (s)",
+    "durationHelper": "Used by speed and full tasks. Range: 5-20s",
+    "backendIdentity": "Backend Identity",
+    "backendIdentityHelper": "{{count}}/50. Leave empty to export as \"empty\".",
+    "downloadTarget": {
+      "title": "Download Target",
+      "description": "Choose a Speedtest target to fill the download URL, or keep the Cloudflare default.",
+      "useDefault": "Use {{name}}",
+      "searchLabel": "Search Speedtest Targets",
+      "searchPlaceholder": "Search remote Speedtest servers by city or country...",
+      "searchHelper": "Search is sent to the Speedtest API. Leave empty to load the default nearby list.",
+      "results": "{{count}} result(s) for \"{{search}}\"",
+      "targets": "{{count}} target(s)",
+      "loading": "Loading Speedtest targets...",
+      "notFound": "No Speedtest targets found for \"{{search}}\".",
+      "notLoaded": "No Speedtest targets loaded yet.",
+      "unknownSponsor": "Unknown sponsor",
+      "selected": "Selected"
+    },
+    "speedMode": {
+      "title": "Speed Mode",
+      "single": "Single-thread",
+      "multi": "Multi-thread",
+      "singleDescription": "Using 1 download stream",
+      "multiDescription": "Using {{count}} parallel download streams"
+    }
+  },
+  "environment": {
+    "title": "Environment",
+    "subtitle": "Current appearance and workspace state",
+    "mode": "Mode",
+    "workspace": "Workspace",
+    "workspaceUnavailable": "Profiles workspace unavailable"
+  },
+  "themeOptions": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "followTheme": "Follow Theme"
+  },
+  "languageOptions": {
+    "en": "English",
+    "zh": "Simplified Chinese"
+  }
+}

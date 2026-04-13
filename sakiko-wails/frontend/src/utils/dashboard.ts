@@ -1,6 +1,7 @@
 import type { DownloadTarget, Profile, ResultArchiveTask, TaskActiveNode } from "../types/sakiko";
 import type { TaskPreset, TaskPresetSelection } from "../types/dashboard";
 import { taskPresets, taskPresetChildren } from "../constants/dashboard";
+import { translate } from "../services/i18n";
 import { filterVisibleMediaUnlockItems } from "./mediaUnlock";
 
 export type FilteredProfileNode = {
@@ -108,19 +109,19 @@ export function formatMatrixPayload(payload: unknown, type?: string): string {
 }
 
 export function formatDuration(duration: number): string {
-  return `${duration} ms total`;
+  return translate("shared.formats.durationMillisTotal", `${duration} ms total`, { value: duration });
 }
 
 export function formatMacroLabel(value?: string): string {
   switch ((value || "").trim().toUpperCase()) {
     case "PING":
-      return "Ping";
+      return translate("shared.macros.ping", "Ping");
     case "GEO":
-      return "Geo";
+      return translate("shared.macros.geo", "Geo");
     case "SPEED":
-      return "Speed";
+      return translate("shared.macros.speed", "Speed");
     case "MEDIA":
-      return "Media Unlock";
+      return translate("shared.macros.media", "Media Unlock");
     default:
       return value || "-";
   }
@@ -129,23 +130,23 @@ export function formatMacroLabel(value?: string): string {
 export function formatMatrixLabel(value?: string): string {
   switch ((value || "").trim().toUpperCase()) {
     case "TEST_PING_CONN":
-      return "HTTPS Ping";
+      return translate("shared.matrices.testPingConn", "HTTPS Ping");
     case "TEST_PING_RTT":
-      return "RTT Ping";
+      return translate("shared.matrices.testPingRtt", "RTT Ping");
     case "GEOIP_INBOUND":
-      return "Inbound GeoIP";
+      return translate("shared.matrices.geoipInbound", "Inbound GeoIP");
     case "GEOIP_OUTBOUND":
-      return "Outbound GeoIP";
+      return translate("shared.matrices.geoipOutbound", "Outbound GeoIP");
     case "SPEED_AVERAGE":
-      return "Average Speed";
+      return translate("shared.matrices.speedAverage", "Average Speed");
     case "SPEED_MAX":
-      return "Max Speed";
+      return translate("shared.matrices.speedMax", "Max Speed");
     case "SPEED_PER_SECOND":
-      return "Per-second Speed";
+      return translate("shared.matrices.speedPerSecond", "Per-second Speed");
     case "SPEED_TRAFFIC_USED":
-      return "Traffic Used";
+      return translate("shared.matrices.speedTrafficUsed", "Traffic Used");
     case "MEDIA_UNLOCK":
-      return "Media Unlock";
+      return translate("shared.matrices.mediaUnlock", "Media Unlock");
     default:
       return value || "-";
   }
@@ -154,11 +155,30 @@ export function formatMatrixLabel(value?: string): string {
 export function formatTaskRuntimePhase(value?: string): string {
   switch ((value || "").trim().toLowerCase()) {
     case "preparing":
-      return "Preparing";
+      return translate("shared.phases.preparing", "Preparing");
     case "macro":
-      return "Running";
+      return translate("shared.phases.running", "Running");
     case "matrix":
-      return "Extracting";
+      return translate("shared.phases.extracting", "Extracting");
+    default:
+      return value || "-";
+  }
+}
+
+export function formatTaskStatus(value?: string): string {
+  switch ((value || "").trim().toLowerCase()) {
+    case "queued":
+      return translate("shared.statuses.queued", "Queued");
+    case "pending":
+      return translate("shared.statuses.pending", "Pending");
+    case "running":
+      return translate("shared.statuses.running", "Running");
+    case "success":
+      return translate("shared.statuses.success", "Success");
+    case "failed":
+      return translate("shared.statuses.failed", "Failed");
+    case "canceled":
+      return translate("shared.statuses.canceled", "Canceled");
     default:
       return value || "-";
   }
@@ -171,16 +191,23 @@ export function describeTaskActiveNode(activeNode: TaskActiveNode): string {
 
   switch ((activeNode.phase || "").trim().toLowerCase()) {
     case "preparing":
-      return "Preparing node runtime";
+      return translate("shared.runtime.preparingNode", "Preparing node runtime");
     case "matrix":
-      return targetLabel ? `Extracting ${targetLabel}` : "Extracting matrix result";
+      return targetLabel
+        ? translate("shared.runtime.extractingTarget", `Extracting ${targetLabel}`, { target: targetLabel })
+        : translate("shared.runtime.extractingMatrix", "Extracting matrix result");
     case "macro":
       if (targetLabel) {
-        return `${formatMacroLabel(activeNode.macro)}: ${targetLabel}`;
+        return translate("shared.runtime.runningMacroTarget", `${formatMacroLabel(activeNode.macro)}: ${targetLabel}`, {
+          macro: formatMacroLabel(activeNode.macro),
+          target: targetLabel,
+        });
       }
-      return `Running ${formatMacroLabel(activeNode.macro)}`;
+      return translate("shared.runtime.runningMacro", `Running ${formatMacroLabel(activeNode.macro)}`, {
+        macro: formatMacroLabel(activeNode.macro),
+      });
     default:
-      return targetLabel || "Running";
+      return targetLabel || translate("shared.phases.running", "Running");
   }
 }
 
@@ -191,12 +218,26 @@ export function summarizeActiveTaskNodes(activeNodes: TaskActiveNode[] = []): st
 
   const preview = activeNodes
     .slice(0, 2)
-    .map((activeNode) => `${activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}: ${describeTaskActiveNode(activeNode)}`)
+    .map((activeNode) => translate(
+      "shared.formats.testingNodeDetail",
+      `${activeNode.nodeName || `Node ${activeNode.nodeIndex + 1}`}: ${describeTaskActiveNode(activeNode)}`,
+      {
+        name: activeNode.nodeName || translate("shared.formats.nodeNumber", `Node ${activeNode.nodeIndex + 1}`, { index: activeNode.nodeIndex + 1 }),
+        detail: describeTaskActiveNode(activeNode),
+      },
+    ))
     .join(" | ");
   const moreCount = activeNodes.length - 2;
   return moreCount > 0
-    ? `Testing ${activeNodes.length} node(s): ${preview} | +${moreCount} more`
-    : `Testing ${activeNodes.length} node(s): ${preview}`;
+    ? translate("shared.formats.testingNodesMore", `Testing ${activeNodes.length} node(s): ${preview} | +${moreCount} more`, {
+      count: activeNodes.length,
+      preview,
+      moreCount,
+    })
+    : translate("shared.formats.testingNodes", `Testing ${activeNodes.length} node(s): ${preview}`, {
+      count: activeNodes.length,
+      preview,
+    });
 }
 
 export function toggleTaskPresetSelection(current: TaskPresetSelection, target: TaskPreset): TaskPresetSelection {
@@ -240,17 +281,34 @@ export function normalizeTaskPresetSelection(value: TaskPresetSelection): TaskPr
 export function formatTaskPresetSelectionLabel(value: TaskPresetSelection): string {
   const normalized = normalizeTaskPresetSelection(value);
   if (normalized.includes("full")) {
-    return "FULL";
+    return formatTaskPresetLabel("full");
   }
 
   const selectedChildren = normalized.filter((preset) => preset !== "full");
   if (selectedChildren.length === 0) {
-    return "TASK";
+    return translate("shared.presets.task", "Task");
   }
   if (selectedChildren.length <= 2) {
-    return selectedChildren.map((preset) => preset.toUpperCase()).join(" + ");
+    return selectedChildren.map((preset) => formatTaskPresetLabel(preset)).join(" + ");
   }
-  return `${selectedChildren.length} TESTS`;
+  return translate("shared.formats.testCount", `${selectedChildren.length} tests`, { count: selectedChildren.length });
+}
+
+export function formatTaskPresetLabel(value: TaskPreset): string {
+  switch (value) {
+    case "full":
+      return translate("shared.presets.full", "Full");
+    case "ping":
+      return translate("shared.presets.ping", "Ping");
+    case "geo":
+      return translate("shared.presets.geo", "Geo");
+    case "speed":
+      return translate("shared.presets.speed", "Speed");
+    case "media":
+      return translate("shared.presets.media", "Media");
+    default:
+      return value;
+  }
 }
 
 function splitPresetGroups(preset?: string): string[] {
@@ -287,33 +345,38 @@ export function formatDateTime(value?: string): string {
 export function summarizeResultMetrics(preset?: string): string {
   const groups = splitPresetGroups(preset);
   if (groups.length === 0) {
-    return "Archived metrics";
+    return translate("shared.formats.archivedMetrics", "Archived metrics");
   }
 
   const labels: string[] = [];
   if (groups.includes("ping")) {
-    labels.push("TLS RTT / HTTPS Ping");
+    labels.push(translate("shared.metrics.ping", "TLS RTT / HTTPS Ping"));
   }
   if (groups.includes("geo")) {
-    labels.push("Inbound / Outbound Topology");
+    labels.push(translate("shared.metrics.geo", "Inbound / Outbound Topology"));
   }
   if (groups.includes("speed")) {
-    labels.push("Average / Max / Per-second Speed / Traffic");
+    labels.push(translate("shared.metrics.speed", "Average / Max / Per-second Speed / Traffic"));
   }
   if (groups.includes("media")) {
-    labels.push("Netflix / Hulu / Bilibili HMT");
+    labels.push(translate("shared.metrics.media", "Netflix / Hulu / Bilibili HMT"));
   }
-  return labels.join(" / ") || "Archived metrics";
+  return labels.join(" / ") || translate("shared.formats.archivedMetrics", "Archived metrics");
 }
 
 export function formatProtocolLibraryLabel(vendor?: string): string {
-  return (vendor || "").trim() || "unknown";
+  return (vendor || "").trim() || translate("shared.states.unknown", "unknown");
 }
 
 export function formatBackendLabel(task?: Pick<ResultArchiveTask, "environment">): string {
+  const identity = (task?.environment?.identity || "").trim();
+  if (identity) {
+    return identity;
+  }
+
   const backend = task?.environment?.backend;
   if (!backend) {
-    return "Unknown backend";
+    return translate("shared.states.empty", "empty");
   }
 
   const location = (backend.location || "").trim();
@@ -326,25 +389,28 @@ export function formatBackendLabel(task?: Pick<ResultArchiveTask, "environment">
     return ip;
   }
 
-  const source = (backend.source || "").trim();
   const error = (backend.error || "").trim();
-  if (source && error) {
-    return `Probe failed (${source})`;
+  if (error) {
+    return translate("shared.formats.backendProbeFailed", "Probe failed");
   }
+
+  const source = (backend.source || "").trim();
   if (source) {
     return source;
   }
-  if (error) {
-    return "Probe failed";
-  }
 
-  return "Unknown backend";
+  return translate("shared.states.empty", "empty");
 }
 
 export function formatBackendDetail(task?: Pick<ResultArchiveTask, "environment">): string {
+  const identity = (task?.environment?.identity || "").trim();
+  if (identity) {
+    return identity;
+  }
+
   const backend = task?.environment?.backend;
   if (!backend) {
-    return "Backend probe unavailable";
+    return translate("shared.states.empty", "empty");
   }
 
   const location = (backend.location || "").trim();
@@ -354,38 +420,38 @@ export function formatBackendDetail(task?: Pick<ResultArchiveTask, "environment"
 
   const parts = [location, ip ? `IP=${ip}` : "", source ? `Source=${source}` : "", error ? `Error=${error}` : ""]
     .filter(Boolean);
-  return parts.join(" | ") || "Backend probe unavailable";
+  return parts.join(" | ") || translate("shared.states.empty", "empty");
 }
 
 export function summarizeDownloadTarget(downloadURL?: string, downloadTargets: DownloadTarget[] = []): string {
   const trimmedURL = (downloadURL || "").trim();
   if (!trimmedURL) {
-    return "Target unavailable";
+    return translate("shared.targets.unavailable", "Target unavailable");
   }
 
-  const matched = downloadTargets.find((target) => target.downloadURL === trimmedURL);
+  const matched = findDownloadTarget(trimmedURL, downloadTargets);
   if (matched) {
-    return formatDownloadTargetLabel(matched);
+    return formatDownloadTargetPrimaryLabel(matched);
   }
 
   try {
     const url = new URL(trimmedURL);
     if (url.host === "speed.cloudflare.com") {
-      return "Cloudflare Default";
+      return translate("shared.targets.cloudflareDefault", "Cloudflare default");
     }
-    return url.host || "Custom target";
+    return url.host || translate("shared.formats.customTarget", "Custom target");
   } catch {
-    return "Custom target";
+    return translate("shared.formats.customTarget", "Custom target");
   }
 }
 
 export function summarizeDownloadTargetDetail(downloadURL?: string, downloadTargets: DownloadTarget[] = []): string {
   const trimmedURL = (downloadURL || "").trim();
   if (!trimmedURL) {
-    return "N/A";
+    return translate("shared.states.none", "N/A");
   }
 
-  const matched = downloadTargets.find((target) => target.downloadURL === trimmedURL);
+  const matched = findDownloadTarget(trimmedURL, downloadTargets);
   if (matched) {
     return matched.host || matched.endpoint || matched.downloadURL;
   }
@@ -395,6 +461,28 @@ export function summarizeDownloadTargetDetail(downloadURL?: string, downloadTarg
     return url.host || trimmedURL;
   } catch {
     return trimmedURL;
+  }
+}
+
+export function summarizeDownloadTargetFooter(downloadURL?: string, downloadTargets: DownloadTarget[] = []): string {
+  const trimmedURL = (downloadURL || "").trim();
+  if (!trimmedURL) {
+    return translate("shared.targets.unavailable", "Target unavailable");
+  }
+
+  const matched = findDownloadTarget(trimmedURL, downloadTargets);
+  if (matched) {
+    return formatDownloadTargetFooterLabel(matched);
+  }
+
+  try {
+    const url = new URL(trimmedURL);
+    if (url.host === "speed.cloudflare.com") {
+      return translate("shared.targets.cloudflareDefault", "Cloudflare default");
+    }
+    return url.host || translate("shared.formats.customTarget", "Custom target");
+  } catch {
+    return translate("shared.formats.customTarget", "Custom target");
   }
 }
 
@@ -429,7 +517,7 @@ export function formatReportValue(value: unknown, key?: string): string {
   }
 
   if (typeof value === "boolean") {
-    return value ? "true" : "false";
+    return value ? translate("shared.states.booleanTrue", "true") : translate("shared.states.booleanFalse", "false");
   }
 
   if (Array.isArray(value)) {
@@ -492,19 +580,19 @@ function formatMediaUnlockItem(value: unknown): string {
 function formatMediaStatus(value: unknown): string {
   switch (String(value || "").trim().toLowerCase()) {
     case "yes":
-      return "Yes";
+      return translate("shared.mediaStatus.yes", "Yes");
     case "no":
-      return "No";
+      return translate("shared.mediaStatus.no", "No");
     case "originals_only":
-      return "Originals Only";
+      return translate("shared.mediaStatus.originalsOnly", "Originals Only");
     case "web_only":
-      return "Web Only";
+      return translate("shared.mediaStatus.webOnly", "Web Only");
     case "oversea_only":
-      return "Oversea Only";
+      return translate("shared.mediaStatus.overseaOnly", "Oversea Only");
     case "unsupported":
-      return "Unsupported";
+      return translate("shared.mediaStatus.unsupported", "Unsupported");
     case "failed":
-      return "Failed";
+      return translate("shared.mediaStatus.failed", "Failed");
     default:
       return String(value || "-");
   }
@@ -513,11 +601,11 @@ function formatMediaStatus(value: unknown): string {
 function formatUnlockMode(value: unknown): string {
   switch (String(value || "").trim().toLowerCase()) {
     case "native":
-      return "Native";
+      return translate("shared.unlockMode.native", "Native");
     case "dns":
-      return "DNS";
+      return translate("shared.unlockMode.dns", "DNS");
     case "unknown":
-      return "Unknown";
+      return translate("shared.unlockMode.unknown", "Unknown");
     default:
       return String(value || "-");
   }
@@ -533,10 +621,61 @@ function formatMegabytes(bytes: number): string {
   return `${megabytes.toFixed(2)} MB`;
 }
 
-function formatDownloadTargetLabel(target: DownloadTarget): string {
-  const location = [target.city, target.country].filter(Boolean).join(", ");
-  const primary = (target.name || "").trim() || (target.host || "").trim() || "Speed Target";
-  return location ? `${primary} 路 ${location}` : primary;
+function findDownloadTarget(downloadURL: string, downloadTargets: DownloadTarget[]): DownloadTarget | undefined {
+  return downloadTargets.find((target) => target.downloadURL === downloadURL);
+}
+
+function formatDownloadTargetPrimaryLabel(target: DownloadTarget): string {
+  const primary = (target.name || "").trim();
+  if (primary) {
+    return primary;
+  }
+
+  const host = (target.host || "").trim();
+  if (host) {
+    return host;
+  }
+
+  const endpoint = (target.endpoint || "").trim();
+  if (endpoint) {
+    return endpoint;
+  }
+
+  return target.source === "cloudflare"
+    ? translate("shared.targets.cloudflareDefault", "Cloudflare default")
+    : translate("shared.targets.speedtestTarget", "Speedtest target");
+}
+
+function formatDownloadTargetFooterLabel(target: DownloadTarget): string {
+  if (target.source === "cloudflare") {
+    return translate("shared.targets.cloudflareDefault", "Cloudflare default");
+  }
+
+  const location = buildDownloadTargetLocation(target);
+  const provider = (target.sponsor || "").trim();
+  const parts = [location, provider].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(" ");
+  }
+
+  return formatDownloadTargetPrimaryLabel(target);
+}
+
+function buildDownloadTargetLocation(target: DownloadTarget): string {
+  const city = (target.city || "").trim();
+  const country = (target.country || "").trim();
+  const countryCode = (target.countryCode || "").trim().toUpperCase();
+
+  if (city) {
+    return city;
+  }
+  if (country) {
+    return country;
+  }
+  if (countryCode) {
+    return countryCode;
+  }
+  return "";
 }
 
 function isCountryCodeField(key?: string): boolean {

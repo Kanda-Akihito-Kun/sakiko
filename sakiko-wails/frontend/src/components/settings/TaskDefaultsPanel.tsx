@@ -1,9 +1,11 @@
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
+import SearchRounded from "@mui/icons-material/SearchRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
 import {
   Box,
   Button,
   Chip,
+  InputAdornment,
   List,
   ListItemButton,
   Stack,
@@ -12,39 +14,63 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { DownloadTargetSource } from "../../types/sakiko";
 import type { DownloadTarget, TaskConfig } from "../../types/sakiko";
 import { SectionCard } from "../shared/SectionCard";
 
-type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading">>;
+type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading" | "backendIdentity">>;
 
 type TaskDefaultsPanelProps = {
   downloadTargets: DownloadTarget[];
+  downloadTargetSearch: string;
   downloadTargetsLoading: boolean;
   taskConfig: TaskConfig;
   onPatchTaskConfig: (patch: TaskConfigPatch) => void;
-  onRefreshDownloadTargets: () => void;
+  onDownloadTargetSearchChange: (value: string) => void;
+  onRefreshDownloadTargets: (search?: string) => void;
 };
 
 export function TaskDefaultsPanel({
   downloadTargets,
+  downloadTargetSearch,
   downloadTargetsLoading,
   taskConfig,
   onPatchTaskConfig,
+  onDownloadTargetSearchChange,
   onRefreshDownloadTargets,
 }: TaskDefaultsPanelProps) {
+  const { t } = useTranslation();
+  const searchInitializedRef = useRef(false);
   const defaultTarget = downloadTargets.find((target) => target.source === DownloadTargetSource.DownloadTargetSourceCloudflare) || null;
   const speedtestTargets = downloadTargets.filter((target) => target.source === DownloadTargetSource.DownloadTargetSourceSpeedtest);
+  const normalizedTargetSearch = downloadTargetSearch.trim();
+
+  useEffect(() => {
+    if (!searchInitializedRef.current) {
+      searchInitializedRef.current = true;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void onRefreshDownloadTargets(downloadTargetSearch);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [downloadTargetSearch, onRefreshDownloadTargets]);
 
   return (
     <SectionCard
-      title="Task Defaults"
-      subtitle="Shared configuration applied when tasks are submitted"
+      title={t("settings.taskDefaults.title")}
+      subtitle={t("settings.taskDefaults.subtitle")}
       icon={<TuneRounded color="primary" />}
     >
       <Stack spacing={2}>
         <Typography variant="body2" color="text.secondary">
-          Keep launcher tabs focused on task type selection. Adjust shared runtime defaults here instead.
+          {t("settings.taskDefaults.description")}
         </Typography>
 
         <Box
@@ -56,33 +82,43 @@ export function TaskDefaultsPanel({
         >
           <TextField
             fullWidth
-            label="Ping URL"
+            label={t("settings.taskDefaults.pingUrl")}
             value={taskConfig.pingAddress}
             onChange={(event) => onPatchTaskConfig({ pingAddress: event.target.value })}
-            helperText="Used by ping and full tasks"
+            helperText={t("settings.taskDefaults.pingUrlHelper")}
           />
           <TextField
             fullWidth
-            label="Timeout (ms)"
+            label={t("settings.taskDefaults.timeout")}
             type="number"
             value={taskConfig.taskTimeoutMillis}
             onChange={(event) => onPatchTaskConfig({ taskTimeoutMillis: Number(event.target.value) })}
           />
           <TextField
             fullWidth
-            label="Download URL"
+            label={t("settings.taskDefaults.downloadUrl")}
             value={taskConfig.downloadURL}
             onChange={(event) => onPatchTaskConfig({ downloadURL: event.target.value })}
-            helperText="Manual override for speed and full tasks"
+            helperText={t("settings.taskDefaults.downloadUrlHelper")}
           />
           <TextField
             fullWidth
-            label="Duration (s)"
+            label={t("settings.taskDefaults.duration")}
             type="number"
             value={taskConfig.downloadDuration}
             onChange={(event) => onPatchTaskConfig({ downloadDuration: Number(event.target.value) })}
             inputProps={{ min: 5, max: 20 }}
-            helperText="Used by speed and full tasks. Range: 5-20s"
+            helperText={t("settings.taskDefaults.durationHelper")}
+          />
+          <TextField
+            fullWidth
+            label={t("settings.taskDefaults.backendIdentity")}
+            value={taskConfig.backendIdentity || ""}
+            onChange={(event) => onPatchTaskConfig({ backendIdentity: event.target.value })}
+            helperText={t("settings.taskDefaults.backendIdentityHelper", {
+              count: Array.from(taskConfig.backendIdentity || "").length,
+            })}
+            inputProps={{ maxLength: 50 }}
           />
         </Box>
 
@@ -90,10 +126,10 @@ export function TaskDefaultsPanel({
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" color="text.secondary">
-                Download Target
+                {t("settings.taskDefaults.downloadTarget.title")}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Choose a Speedtest target to fill the download URL, or keep the Cloudflare default.
+                {t("settings.taskDefaults.downloadTarget.description")}
               </Typography>
             </Box>
             <Button
@@ -101,9 +137,9 @@ export function TaskDefaultsPanel({
               variant="outlined"
               startIcon={<RefreshRounded />}
               disabled={downloadTargetsLoading}
-              onClick={onRefreshDownloadTargets}
+              onClick={() => void onRefreshDownloadTargets(downloadTargetSearch)}
             >
-              Refresh
+              {t("shared.actions.refresh")}
             </Button>
           </Stack>
 
@@ -113,9 +149,38 @@ export function TaskDefaultsPanel({
               onClick={() => onPatchTaskConfig({ downloadURL: defaultTarget.downloadURL })}
               sx={{ justifyContent: "flex-start" }}
             >
-              Use {defaultTarget.name}
+              {t("settings.taskDefaults.downloadTarget.useDefault", { name: defaultTarget.name })}
             </Button>
           ) : null}
+
+          <TextField
+            fullWidth
+            size="small"
+            label={t("settings.taskDefaults.downloadTarget.searchLabel")}
+            value={downloadTargetSearch}
+            onChange={(event) => onDownloadTargetSearchChange(event.target.value)}
+            placeholder={t("settings.taskDefaults.downloadTarget.searchPlaceholder")}
+            helperText={t("settings.taskDefaults.downloadTarget.searchHelper")}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRounded sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={
+                normalizedTargetSearch
+                  ? t("settings.taskDefaults.downloadTarget.results", { count: speedtestTargets.length, search: normalizedTargetSearch })
+                  : t("settings.taskDefaults.downloadTarget.targets", { count: speedtestTargets.length })
+              }
+            />
+          </Stack>
 
           <List
             disablePadding
@@ -129,7 +194,11 @@ export function TaskDefaultsPanel({
             {speedtestTargets.length === 0 ? (
               <Box px={1.5} py={2}>
                 <Typography variant="body2" color="text.secondary">
-                  {downloadTargetsLoading ? "Loading Speedtest targets..." : "No Speedtest targets loaded yet."}
+                  {downloadTargetsLoading
+                    ? t("settings.taskDefaults.downloadTarget.loading")
+                    : normalizedTargetSearch
+                      ? t("settings.taskDefaults.downloadTarget.notFound", { search: normalizedTargetSearch })
+                      : t("settings.taskDefaults.downloadTarget.notLoaded")}
                 </Typography>
               </Box>
             ) : (
@@ -146,11 +215,11 @@ export function TaskDefaultsPanel({
                       {target.country ? `, ${target.country}` : ""}
                     </Typography>
                     {taskConfig.downloadURL === target.downloadURL ? (
-                      <Chip size="small" color="primary" label="Selected" />
+                      <Chip size="small" color="primary" label={t("settings.taskDefaults.downloadTarget.selected")} />
                     ) : null}
                   </Stack>
                   <Typography variant="caption" color="text.secondary" noWrap sx={{ width: "100%" }}>
-                    {target.sponsor || "Unknown sponsor"}
+                    {target.sponsor || t("settings.taskDefaults.downloadTarget.unknownSponsor")}
                   </Typography>
                   <Typography variant="caption" className="sakiko-mono" color="text.secondary" noWrap sx={{ width: "100%" }}>
                     {target.host || target.endpoint}
@@ -163,7 +232,7 @@ export function TaskDefaultsPanel({
 
         <Stack spacing={1}>
           <Typography variant="subtitle2" color="text.secondary">
-            Speed Mode
+            {t("settings.taskDefaults.speedMode.title")}
           </Typography>
           <ToggleButtonGroup
             exclusive
@@ -178,13 +247,13 @@ export function TaskDefaultsPanel({
               }
             }}
           >
-            <ToggleButton value="single">Single-thread</ToggleButton>
-            <ToggleButton value="multi">Multi-thread</ToggleButton>
+            <ToggleButton value="single">{t("settings.taskDefaults.speedMode.single")}</ToggleButton>
+            <ToggleButton value="multi">{t("settings.taskDefaults.speedMode.multi")}</ToggleButton>
           </ToggleButtonGroup>
           <Typography variant="caption" color="text.secondary">
             {taskConfig.downloadThreading > 1
-              ? `Using ${taskConfig.downloadThreading} parallel download streams`
-              : "Using 1 download stream"}
+              ? t("settings.taskDefaults.speedMode.multiDescription", { count: taskConfig.downloadThreading })
+              : t("settings.taskDefaults.speedMode.singleDescription")}
           </Typography>
         </Stack>
       </Stack>

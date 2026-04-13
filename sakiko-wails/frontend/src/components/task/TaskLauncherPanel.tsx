@@ -3,10 +3,11 @@ import ScheduleRounded from "@mui/icons-material/ScheduleRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
 import { Box, Button, Chip, LinearProgress, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { taskPresets } from "../../constants/dashboard";
 import type { TaskPreset, TaskPresetSelection } from "../../types/dashboard";
 import type { TaskConfig, TaskState } from "../../types/sakiko";
-import { formatTaskPresetSelectionLabel, shouldUseEmojiFont, summarizeActiveTaskNodes, summarizeDownloadTarget } from "../../utils/dashboard";
+import { formatTaskPresetLabel, formatTaskPresetSelectionLabel, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes, summarizeDownloadTarget } from "../../utils/dashboard";
 import { SectionCard } from "../shared/SectionCard";
 
 type TaskLauncherPanelProps = {
@@ -34,10 +35,12 @@ export function TaskLauncherPanel({
   onRunTask,
   onTaskPresetChange,
 }: TaskLauncherPanelProps) {
+  const { t } = useTranslation();
+
   return (
     <SectionCard
-      title="Task Launcher"
-      subtitle="Choose test groups"
+      title={t("dashboard.tasks.launcher.title")}
+      subtitle={t("dashboard.tasks.launcher.subtitle")}
       icon={<TuneRounded color="primary" />}
     >
       <Stack spacing={2}>
@@ -57,7 +60,7 @@ export function TaskLauncherPanel({
           >
             {taskPresets.map((preset) => (
               <ToggleButton key={preset} value={preset} onClick={() => onTaskPresetChange(preset)}>
-                {preset.toUpperCase()}
+                {formatTaskPresetLabel(preset)}
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
@@ -71,7 +74,7 @@ export function TaskLauncherPanel({
               startIcon={<SettingsRounded />}
               onClick={onOpenSettings}
             >
-              Open Settings
+              {t("shared.actions.openSettings")}
             </Button>
           </Stack>
 
@@ -84,11 +87,11 @@ export function TaskLauncherPanel({
             }}
           >
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Chip size="small" label={`Timeout ${taskConfig.taskTimeoutMillis} ms`} variant="outlined" />
-              <Chip size="small" label={`Duration ${taskConfig.downloadDuration}s`} variant="outlined" />
+              <Chip size="small" label={t("shared.formats.timeoutMillis", { value: taskConfig.taskTimeoutMillis })} variant="outlined" />
+              <Chip size="small" label={t("shared.formats.durationSeconds", { value: taskConfig.downloadDuration })} variant="outlined" />
               <Chip
                 size="small"
-                label={taskConfig.downloadThreading > 1 ? `${taskConfig.downloadThreading} threads` : "Single-thread"}
+                label={taskConfig.downloadThreading > 1 ? t("shared.formats.threadsCount", { count: taskConfig.downloadThreading }) : t("dashboard.tasks.launcher.singleThread")}
                 variant="outlined"
               />
               <Chip size="small" label={summarizeDownloadTarget(taskConfig.downloadURL)} variant="outlined" />
@@ -103,11 +106,11 @@ export function TaskLauncherPanel({
             disabled={submitting || !activeProfileId || taskPreset.filter((preset) => preset !== "full").length === 0}
             onClick={onRunTask}
           >
-            Run {formatTaskPresetSelectionLabel(taskPreset)}
+            {t("dashboard.tasks.launcher.runPreset", { preset: formatTaskPresetSelectionLabel(taskPreset) })}
           </Button>
           <Chip
             icon={<ScheduleRounded />}
-            label={activeProfileId ? "Target profile selected" : "Select a profile to run tasks"}
+            label={activeProfileId ? t("dashboard.tasks.launcher.targetProfileSelected") : t("dashboard.tasks.launcher.selectProfileToRun")}
             variant="outlined"
             color={activeProfileId ? "success" : "default"}
           />
@@ -128,7 +131,7 @@ export function TaskLauncherPanel({
                   <Stack direction="row" justifyContent="space-between" spacing={1}>
                     <ListItemText
                       primary={task.name}
-                      secondary={task.status}
+                      secondary={formatTaskStatus(task.status)}
                       primaryTypographyProps={{ fontWeight: 600, noWrap: true, className: shouldUseEmojiFont("nodeName", task.name) ? "sakiko-emoji" : undefined }}
                       secondaryTypographyProps={{ noWrap: true }}
                       sx={{ minWidth: 0 }}

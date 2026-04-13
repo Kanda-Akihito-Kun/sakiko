@@ -1,26 +1,38 @@
 import { Button, ButtonGroup } from "@mui/material";
-import { AppThemeMode } from "../../theme/appTheme";
+import type { AppThemeMode, ExportPictureMode } from "../../theme/appTheme";
 
-type ThemeModeSwitchProps = {
-  value: AppThemeMode;
-  onChange: (mode: AppThemeMode) => void;
+type ModeOption<T extends string> = {
+  value: T;
+  label: string;
 };
 
-const themeModes: Array<{ value: AppThemeMode; label: string }> = [
+type ThemeModeSwitchProps<T extends string> = {
+  value: T;
+  options: Array<ModeOption<T>>;
+  onChange: (mode: T) => void;
+};
+
+const themeModes: Array<ModeOption<AppThemeMode>> = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
   { value: "system", label: "System" },
 ];
 
-export function ThemeModeSwitch({ value, onChange }: ThemeModeSwitchProps) {
+export const exportPictureModes: Array<ModeOption<ExportPictureMode>> = [
+  { value: "follow-theme", label: "Follow Theme" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+export function ThemeModeSwitch<T extends string>({ value, options, onChange }: ThemeModeSwitchProps<T>) {
   return (
     <ButtonGroup size="small" sx={{ my: "4px" }}>
-      {themeModes.map((mode) => (
+      {options.map((mode) => (
         <Button
           key={mode.value}
           variant={mode.value === value ? "contained" : "outlined"}
           onClick={() => onChange(mode.value)}
-          sx={{ textTransform: "capitalize", minWidth: 72 }}
+          sx={{ textTransform: "none", minWidth: 72 }}
         >
           {mode.label}
         </Button>
@@ -28,3 +40,5 @@ export function ThemeModeSwitch({ value, onChange }: ThemeModeSwitchProps) {
     </ButtonGroup>
   );
 }
+
+export const appThemeModes = themeModes;

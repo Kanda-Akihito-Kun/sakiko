@@ -289,7 +289,9 @@ func buildResultArchiveTask(task interfaces.Task) interfaces.ResultArchiveTask {
 
 	var environment *interfaces.TaskEnvironment
 	if task.Environment != nil {
-		copied := &interfaces.TaskEnvironment{}
+		copied := &interfaces.TaskEnvironment{
+			Identity: task.Environment.Identity,
+		}
 		if task.Environment.Backend != nil {
 			backend := *task.Environment.Backend
 			copied.Backend = &backend

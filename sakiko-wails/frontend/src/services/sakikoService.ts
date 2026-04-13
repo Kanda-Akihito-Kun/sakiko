@@ -1,6 +1,7 @@
 import { Call, type CancellablePromise } from "@wailsio/runtime";
-import { Profile } from "../../bindings/sakiko.local/sakiko-core/interfaces";
+import { DownloadTarget, Profile } from "../../bindings/sakiko.local/sakiko-core/interfaces";
 import { SakikoService as GeneratedSakikoService } from "../../bindings/sakiko-wails";
+import type { AppSettings, AppSettingsPatch } from "../types/appSettings";
 
 export const SakikoService = {
   ...GeneratedSakikoService,
@@ -16,5 +17,16 @@ export const SakikoService = {
     return Call.ByName("main.SakikoService.MoveProfileNode", profileID, nodeIndex, targetIndex).then((result: any) => {
       return Profile.createFrom(result);
     });
+  },
+  SearchDownloadTargets(search: string): CancellablePromise<DownloadTarget[]> {
+    return Call.ByName("main.SakikoService.SearchDownloadTargets", search).then((result: any) => {
+      return Array.isArray(result) ? result.map((item) => DownloadTarget.createFrom(item)) : [];
+    });
+  },
+  GetAppSettings(): CancellablePromise<AppSettings> {
+    return Call.ByName("main.SakikoService.GetAppSettings");
+  },
+  UpdateAppSettings(patch: AppSettingsPatch): CancellablePromise<AppSettings> {
+    return Call.ByName("main.SakikoService.UpdateAppSettings", patch);
   },
 };

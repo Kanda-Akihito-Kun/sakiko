@@ -5,12 +5,15 @@ import {
   TaskConfig,
 } from "../../bindings/sakiko.local/sakiko-core/interfaces";
 import { initialImportForm, initialTaskConfig } from "../constants/dashboard";
+import { translate } from "../services/i18n";
 import { createImportProfilePayload, createSubmitProfileTaskPayload } from "./dashboardPayloads";
 import type { ImportForm, TaskPreset, TaskPresetSelection } from "../types/dashboard";
 import type { DownloadTarget, Profile, ProfileSummary, ResultArchive, ResultArchiveListItem, TaskState, TaskStatusResponse } from "../types/sakiko";
 import { formatTaskPresetSelectionLabel, normalizeError, toggleTaskPresetSelection } from "../utils/dashboard";
 
-type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading">>;
+type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading" | "backendIdentity">>;
+
+const BACKEND_IDENTITY_STORAGE_KEY = "sakiko.task-defaults.backend-identity";
 
 type DashboardState = {
   profiles: ProfileSummary[];
@@ -27,6 +30,7 @@ type DashboardState = {
   profilesPath: string;
   downloadTargets: DownloadTarget[];
   downloadTargetsLoading: boolean;
+  downloadTargetSearch: string;
   importForm: ImportForm;
   taskPreset: TaskPresetSelection;
   taskConfig: TaskConfig;
@@ -36,11 +40,12 @@ type DashboardState = {
   message: string;
   error: string;
   setNodeFilter: (value: string) => void;
+  setDownloadTargetSearch: (value: string) => void;
   setTaskPreset: (value: TaskPreset) => void;
   updateImportForm: (field: keyof ImportForm, value: string) => void;
   patchTaskConfig: (patch: TaskConfigPatch) => void;
   refreshDashboard: (preferredProfileId?: string) => Promise<void>;
-  refreshDownloadTargets: () => Promise<void>;
+  refreshDownloadTargets: (search?: string) => Promise<void>;
   refreshResultArchives: (resetVisibleCount?: boolean) => Promise<void>;
   loadMoreResultArchives: () => void;
   ensureResultArchive: (taskId: string) => Promise<ResultArchive | undefined>;
@@ -72,16 +77,21 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   profilesPath: "",
   downloadTargets: [],
   downloadTargetsLoading: false,
+  downloadTargetSearch: "",
   importForm: initialImportForm,
   taskPreset: ["full", "ping", "geo", "speed", "media"],
-  taskConfig: initialTaskConfig,
+  taskConfig: new TaskConfig({
+    ...initialTaskConfig,
+    backendIdentity: getStoredBackendIdentity(),
+  }),
   nodeFilter: "",
   loading: true,
   submitting: false,
-  message: "Ready.",
+  message: translate("shared.states.readyWithPeriod", "Ready."),
   error: "",
 
   setNodeFilter: (value) => set({ nodeFilter: value }),
+  setDownloadTargetSearch: (value) => set({ downloadTargetSearch: value }),
   setTaskPreset: (value) => set((state) => ({ taskPreset: toggleTaskPresetSelection(state.taskPreset, value) })),
   updateImportForm: (field, value) => {
     set((state) => ({
@@ -111,6 +121,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       } else {
         nextPatch.downloadThreading = Math.max(1, Math.floor(nextPatch.downloadThreading));
       }
+    }
+    if (typeof nextPatch.backendIdentity === "string") {
+      nextPatch.backendIdentity = Array.from(nextPatch.backendIdentity.trim()).slice(0, 20).join("");
+      persistBackendIdentity(nextPatch.backendIdentity);
     }
 
     set((state) => ({
@@ -185,14 +199,24 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 
-  refreshDownloadTargets: async () => {
-    set({ downloadTargetsLoading: true });
+  refreshDownloadTargets: async (search = get().downloadTargetSearch) => {
+    const nextSearch = search.trim();
+    set({ downloadTargetsLoading: true, downloadTargetSearch: search });
 
     try {
-      const downloadTargets = await SakikoService.ListDownloadTargets();
+      const downloadTargets = nextSearch
+        ? await SakikoService.SearchDownloadTargets(nextSearch)
+        : await SakikoService.ListDownloadTargets();
       set({
         downloadTargets,
-        message: `Loaded ${Math.max(downloadTargets.length - 1, 0)} Speedtest target(s).`,
+        message: nextSearch
+          ? translate("dashboard.messages.downloadTargetsLoadedForSearch", `Loaded ${Math.max(downloadTargets.length - 1, 0)} Speedtest target(s) for "${nextSearch}".`, {
+            count: Math.max(downloadTargets.length - 1, 0),
+            search: nextSearch,
+          })
+          : translate("dashboard.messages.downloadTargetsLoaded", `Loaded ${Math.max(downloadTargets.length - 1, 0)} Speedtest target(s).`, {
+            count: Math.max(downloadTargets.length - 1, 0),
+          }),
       });
     } catch (err) {
       set({ error: normalizeError(err) });
@@ -216,7 +240,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           Object.entries(state.resultArchiveDetails).filter(([taskId]) => resultArchives.some((item) => item.taskId === taskId)),
         ),
         message: resultArchives.length > 0
-          ? `Loaded ${resultArchives.length} archived result(s).`
+          ? translate("dashboard.messages.resultArchivesLoaded", `Loaded ${resultArchives.length} archived result(s).`, {
+            count: resultArchives.length,
+          })
           : state.message,
       }));
     } catch (err) {
@@ -274,7 +300,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const archive = get().resultArchives.find((item) => item.taskId === taskId);
     const archiveName = archive?.taskName || taskId;
 
-    set({ error: "", message: `Deleting archived result ${archiveName}...` });
+    set({
+      error: "",
+      message: translate("dashboard.messages.deletingArchive", `Deleting archived result ${archiveName}...`, {
+        name: archiveName,
+      }),
+    });
 
     try {
       await SakikoService.DeleteResultArchive(taskId);
@@ -286,7 +317,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         resultArchiveLoading: Object.fromEntries(
           Object.entries(state.resultArchiveLoading).filter(([currentTaskId]) => currentTaskId !== taskId),
         ),
-        message: `Deleted archived result ${archiveName}.`,
+        message: translate("dashboard.messages.deletedArchive", `Deleted archived result ${archiveName}.`, {
+          name: archiveName,
+        }),
       }));
     } catch (err) {
       set({ error: normalizeError(err) });
@@ -316,7 +349,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({
         tasks: latestTasks,
         message: selected && selected.status !== "running"
-          ? `Task ${selected.name} finished with ${detail.results?.length ?? 0} result(s).`
+          ? translate("dashboard.messages.taskFinished", `Task ${selected.name} finished with ${detail.results?.length ?? 0} result(s).`, {
+            name: selected.name,
+            count: detail.results?.length ?? 0,
+          })
           : get().message,
       });
 
@@ -349,7 +385,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({
       submitting: true,
       error: "",
-      message: "Importing profile...",
+      message: translate("dashboard.messages.importingProfile", "Importing profile..."),
     });
 
     try {
@@ -363,7 +399,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         profiles: upsertProfileSummary(state.profiles, profile),
       }));
       await refreshDashboard(profile.id);
-      set({ message: `Imported ${profile.name} (${profile.nodes.length} nodes).` });
+      set({
+        message: translate("dashboard.messages.importedProfile", `Imported ${profile.name} (${profile.nodes.length} nodes).`, {
+          name: profile.name,
+          count: profile.nodes.length,
+        }),
+      });
     } catch (err) {
       set({ error: normalizeError(err) });
     } finally {
@@ -380,7 +421,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({
       submitting: true,
       error: "",
-      message: "Refreshing profile...",
+      message: translate("dashboard.messages.refreshingProfile", "Refreshing profile..."),
     });
 
     try {
@@ -390,7 +431,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         profiles: upsertProfileSummary(state.profiles, profile),
       }));
       await refreshDashboard(profile.id);
-      set({ message: `Refreshed ${profile.name}.` });
+      set({ message: translate("dashboard.messages.refreshedProfile", `Refreshed ${profile.name}.`, { name: profile.name }) });
     } catch (err) {
       set({ error: normalizeError(err) });
     } finally {
@@ -407,7 +448,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({
       submitting: true,
       error: "",
-      message: `Deleting ${activeProfile?.name || "profile"}...`,
+      message: translate("dashboard.messages.deletingProfile", `Deleting ${activeProfile?.name || "profile"}...`, {
+        name: activeProfile?.name || translate("shared.states.profile", "profile"),
+      }),
     });
 
     try {
@@ -423,7 +466,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       });
 
       await refreshDashboard(nextActiveProfileId);
-      set({ message: `Deleted ${activeProfile?.name || "profile"}.` });
+      set({
+        message: translate("dashboard.messages.deletedProfile", `Deleted ${activeProfile?.name || "profile"}.`, {
+          name: activeProfile?.name || translate("shared.states.profile", "profile"),
+        }),
+      });
     } catch (err) {
       set({ error: normalizeError(err) });
     } finally {
@@ -437,11 +484,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    const nodeName = activeProfile.nodes[nodeIndex]?.name || `node ${nodeIndex + 1}`;
+    const nodeName = activeProfile.nodes[nodeIndex]?.name || translate("shared.formats.nodeNumberLower", `node ${nodeIndex + 1}`, { index: nodeIndex + 1 });
     set({
       submitting: true,
       error: "",
-      message: `${enabled ? "Including" : "Skipping"} ${nodeName}...`,
+      message: enabled
+        ? translate("dashboard.messages.includingNode", `Including ${nodeName}...`, { name: nodeName })
+        : translate("dashboard.messages.skippingNode", `Skipping ${nodeName}...`, { name: nodeName }),
     });
 
     try {
@@ -449,7 +498,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set((state) => ({
         activeProfile: profile,
         profiles: upsertProfileSummary(state.profiles, profile),
-        message: `${enabled ? "Included" : "Skipped"} ${nodeName} for future tasks.`,
+        message: enabled
+          ? translate("dashboard.messages.includedNode", `Included ${nodeName} for future tasks.`, { name: nodeName })
+          : translate("dashboard.messages.skippedNode", `Skipped ${nodeName} for future tasks.`, { name: nodeName }),
       }));
     } catch (err) {
       set({ error: normalizeError(err) });
@@ -464,11 +515,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    const nodeName = activeProfile.nodes[nodeIndex]?.name || `node ${nodeIndex + 1}`;
+    const nodeName = activeProfile.nodes[nodeIndex]?.name || translate("shared.formats.nodeNumberLower", `node ${nodeIndex + 1}`, { index: nodeIndex + 1 });
     set({
       submitting: true,
       error: "",
-      message: `Reordering ${nodeName}...`,
+      message: translate("dashboard.messages.reorderingNode", `Reordering ${nodeName}...`, { name: nodeName }),
     });
 
     try {
@@ -476,7 +527,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set((state) => ({
         activeProfile: profile,
         profiles: upsertProfileSummary(state.profiles, profile),
-        message: `Moved ${nodeName}.`,
+        message: translate("dashboard.messages.movedNode", `Moved ${nodeName}.`, { name: nodeName }),
       }));
     } catch (err) {
       set({ error: normalizeError(err) });
@@ -495,18 +546,20 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const selectedPresetCount = taskPreset.filter((preset) => preset !== "full").length;
 
     if (!activeProfileId) {
-      set({ error: "Select a profile first." });
+      set({ error: translate("dashboard.messages.selectProfileFirst", "Select a profile first.") });
       return;
     }
     if (selectedPresetCount === 0) {
-      set({ error: "Select at least one test group." });
+      set({ error: translate("dashboard.messages.selectTestGroup", "Select at least one test group.") });
       return;
     }
 
     set({
       submitting: true,
       error: "",
-      message: `Starting ${formatTaskPresetSelectionLabel(taskPreset)} task...`,
+      message: translate("dashboard.messages.startingTask", `Starting ${formatTaskPresetSelectionLabel(taskPreset)} task...`, {
+        preset: formatTaskPresetSelectionLabel(taskPreset),
+      }),
     });
 
     try {
@@ -523,7 +576,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         activeTaskId: taskId,
         activeTask: detail,
         tasks: latestTasks,
-        message: `Task ${taskId} accepted.`,
+        message: translate("dashboard.messages.taskAccepted", `Task ${taskId} accepted.`, { taskId }),
       });
     } catch (err) {
       set({ error: normalizeError(err) });
@@ -547,6 +600,29 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 }));
+
+function getStoredBackendIdentity(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const raw = window.localStorage.getItem(BACKEND_IDENTITY_STORAGE_KEY) || "";
+  return Array.from(raw.trim()).slice(0, 20).join("");
+}
+
+function persistBackendIdentity(value: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const normalized = Array.from(value.trim()).slice(0, 20).join("");
+  if (!normalized) {
+    window.localStorage.removeItem(BACKEND_IDENTITY_STORAGE_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(BACKEND_IDENTITY_STORAGE_KEY, normalized);
+}
 
 function upsertProfileSummary(profiles: ProfileSummary[], nextProfile: Profile): ProfileSummary[] {
   const nextSummary = toProfileSummary(nextProfile);
