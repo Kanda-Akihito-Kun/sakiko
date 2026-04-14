@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/logx"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +23,7 @@ type SakikoService struct {
 	settingsPath string
 	once         sync.Once
 	initErr      error
+	app          *application.App
 }
 
 type ProfileTaskSubmitRequest struct {
@@ -42,6 +45,18 @@ type ProfileSummary struct {
 	Source    string `json:"source"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 	NodeCount int    `json:"nodeCount"`
+}
+
+func (s *SakikoService) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
+	s.app = application.Get()
+	setDesktopNotificationApp(s.app)
+	return nil
+}
+
+func (s *SakikoService) ServiceShutdown() error {
+	clearDesktopNotificationApp()
+	s.app = nil
+	return nil
 }
 
 func (s *SakikoService) GetAppSettings() (AppSettings, error) {

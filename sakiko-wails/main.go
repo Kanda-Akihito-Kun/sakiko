@@ -33,6 +33,8 @@ func main() {
 		_, _ = fmt.Fprintf(os.Stderr, "configure logger failed: %v\n", err)
 		os.Exit(1)
 	}
+	logger = installDesktopNotificationLogging(logger)
+	logx.ReplaceGlobals(logger)
 	defer func() {
 		_ = logx.Sync()
 	}()
