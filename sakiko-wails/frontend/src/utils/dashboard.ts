@@ -368,6 +368,42 @@ export function formatProtocolLibraryLabel(vendor?: string): string {
   return (vendor || "").trim() || translate("shared.states.unknown", "unknown");
 }
 
+export function formatProxyTypeLabel(value?: string): string {
+  switch ((value || "").trim().toLowerCase()) {
+    case "shadowsocks":
+      return "Shadowsocks";
+    case "ssr":
+      return "SSR";
+    case "socks5":
+      return "SOCKS5";
+    case "http":
+      return "HTTP";
+    case "vmess":
+      return "VMess";
+    case "trojan":
+      return "Trojan";
+    case "vless":
+      return "VLESS";
+    case "hysteria":
+      return "Hysteria";
+    case "hysteria2":
+      return "Hysteria2";
+    case "tuic":
+      return "TUIC";
+    case "anytls":
+      return "AnyTLS";
+    case "unknown":
+      return translate("shared.states.unknown", "Unknown");
+    default: {
+      const source = (value || "").trim();
+      if (!source) {
+        return translate("shared.states.unknown", "Unknown");
+      }
+      return source;
+    }
+  }
+}
+
 export function formatBackendLabel(task?: Pick<ResultArchiveTask, "environment">): string {
   const identity = (task?.environment?.identity || "").trim();
   if (identity) {

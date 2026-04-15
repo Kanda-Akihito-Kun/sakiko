@@ -95,15 +95,12 @@ func (m *Macro) Run(proxy interfaces.Vendor, task *interfaces.Task) error {
 		{name: "YouTube Premium", run: probeYouTubePremium},
 		{name: "Netflix", run: probeNetflix},
 		{name: "Hulu", run: probeHulu},
-		{name: "Hulu Japan", run: probeHuluJP},
 		{name: "Prime Video", run: probePrimeVideo},
 		{name: "HBO Max", run: probeHBOMax},
 		{name: "Bilibili HK/MO/TW", run: probeBilibiliHKMCTW},
 		{name: "Bilibili Taiwan", run: probeBilibiliTW},
 		{name: "Abema", run: probeAbema},
 		{name: "TikTok", run: probeTikTok},
-		{name: "Spotify", run: probeSpotify},
-		{name: "Steam", run: probeSteam},
 	}
 	results := make([]interfaces.MediaUnlockPlatformResult, len(probes))
 	taskID := ""

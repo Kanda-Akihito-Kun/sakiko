@@ -1,4 +1,4 @@
-const hiddenMediaPlatformKeys = new Set(["dazn", "instagram_music"]);
+const hiddenMediaPlatformKeys = new Set(["dazn", "instagram_music", "hulu_jp", "spotify", "steam"]);
 const fixedMediaColumnKeys = new Set(["nodeName", "proxyType"]);
 
 export function isVisibleMediaPlatformKey(key: string): boolean {

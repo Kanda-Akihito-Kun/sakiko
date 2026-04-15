@@ -379,6 +379,24 @@ func TestBuildMediaUnlockSectionFiltersRemovedPlatforms(t *testing.T) {
 									Display:  "No",
 								},
 								{
+									Platform: interfaces.MediaUnlockPlatformHuluJP,
+									Name:     "Hulu Japan",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Unlocked (JP)",
+								},
+								{
+									Platform: interfaces.MediaUnlockPlatformSpotify,
+									Name:     "Spotify",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Region (US)",
+								},
+								{
+									Platform: interfaces.MediaUnlockPlatformSteam,
+									Name:     "Steam",
+									Status:   interfaces.MediaUnlockStatusYes,
+									Display:  "Currency (USD)",
+								},
+								{
 									Platform: interfaces.MediaUnlockPlatformNetflix,
 									Name:     "Netflix",
 									Status:   interfaces.MediaUnlockStatusYes,
@@ -393,7 +411,7 @@ func TestBuildMediaUnlockSectionFiltersRemovedPlatforms(t *testing.T) {
 	})
 
 	for _, column := range section.Columns {
-		if column.Key == "dazn" || column.Key == "instagram_music" {
+		if column.Key == "dazn" || column.Key == "instagram_music" || column.Key == "hulu_jp" || column.Key == "spotify" || column.Key == "steam" {
 			t.Fatalf("expected removed media columns to be hidden, got %q", column.Key)
 		}
 	}
@@ -402,6 +420,15 @@ func TestBuildMediaUnlockSectionFiltersRemovedPlatforms(t *testing.T) {
 	}
 	if _, exists := section.Rows[0]["instagram_music"]; exists {
 		t.Fatalf("expected Instagram Music cell to be omitted from report row")
+	}
+	if _, exists := section.Rows[0]["hulu_jp"]; exists {
+		t.Fatalf("expected Hulu JP cell to be omitted from report row")
+	}
+	if _, exists := section.Rows[0]["spotify"]; exists {
+		t.Fatalf("expected Spotify cell to be omitted from report row")
+	}
+	if _, exists := section.Rows[0]["steam"]; exists {
+		t.Fatalf("expected Steam cell to be omitted from report row")
 	}
 	if got := section.Rows[0]["netflix"]; got != "Unlocked (US)" {
 		t.Fatalf("expected visible platform to remain, got %#v", got)

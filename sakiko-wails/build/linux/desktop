@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=My Product Description
+Name=Sakiko
+Comment=Desktop proxy benchmark and speed test tool
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/sakiko.exe %u
+Exec=/usr/local/bin/Sakiko %u
 Terminal=false
 Type=Application
-Icon=sakiko.exe
+Icon=Sakiko
 Categories=Utility;
-StartupWMClass=sakiko.exe
+StartupWMClass=Sakiko
 
  

@@ -146,3 +146,5 @@ require (
 )
 
 replace sakiko.local/sakiko-core => ../sakiko-core
+
+replace github.com/wailsapp/wails/v3 => ../third_party/wails-v3-alpha74

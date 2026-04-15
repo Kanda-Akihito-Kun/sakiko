@@ -84,3 +84,21 @@ tasks:
     dir: build
     cmds:
       - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
+      - go run ./tools/sanitize_build_assets.go
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    deps:
+      - task: build:frontend
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+    cmds:
+      - go build -tags server {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}
+
+  run:server:
+    summary: Builds and runs the application in server mode
+    deps:
+      - task: build:server
+    cmds:
+      - ./{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}

@@ -34,11 +34,12 @@ const (
 	ProxyHysteria    ProxyType = "hysteria"
 	ProxyHysteria2   ProxyType = "hysteria2"
 	ProxyTuic        ProxyType = "tuic"
+	ProxyAnyTLS      ProxyType = "anytls"
 )
 
 func ParseProxyType(raw string) ProxyType {
 	switch ProxyType(raw) {
-	case ProxyShadowsocks, ProxySSR, ProxySocks5, ProxyHTTP, ProxyVMess, ProxyTrojan, ProxyVLESS, ProxyHysteria, ProxyHysteria2, ProxyTuic:
+	case ProxyShadowsocks, ProxySSR, ProxySocks5, ProxyHTTP, ProxyVMess, ProxyTrojan, ProxyVLESS, ProxyHysteria, ProxyHysteria2, ProxyTuic, ProxyAnyTLS:
 		return ProxyType(raw)
 	default:
 		return ProxyUnknown

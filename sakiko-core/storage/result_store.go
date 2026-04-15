@@ -519,15 +519,12 @@ func collectMediaPlatforms(results []interfaces.EntryResult) []interfaces.MediaU
 		interfaces.MediaUnlockPlatformYouTubePremium,
 		interfaces.MediaUnlockPlatformNetflix,
 		interfaces.MediaUnlockPlatformHulu,
-		interfaces.MediaUnlockPlatformHuluJP,
 		interfaces.MediaUnlockPlatformPrimeVideo,
 		interfaces.MediaUnlockPlatformHBOMax,
 		interfaces.MediaUnlockPlatformBilibiliHMT,
 		interfaces.MediaUnlockPlatformBilibiliTW,
 		interfaces.MediaUnlockPlatformAbema,
 		interfaces.MediaUnlockPlatformTikTok,
-		interfaces.MediaUnlockPlatformSpotify,
-		interfaces.MediaUnlockPlatformSteam,
 	}
 
 	seen := map[interfaces.MediaUnlockPlatform]struct{}{}
@@ -604,7 +601,12 @@ func mediaPlatformLabel(platform interfaces.MediaUnlockPlatform) string {
 
 func isVisibleMediaPlatform(platform interfaces.MediaUnlockPlatform) bool {
 	switch platform {
-	case "dazn", "instagram_music":
+	case
+		"dazn",
+		"instagram_music",
+		interfaces.MediaUnlockPlatformHuluJP,
+		interfaces.MediaUnlockPlatformSpotify,
+		interfaces.MediaUnlockPlatformSteam:
 		return false
 	default:
 		return true

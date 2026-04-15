@@ -334,6 +334,7 @@ export enum ProxyType {
     ProxyHysteria = "hysteria",
     ProxyHysteria2 = "hysteria2",
     ProxyTuic = "tuic",
+    ProxyAnyTLS = "anytls",
 };
 
 export class ResultArchive {

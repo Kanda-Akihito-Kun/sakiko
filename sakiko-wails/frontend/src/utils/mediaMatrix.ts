@@ -150,15 +150,12 @@ function sortMediaMatrixColumns(columns: MediaMatrixColumn[]): MediaMatrixColumn
     "youtube_premium",
     "netflix",
     "hulu",
-    "hulu_jp",
     "prime_video",
     "hbo_max",
     "bilibili_hmt",
     "bilibili_tw",
     "abema",
     "tiktok",
-    "spotify",
-    "steam",
   ];
   const rank = new Map(preferredOrder.map((key, index) => [key, index]));
   return [...columns].sort((left, right) => {

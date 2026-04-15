@@ -1,9 +1,12 @@
 # sakiko-wails
 
-`sakiko-wails` is the first desktop client of the `sakiko` project.
+`sakiko-wails` is the first desktop client of the `Sakiko` project.
 It uses `Wails3 + React + MUI`, while all core task, profile, archive, and report logic stays in `sakiko-core`.
 
 This README records the current desktop-side implementation status instead of the default Wails template.
+
+`Sakiko` is a personal project by Kanda Akihito (`鼠鼠今天吃嘉然`).
+It started as a desktop MVP after `miaospeed` stopped moving for a long time, with the current desktop shell taking page and interaction cues from `clash-verge-rev`.
 
 ## Current Status (2026-04-07)
 
@@ -80,6 +83,14 @@ Keep these boundaries stable:
 - `sakiko-core` owns profile parsing, task execution, result archive, and report model
 - `sakiko-wails` owns page composition, interaction flow, result browsing, and image export
 - frontend state is a consumer of backend contracts, not the source of truth for task history
+
+## Reference Projects
+
+The current desktop implementation intentionally learns from several existing projects while keeping `Sakiko` as its own codebase:
+
+- architecture and execution abstractions reference `miaospeed`
+- page structure and interaction flow reference `clash-verge-rev`
+- media unlock capability references `RegionRestrictionCheck`
 
 ## Development
 

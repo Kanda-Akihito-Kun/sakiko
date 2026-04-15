@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "sakiko.exe"
+name: "Sakiko"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "My Product Description"
-vendor: "My Company"
+description: "Desktop proxy benchmark and speed test tool"
+vendor: "Kanda Akihito"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/sakiko.exe"
-    dst: "/usr/local/bin/sakiko.exe"
+  - src: "./bin/Sakiko"
+    dst: "/usr/local/bin/Sakiko"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/sakiko.exe.png"
-  - src: "./build/linux/sakiko.exe.desktop"
-    dst: "/usr/share/applications/sakiko.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/Sakiko.png"
+  - src: "./build/linux/Sakiko.desktop"
+    dst: "/usr/share/applications/Sakiko.desktop"
 
 # Default dependencies for Debian 12/Ubuntu 22.04+ with WebKit 4.1
 depends:

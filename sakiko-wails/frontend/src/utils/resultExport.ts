@@ -7,6 +7,7 @@
 import {
   formatBackendLabel,
   formatProtocolLibraryLabel,
+  formatProxyTypeLabel,
   summarizeDownloadTargetFooter,
 } from "./dashboard";
 import type { ResolvedThemeMode } from "../theme/appTheme";
@@ -328,7 +329,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, archive: ResultArchive, width
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = `700 24px ${FONT_FAMILY}`;
-  ctx.fillText(`sakiko - ${mainTitle} | ${profileName}`, width / 2, PAGE_PADDING_Y + 20);
+  ctx.fillText(`Sakiko - ${mainTitle} | ${profileName}`, width / 2, PAGE_PADDING_Y + 20);
 
   ctx.fillStyle = palette.mutedText;
   ctx.font = `500 12px ${FONT_FAMILY}`;
@@ -1090,11 +1091,7 @@ function formatBytesAsMegabytes(value: unknown): string {
 }
 
 function formatProxyType(value: unknown): string {
-  if (!value) {
-    return "Unknown";
-  }
-  const source = String(value);
-  return source.charAt(0).toUpperCase() + source.slice(1);
+  return formatProxyTypeLabel(String(value || ""));
 }
 
 function extractMatrixValue(matrices: MatrixResult[], type: string): unknown {

@@ -4,7 +4,7 @@ import { alpha } from "@mui/material/styles";
 import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
-import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
+import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatProxyTypeLabel, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
 import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
 import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
@@ -88,7 +88,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
                           </Typography>
                         </Box>
                         <Chip
-                          label={result.proxyInfo.type || t("shared.states.unknown")}
+                          label={formatProxyTypeLabel(result.proxyInfo.type)}
                           size="small"
                           color="primary"
                           variant="outlined"

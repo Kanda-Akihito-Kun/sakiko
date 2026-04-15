@@ -72,7 +72,7 @@
       "title": "Profiles",
       "loaded": "{{count}} loaded",
       "noProfilesTitle": "No profiles yet",
-      "noProfilesDescription": "Import a subscription to start the desktop flow.",
+      "noProfilesDescription": "Import a subscription to start testing.",
       "noTimestamp": "No timestamp"
     },
     "detail": {

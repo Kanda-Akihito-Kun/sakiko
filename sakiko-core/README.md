@@ -1,9 +1,12 @@
 # sakiko-core
 
-`sakiko-core` is the reusable Go kernel of the `sakiko` project.
+`sakiko-core` is the reusable Go kernel of the `Sakiko` project.
 It is responsible for node parsing, task scheduling, proxy dialing, test execution, result extraction, and external communication.
 
 This document records the current MVP architecture and implementation status.
+
+`Sakiko` began as a personal MVP after `miaospeed` had gone quiet for a long time.
+The current implementation still keeps that original goal: ship a reusable desktop-first kernel for proxy benchmarking without cloning the old project blindly.
 
 ## 0. Current MVP Status (2026-04-07)
 
@@ -79,6 +82,14 @@ Learn and reuse these ideas:
 - clear module boundaries
 - separate config, runtime, feature, and core lifecycle responsibilities
 - keep integration entrypoints thin and push logic downward
+
+### From `RegionRestrictionCheck`
+
+Learn and reuse these ideas:
+
+- media unlock probing as a dedicated capability instead of UI-only decoration
+- explicit platform-by-platform result modeling for report generation
+- keep unlock checks separable from the rest of the execution pipeline
 
 ### From `GUI.for.Clash`
 
@@ -163,7 +174,7 @@ This is the heart of `sakiko-core`.
   - low-level HTTP / TCP / UDP helpers
   - reusable transport utilities
 
-This layer should follow the `Vendor -> Macro -> Matrix` model from `miaospeed`, but keep naming and contracts aligned with `sakiko`.
+This layer should follow the `Vendor -> Macro -> Matrix` model from `miaospeed`, but keep naming and contracts aligned with `Sakiko`.
 
 ### 4.4 External Access Layer
 

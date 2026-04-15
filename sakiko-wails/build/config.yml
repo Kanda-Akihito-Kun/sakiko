@@ -1,19 +1,14 @@
-# This file contains the configuration for this project.
-# When you update `info` or `fileAssociations`, run `wails3 task common:update:build-assets` to update the assets.
-# Note that this will overwrite any changes you have made to the assets.
-version: '3'
+version: "3"
 
-# This information is used to generate the build assets.
 info:
-  companyName: "sakiko" # The name of the company
-  productName: "sakiko" # The name of the application
-  productIdentifier: "io.sakiko.desktop" # The unique product identifier
-  description: "Desktop client for subscription import and proxy testing" # The application description
-  copyright: "(c) 2026, sakiko" # Copyright text
-  comments: "Powered by sakiko-core" # Comments
-  version: "0.1.0" # The application version
+  companyName: "Kanda Akihito"
+  productName: "Sakiko"
+  productIdentifier: "io.github.kanda-akihito-kun.sakiko"
+  description: "Desktop proxy benchmark and speed test tool"
+  copyright: "(c) 2026, Kanda Akihito"
+  comments: ""
+  version: "0.1.0"
 
-# Dev mode configuration
 dev_mode:
   root_path: .
   log_level: warn
@@ -30,8 +25,8 @@ dev_mode:
       - .gitkeep
     watched_extension:
       - "*.go"
-      - "*.js" # Watch for changes to JS/TS files included using the //wails:include directive.
-      - "*.ts" # The frontend directory will be excluded entirely by the setting above.
+      - "*.js"
+      - "*.ts"
     git_ignore: true
   executes:
     - cmd: wails3 task build
@@ -40,22 +35,3 @@ dev_mode:
       type: background
     - cmd: wails3 task run
       type: primary
-
-# File Associations
-# More information at: https://v3.wails.io/noit/done/yet
-fileAssociations:
-#  - ext: wails
-#    name: Wails
-#    description: Wails Application File
-#    iconName: wailsFileIcon
-#    role: Editor
-#  - ext: jpg
-#    name: JPEG
-#    description: Image File
-#    iconName: jpegFileIcon
-#    role: Editor
-#    mimeType: image/jpeg  # (optional)
-
-# Other data
-other:
-  - name: My Other Data

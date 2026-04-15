@@ -10,24 +10,24 @@
     <Installer
         Path="sakiko.exe"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\Kanda Akihito\sakiko">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="sakiko"
+        PackageDisplayName="sakiko"
+        PublisherName="CN=Kanda Akihito"
+        PublisherDisplayName="Kanda Akihito"
         Version="0.1.0.0"
-        PackageDescription="My Product Description">
+        PackageDescription="Desktop proxy benchmark and speed test tool">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
         </Capabilities>
         <Applications>
             <Application
-                Id="com.wails.sakiko"
-                Description="My Product Description"
-                DisplayName="My Product"
+                Id="io.github.kanda-akihito-kun.sakiko"
+                Description="Desktop proxy benchmark and speed test tool"
+                DisplayName="sakiko"
                 ExecutableName="sakiko.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,9 +41,9 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>My Product Description</Description>
+            <DisplayName>sakiko</DisplayName>
+            <PublisherDisplayName>Kanda Akihito</PublisherDisplayName>
+            <Description>Desktop proxy benchmark and speed test tool</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>

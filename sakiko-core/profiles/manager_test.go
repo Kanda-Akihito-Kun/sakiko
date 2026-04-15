@@ -168,6 +168,53 @@ func TestManagerImportBase64Subscription(t *testing.T) {
 	}
 }
 
+func TestManagerImportAnyTLSSubscription(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profiles.yaml")
+
+	m, err := NewManager(Config{StorePath: path})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+proxies:
+  - name: anytls-demo
+    type: anytls
+    server: 1.2.3.4
+    port: 443
+    password: demo
+    sni: example.com
+    udp: true
+`))
+	}))
+	defer server.Close()
+
+	profile, err := m.Import(interfaces.ProfileImportRequest{
+		Name:   "anytls-sub",
+		Source: server.URL,
+	})
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+
+	if len(profile.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(profile.Nodes))
+	}
+	if profile.Nodes[0].Protocol != "anytls" || profile.Nodes[0].Server != "1.2.3.4" || profile.Nodes[0].Port != "443" {
+		t.Fatalf("expected imported AnyTLS metadata, got %+v", profile.Nodes[0])
+	}
+
+	vendor := (&mihomo.Vendor{}).Build(profile.Nodes[0])
+	if vendor.Status() != interfaces.VStatusOperational {
+		t.Fatalf("expected mihomo vendor to recognize AnyTLS payload")
+	}
+	if vendor.ProxyInfo().Type != interfaces.ProxyAnyTLS {
+		t.Fatalf("expected AnyTLS proxy type, got %+v", vendor.ProxyInfo())
+	}
+}
+
 func TestManagerDeleteRemovesProfileFromIndexAndContentDirectory(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profiles.yaml")
