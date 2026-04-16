@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useNotificationStore } from "./notificationStore";
+import { useNotificationStore } from "../src/store/notificationStore";
 
 describe("notificationStore", () => {
   beforeEach(() => {

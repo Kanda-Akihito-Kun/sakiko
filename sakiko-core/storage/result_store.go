@@ -342,7 +342,8 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 		avgSpeed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixAverageSpeed)
 		maxSpeed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixMaxSpeed)
 		perSecond, _ := extractUint64SliceMatrix(result.Matrices, interfaces.MatrixPerSecSpeed)
-		trafficUsed, _ := extractUint64Matrix(result.Matrices, interfaces.MatrixTrafficUsed)
+		trafficUsed, trafficMeasured := extractUint64Matrix(result.Matrices, interfaces.MatrixTrafficUsed)
+		rowError := speedSectionStatus(result.Error, trafficUsed, trafficMeasured)
 
 		rows = append(rows, map[string]any{
 			"nodeName":                result.ProxyInfo.Name,
@@ -354,14 +355,14 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 			"maxBytesPerSecond":       maxSpeed,
 			"perSecondBytesPerSecond": perSecond,
 			"trafficUsedBytes":        trafficUsed,
-			"error":                   result.Error,
+			"error":                   rowError,
 		})
 	}
 
 	successCount := 0
 	for index, row := range rows {
 		row["rank"] = index + 1
-		if row["error"] == "" {
+		if strings.TrimSpace(fmt.Sprint(row["error"])) == "" {
 			successCount++
 		}
 	}
@@ -388,6 +389,16 @@ func buildSpeedSection(snapshot interfaces.TaskArchiveSnapshot) interfaces.Resul
 			"preset":       snapshot.Task.Context.Preset,
 		},
 	}
+}
+
+func speedSectionStatus(resultError string, trafficUsed uint64, trafficMeasured bool) string {
+	if strings.TrimSpace(resultError) != "" {
+		return resultError
+	}
+	if trafficMeasured && trafficUsed == 0 {
+		return "Failed"
+	}
+	return ""
 }
 
 func buildTopologySection(snapshot interfaces.TaskArchiveSnapshot) interfaces.ResultReportSection {

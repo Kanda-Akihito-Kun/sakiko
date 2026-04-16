@@ -162,11 +162,13 @@ export function DashboardPage() {
             spacing={1.5}
             justifyContent="space-between"
             alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
             className="sakiko-content__header"
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h5" noWrap>{activeNav.label}</Typography>
-              <Typography variant="body2" color="text.secondary" noWrap>
+              <Typography variant="h5" noWrap title={activeNav.label}>{activeNav.label}</Typography>
+              <Typography variant="body2" color="text.secondary" noWrap title={activeNav.subtitle}>
                 {activeNav.subtitle}
               </Typography>
             </Box>
@@ -191,6 +193,7 @@ export function DashboardPage() {
                   variant="outlined"
                   sx={{
                     maxWidth: 280,
+                    minWidth: 0,
                     "& .MuiChip-label": {
                       overflow: "hidden",
                       textOverflow: "ellipsis",

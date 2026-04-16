@@ -35,7 +35,7 @@ func TestResultStoreSaveLoadAndList(t *testing.T) {
 				{Type: interfaces.MatrixTrafficUsed},
 			},
 			Config: interfaces.TaskConfig{
-				PingAddress:       "https://www.gstatic.com/generate_204",
+				PingAddress:       "https://cp.cloudflare.com/generate_204",
 				TaskTimeoutMillis: 6000,
 				DownloadURL:       "https://speed.cloudflare.com/__down?bytes=10000000",
 				DownloadDuration:  10,
@@ -287,6 +287,33 @@ func TestBuildSpeedSectionPreservesTaskNodeOrder(t *testing.T) {
 	}
 	if got := section.Rows[1]["rank"]; got != 2 {
 		t.Fatalf("expected second row rank 2, got %#v", got)
+	}
+}
+
+func TestBuildSpeedSectionMarksZeroTrafficRowFailed(t *testing.T) {
+	t.Parallel()
+
+	section := buildSpeedSection(interfaces.TaskArchiveSnapshot{
+		Task: interfaces.Task{
+			Context: interfaces.TaskContext{Preset: "speed"},
+		},
+		Results: []interfaces.EntryResult{
+			{
+				ProxyInfo: interfaces.ProxyInfo{Name: "node-a", Type: interfaces.ProxyShadowsocks},
+				Matrices: []interfaces.MatrixResult{
+					{Type: interfaces.MatrixAverageSpeed, Payload: map[string]any{"value": uint64(0)}},
+					{Type: interfaces.MatrixMaxSpeed, Payload: map[string]any{"value": uint64(0)}},
+					{Type: interfaces.MatrixTrafficUsed, Payload: map[string]any{"value": uint64(0)}},
+				},
+			},
+		},
+	})
+
+	if got := section.Rows[0]["error"]; got != "Failed" {
+		t.Fatalf("expected zero-traffic row status Failed, got %#v", got)
+	}
+	if got := section.Summary["successCount"]; got != 0 {
+		t.Fatalf("expected successCount 0 for zero-traffic row, got %#v", got)
 	}
 }
 

@@ -67,7 +67,7 @@ export function TaskLauncherPanel({
         </Box>
 
         <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="flex-end" alignItems="flex-start" spacing={1}>
+          <Stack direction="row" justifyContent="flex-end" alignItems="flex-start" spacing={1} sx={{ minWidth: 0 }}>
             <Button
               size="small"
               variant="outlined"
@@ -99,7 +99,7 @@ export function TaskLauncherPanel({
           </Box>
         </Stack>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
           <Button
             variant="contained"
             startIcon={<PlayCircleFilledWhiteRounded />}
@@ -113,6 +113,14 @@ export function TaskLauncherPanel({
             label={activeProfileId ? t("dashboard.tasks.launcher.targetProfileSelected") : t("dashboard.tasks.launcher.selectProfileToRun")}
             variant="outlined"
             color={activeProfileId ? "success" : "default"}
+            sx={{
+              maxWidth: "100%",
+              "& .MuiChip-label": {
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+            }}
           />
         </Stack>
 
@@ -125,18 +133,23 @@ export function TaskLauncherPanel({
                 key={task.taskId}
                 selected={task.taskId === activeTaskId}
                 onClick={() => void onInspectTask(task.taskId)}
-                sx={{ alignItems: "flex-start", flexDirection: "column" }}
+                sx={{ alignItems: "flex-start", flexDirection: "column", minWidth: 0 }}
               >
                 <Stack width="100%" spacing={1}>
-                  <Stack direction="row" justifyContent="space-between" spacing={1}>
+                  <Stack direction="row" justifyContent="space-between" spacing={1} sx={{ minWidth: 0, alignItems: "flex-start" }}>
                     <ListItemText
                       primary={task.name}
                       secondary={formatTaskStatus(task.status)}
-                      primaryTypographyProps={{ fontWeight: 600, noWrap: true, className: shouldUseEmojiFont("nodeName", task.name) ? "sakiko-emoji" : undefined }}
+                      primaryTypographyProps={{
+                        fontWeight: 600,
+                        noWrap: true,
+                        title: task.name,
+                        className: shouldUseEmojiFont("nodeName", task.name) ? "sakiko-emoji" : undefined,
+                      }}
                       secondaryTypographyProps={{ noWrap: true }}
                       sx={{ minWidth: 0 }}
                     />
-                    <Typography variant="caption" className="sakiko-mono" color="text.secondary">
+                    <Typography variant="caption" className="sakiko-mono" color="text.secondary" sx={{ flexShrink: 0 }}>
                       {task.progress}/{task.total}
                     </Typography>
                   </Stack>
@@ -146,7 +159,7 @@ export function TaskLauncherPanel({
                     sx={{ width: "100%", height: 6, borderRadius: 999 }}
                   />
                   {activeSummary ? (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                       {activeSummary}
                     </Typography>
                   ) : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, getFilteredNodes } from "../src/utils/dashboard";
+import { formatDateTime, getFilteredNodes } from "../src/utils/dashboardBasic";
 
 describe("dashboard utilities", () => {
   it("formats RFC3339 timestamps into local readable text", () => {
@@ -9,19 +9,17 @@ describe("dashboard utilities", () => {
   });
 
   it("filters nodes by case-insensitive substring", () => {
-    const result = getFilteredNodes(
-      {
-        id: "p1",
-        name: "demo",
-        source: "",
-        nodes: [
-          { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
-          { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", enabled: true },
-        ],
-        updatedAt: "",
-      },
-      "hk",
-    );
+    const profile = {
+      id: "p1",
+      name: "demo",
+      source: "",
+      nodes: [
+        { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
+        { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", enabled: true },
+      ],
+      updatedAt: "",
+    };
+    const result = getFilteredNodes(profile, "hk");
 
     expect(result).toHaveLength(1);
     expect(result[0]?.node.name).toBe("HK-01");
@@ -29,19 +27,17 @@ describe("dashboard utilities", () => {
   });
 
   it("filters nodes by structured metadata", () => {
-    const result = getFilteredNodes(
-      {
-        id: "p1",
-        name: "demo",
-        source: "",
-        nodes: [
-          { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
-          { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", udp: true, enabled: true },
-        ],
-        updatedAt: "",
-      },
-      "8443",
-    );
+    const profile = {
+      id: "p1",
+      name: "demo",
+      source: "",
+      nodes: [
+        { name: "HK-01", protocol: "vmess", server: "hk.example.com", port: "443", enabled: true },
+        { name: "US-02", protocol: "trojan", server: "us.example.com", port: "8443", udp: true, enabled: true },
+      ],
+      updatedAt: "",
+    };
+    const result = getFilteredNodes(profile, "8443");
 
     expect(result).toHaveLength(1);
     expect(result[0]?.node.name).toBe("US-02");

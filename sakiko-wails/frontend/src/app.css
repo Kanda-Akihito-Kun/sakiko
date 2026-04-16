@@ -55,6 +55,7 @@
   flex: 1;
   overflow: auto;
   padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .sakiko-sidebar__nav .MuiListItemButton-root {
@@ -88,22 +89,25 @@
 .sakiko-content__header {
   flex: 0 0 auto;
   z-index: 2;
+  min-width: 0;
   padding: 22px 24px 18px;
   border-bottom: 1px solid var(--divider-color);
   background: var(--header-background);
   backdrop-filter: blur(10px);
+  overflow: hidden;
 }
 
 .sakiko-content__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   padding: 22px 24px 28px;
 }
 
 .sakiko-section-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  grid-template-columns: clamp(320px, 28vw, 360px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -113,19 +117,46 @@
   display: grid;
   gap: 18px;
   align-content: start;
+  min-width: 0;
+}
+
+.sakiko-section-grid__sidebar > *,
+.sakiko-section-grid__content > * {
+  min-width: 0;
 }
 
 .sakiko-overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+  grid-template-columns: clamp(320px, 28vw, 360px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.sakiko-overview-grid > * {
+  min-width: 0;
 }
 
 .sakiko-results-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.sakiko-results-grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 1520px) {
+  .sakiko-results-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 2048px) {
+  .sakiko-results-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .sakiko-mono {

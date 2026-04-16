@@ -17,7 +17,7 @@ describe("dashboard payload builders", () => {
 
   it("creates a plain object payload for SubmitProfileTask", () => {
     const taskConfig = {
-      pingAddress: "https://www.gstatic.com/generate_204",
+      pingAddress: "https://cp.cloudflare.com/generate_204",
       pingAverageOver: 2,
       taskRetry: 2,
       taskTimeoutMillis: 6000,
@@ -35,7 +35,8 @@ describe("dashboard payload builders", () => {
       preset: "ping+geo",
       presets: ["ping", "geo"],
       config: {
-        pingAddress: "https://www.gstatic.com/generate_204",
+        backendIdentity: "",
+        pingAddress: "https://cp.cloudflare.com/generate_204",
         pingAverageOver: 2,
         taskRetry: 2,
         taskTimeoutMillis: 6000,

@@ -12,27 +12,28 @@ export function OverviewRow({ label, value, mono = false, multiline = false }: O
   return (
     <Box
       sx={(theme) => ({
-        display: "flex",
-        justifyContent: "space-between",
+        display: "grid",
+        gridTemplateColumns: multiline ? "minmax(0, 1fr)" : "minmax(104px, auto) minmax(0, 1fr)",
         gap: 2,
         alignItems: multiline ? "flex-start" : "center",
-        flexWrap: multiline ? "wrap" : "nowrap",
         p: 1.25,
         borderRadius: 2,
         backgroundColor: alpha(theme.palette.primary.main, 0.06),
+        minWidth: 0,
       })}
     >
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0 }}>
         {label}
       </Typography>
       <Typography
         variant="body2"
         className={mono ? "sakiko-mono" : undefined}
         noWrap={!multiline}
+        title={!multiline ? value : undefined}
         sx={{
           minWidth: 0,
-          flex: multiline ? "1 1 100%" : "0 1 auto",
           textAlign: multiline ? "left" : "right",
+          justifySelf: multiline ? "stretch" : "end",
           whiteSpace: multiline ? "pre-wrap" : undefined,
           overflowWrap: multiline ? "anywhere" : undefined,
           wordBreak: multiline ? "break-word" : undefined,

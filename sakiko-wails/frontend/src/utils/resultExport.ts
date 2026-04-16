@@ -234,6 +234,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
           rank: row.rank ?? index + 1,
           ...row,
           proxyType: formatProxyType(row.proxyType),
+          error: normalizeSpeedSectionStatus(row.error, row.trafficUsedBytes, Object.prototype.hasOwnProperty.call(row, "trafficUsedBytes")),
         })),
       };
     case "topology_table":
@@ -660,6 +661,17 @@ function renderCellValue(kind: string, key: string, value: unknown, archive: Res
     return truncateTextWithLimit(String(value), archive.task.context?.preset === "full" ? 36 : 40);
   }
   return String(value);
+}
+
+function normalizeSpeedSectionStatus(error: unknown, trafficUsedBytes: unknown, trafficMeasured: boolean): string {
+  const status = String(error || "").trim();
+  if (status) {
+    return status;
+  }
+  if (trafficMeasured && numericValue(trafficUsedBytes) <= 0) {
+    return "Failed";
+  }
+  return "";
 }
 
 function buildFallbackMetrics(matrices: MatrixResult[]): string {

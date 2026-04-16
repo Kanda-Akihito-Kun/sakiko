@@ -70,6 +70,14 @@ export function DashboardHero({
               icon={<PlayCircleOutlineRounded />}
               label={activeTaskName ? t("dashboard.overview.hero.focused", { name: activeTaskName }) : t("dashboard.overview.hero.noFocusedTask")}
               variant="outlined"
+              sx={{
+                maxWidth: "100%",
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                },
+              }}
             />
           </Stack>
         </Stack>
@@ -114,7 +122,7 @@ type WorkspaceRowProps = {
 
 function WorkspaceRow({ label, value, mono = false, accent }: WorkspaceRowProps) {
   return (
-    <Box sx={{ px: 2, py: 1.5 }}>
+    <Box sx={{ px: 2, py: 1.5, minWidth: 0 }}>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         {label}
       </Typography>
@@ -122,6 +130,7 @@ function WorkspaceRow({ label, value, mono = false, accent }: WorkspaceRowProps)
         variant="body2"
         className={mono ? "sakiko-mono" : undefined}
         noWrap
+        title={value}
         sx={(theme) => ({
           color:
             accent === "warning"
@@ -136,6 +145,7 @@ function WorkspaceRow({ label, value, mono = false, accent }: WorkspaceRowProps)
           minHeight: accent ? 28 : "auto",
           px: accent ? 1 : 0,
           maxWidth: "100%",
+          minWidth: 0,
         })}
       >
         {value}

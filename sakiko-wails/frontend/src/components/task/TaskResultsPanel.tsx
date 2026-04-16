@@ -1,14 +1,13 @@
 import InsightsRounded from "@mui/icons-material/InsightsRounded";
-import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
-import { alpha } from "@mui/material/styles";
-import { Box, Card, Chip, Divider, Stack, Typography } from "@mui/material";
+import { Box, Card, Chip, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
-import { describeTaskActiveNode, formatDuration, formatMacroLabel, formatMatrixLabel, formatMatrixPayload, formatProxyTypeLabel, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
+import { describeTaskActiveNode, formatMacroLabel, formatMatrixLabel, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
 import { buildMediaMatrixFromResults } from "../../utils/mediaMatrix";
 import { MediaUnlockMatrix } from "../media/MediaUnlockMatrix";
 import { EmptyState } from "../shared/EmptyState";
 import { SectionCard } from "../shared/SectionCard";
+import { ResultEntryCard } from "./ResultEntryCard";
 
 type TaskResultsPanelProps = {
   activeTask: TaskStatusResponse | null;
@@ -76,69 +75,7 @@ export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
 
               <div className="sakiko-results-grid">
                 {(activeTask.results || []).map((result, index) => (
-                  <Card key={`${result.proxyInfo.name}-${index}`} variant="outlined" sx={{ p: 2.25 }}>
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" justifyContent="space-between" spacing={1}>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="h6" noWrap className={shouldUseEmojiFont("nodeName", result.proxyInfo.name) ? "sakiko-emoji" : undefined}>
-                            {result.proxyInfo.name || t("shared.states.unnamedNode")}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" noWrap>
-                            {result.proxyInfo.address || t("shared.states.noAddress")}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={formatProxyTypeLabel(result.proxyInfo.type)}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </Stack>
-
-                      <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", overflowX: "auto", pb: 0.25 }}>
-                        <Chip
-                          icon={<QueryStatsRounded />}
-                          label={formatDuration(result.invokeDuration)}
-                          size="small"
-                        />
-                        <Chip
-                          label={t("shared.formats.matricesCount", { count: result.matrices.length })}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Stack>
-
-                      {result.error && (
-                        <Typography variant="body2" color="error.main">
-                          {result.error}
-                        </Typography>
-                      )}
-
-                      <Divider sx={{ borderColor: "divider" }} />
-                      <Stack spacing={1}>
-                        {result.matrices.map((matrix, matrixIndex) => (
-                          <Box
-                            key={`${matrix.type}-${matrixIndex}`}
-                            sx={(theme) => ({
-                              display: "flex",
-                              justifyContent: "space-between",
-                              gap: 1.5,
-                              p: 1.25,
-                              borderRadius: 2,
-                              bgcolor: alpha(theme.palette.primary.main, 0.08),
-                            })}
-                          >
-                            <Typography variant="body2" color="text.secondary">
-                              {formatMatrixLabel(matrix.type)}
-                            </Typography>
-                            <Typography variant="body2" className="sakiko-mono" noWrap sx={{ minWidth: 0, textAlign: "right" }}>
-                              {formatMatrixPayload(matrix.payload, matrix.type)}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Stack>
-                  </Card>
+                  <ResultEntryCard key={`${result.proxyInfo.name}-${index}`} result={result} />
                 ))}
               </div>
             </Stack>
@@ -171,14 +108,24 @@ function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
     : (activeNode.matrices || []).map((matrix) => formatMatrixLabel(matrix));
 
   return (
-    <Card variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={1.25}>
-        <Stack direction="row" justifyContent="space-between" spacing={1}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" noWrap className={shouldUseEmojiFont("nodeName", activeNode.nodeName) ? "sakiko-emoji" : undefined}>
+    <Card variant="outlined" sx={{ p: 2, height: "100%", minWidth: 0 }}>
+      <Stack spacing={1.25} sx={{ minWidth: 0, height: "100%" }}>
+        <Stack direction="row" justifyContent="space-between" spacing={1} sx={{ minWidth: 0, alignItems: "flex-start" }}>
+          <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
+            <Typography
+              variant="subtitle1"
+              noWrap
+              title={activeNode.nodeName || t("shared.formats.nodeNumber", { index: activeNode.nodeIndex + 1 })}
+              className={shouldUseEmojiFont("nodeName", activeNode.nodeName) ? "sakiko-emoji" : undefined}
+            >
               {activeNode.nodeName || t("shared.formats.nodeNumber", { index: activeNode.nodeIndex + 1 })}
             </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              noWrap
+              title={activeNode.nodeAddress || t("shared.states.addressPending")}
+            >
               {activeNode.nodeAddress || t("shared.states.addressPending")}
             </Typography>
           </Box>
@@ -190,7 +137,7 @@ function ActiveNodeCard({ activeNode }: ActiveNodeCardProps) {
           />
         </Stack>
 
-        <Typography variant="body2">
+        <Typography variant="body2" sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
           {describeTaskActiveNode(activeNode)}
         </Typography>
 
@@ -222,12 +169,18 @@ function ResultMetric({ label, value, mono = false }: ResultMetricProps) {
         p: 1.75,
         bgcolor: "background.default",
         borderColor: "divider",
+        minWidth: 0,
       }}
     >
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         {label}
       </Typography>
-      <Typography className={mono ? "sakiko-mono" : undefined} fontWeight={600} noWrap>
+      <Typography
+        className={mono ? "sakiko-mono" : undefined}
+        fontWeight={600}
+        noWrap
+        title={value}
+      >
         {value}
       </Typography>
     </Card>

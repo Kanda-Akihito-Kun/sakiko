@@ -34,7 +34,7 @@ type TaskConfig struct {
 
 func (c TaskConfig) Normalize() TaskConfig {
 	if c.PingAddress == "" {
-		c.PingAddress = "https://www.gstatic.com/generate_204"
+		c.PingAddress = "https://cp.cloudflare.com/generate_204"
 	}
 	if c.PingAverageOver == 0 {
 		c.PingAverageOver = 1

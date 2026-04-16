@@ -27,7 +27,7 @@ export function ProfileListPanel({ profiles, activeProfileId, onSelect }: Profil
             key={profile.id}
             selected={profile.id === activeProfileId}
             onClick={() => void onSelect(profile.id)}
-            sx={{ alignItems: "flex-start", px: 1.75, py: 1.5 }}
+            sx={{ alignItems: "flex-start", px: 1.75, py: 1.5, minWidth: 0 }}
           >
             <ListItemText
               primary={profile.name || t("shared.states.unnamedProfile")}
@@ -36,15 +36,26 @@ export function ProfileListPanel({ profiles, activeProfileId, onSelect }: Profil
                   <Typography variant="body2" color="text.secondary" noWrap>
                     {t("shared.formats.nodeCount", { count: profile.nodeCount })}
                   </Typography>
-                  <Typography variant="caption" className="sakiko-mono" color="text.secondary" noWrap>
+                  <Typography
+                    variant="caption"
+                    className="sakiko-mono"
+                    color="text.secondary"
+                    noWrap
+                    title={profile.updatedAt || t("dashboard.profiles.list.noTimestamp")}
+                  >
                     {profile.updatedAt || t("dashboard.profiles.list.noTimestamp")}
                   </Typography>
                 </Box>
               }
-              primaryTypographyProps={{ fontWeight: 600, noWrap: true, className: shouldUseEmojiFont("nodeName", profile.name) ? "sakiko-emoji" : undefined }}
+              primaryTypographyProps={{
+                fontWeight: 600,
+                noWrap: true,
+                title: profile.name || t("shared.states.unnamedProfile"),
+                className: shouldUseEmojiFont("nodeName", profile.name) ? "sakiko-emoji" : undefined,
+              }}
               sx={{ minWidth: 0, mr: 1 }}
             />
-            <Chip label={profile.id.slice(0, 8)} size="small" variant="outlined" />
+            <Chip label={profile.id.slice(0, 8)} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
           </ListItemButton>
         ))}
 

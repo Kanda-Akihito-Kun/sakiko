@@ -1,13 +1,12 @@
 import type { DownloadTarget, Profile, ResultArchiveTask, TaskActiveNode } from "../types/sakiko";
 import type { TaskPreset, TaskPresetSelection } from "../types/dashboard";
+import type { FilteredProfileNode as DashboardFilteredProfileNode } from "./dashboardBasic";
 import { taskPresets, taskPresetChildren } from "../constants/dashboard";
 import { translate } from "../services/i18n";
 import { filterVisibleMediaUnlockItems } from "./mediaUnlock";
+export { formatDateTime, getFilteredNodes } from "./dashboardBasic";
 
-export type FilteredProfileNode = {
-  index: number;
-  node: Profile["nodes"][number];
-};
+export type FilteredProfileNode = DashboardFilteredProfileNode<Profile["nodes"][number]>;
 
 export function normalizeError(err: unknown): string {
   if (err instanceof Error) {
@@ -15,29 +14,6 @@ export function normalizeError(err: unknown): string {
   }
 
   return String(err);
-}
-
-export function getFilteredNodes(activeProfile: Profile | null, nodeFilter: string) {
-  const keyword = nodeFilter.trim().toLowerCase();
-  if (!activeProfile) {
-    return [];
-  }
-
-  if (!keyword) {
-    return activeProfile.nodes.map((node, index) => ({ node, index }));
-  }
-
-  return activeProfile.nodes.flatMap((node, index) => (
-    [
-      node.name,
-      node.protocol || "",
-      node.server || "",
-      node.port || "",
-      node.udp === true ? "udp" : node.udp === false ? "no udp" : "",
-    ].some((value) => value.toLowerCase().includes(keyword))
-      ? [{ node, index }]
-      : []
-  ));
 }
 
 export function formatMatrixPayload(payload: unknown, type?: string): string {
@@ -320,26 +296,6 @@ function splitPresetGroups(preset?: string): string[] {
     return ["ping", "geo", "speed", "media"];
   }
   return normalized.split(/[+,]/).map((item) => item.trim()).filter(Boolean);
-}
-
-export function formatDateTime(value?: string): string {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(date);
 }
 
 export function summarizeResultMetrics(preset?: string): string {

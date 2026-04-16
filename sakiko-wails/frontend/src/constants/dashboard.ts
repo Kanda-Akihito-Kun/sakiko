@@ -7,7 +7,7 @@ export const initialImportForm: ImportForm = {
 };
 
 export const initialTaskConfig = new TaskConfig({
-  pingAddress: "https://www.gstatic.com/generate_204",
+  pingAddress: "https://cp.cloudflare.com/generate_204",
   pingAverageOver: 2,
   taskRetry: 2,
   taskTimeoutMillis: 6000,
