@@ -42,19 +42,33 @@ export function TaskLauncherPanel({
       title={t("dashboard.tasks.launcher.title")}
       subtitle={t("dashboard.tasks.launcher.subtitle")}
       icon={<TuneRounded color="primary" />}
+      action={(
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<SettingsRounded />}
+          onClick={onOpenSettings}
+        >
+          {t("shared.actions.openSettings")}
+        </Button>
+      )}
     >
       <Stack spacing={2}>
         <Box sx={{ maxWidth: "100%", overflowX: "auto", pb: 0.25 }}>
           <ToggleButtonGroup
             value={taskPreset}
             sx={{
-              display: "inline-flex",
-              flexWrap: "nowrap",
-              width: "max-content",
-              minWidth: "100%",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 0.75,
+              width: "100%",
               "& .MuiToggleButton-root": {
-                flex: "0 0 auto",
+                flex: "1 1 104px",
                 whiteSpace: "nowrap",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                ml: "0 !important",
               },
             }}
           >
@@ -66,24 +80,23 @@ export function TaskLauncherPanel({
           </ToggleButtonGroup>
         </Box>
 
-        <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="flex-end" alignItems="flex-start" spacing={1} sx={{ minWidth: 0 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<SettingsRounded />}
-              onClick={onOpenSettings}
-            >
-              {t("shared.actions.openSettings")}
-            </Button>
-          </Stack>
-
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.25,
+            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" },
+            alignItems: "center",
+            minWidth: 0,
+          }}
+        >
           <Box
             sx={{
               borderRadius: 2,
               border: (theme) => `1px solid ${theme.palette.divider}`,
+              bgcolor: "background.default",
               px: 1.5,
               py: 1.25,
+              minWidth: 0,
             }}
           >
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -97,32 +110,32 @@ export function TaskLauncherPanel({
               <Chip size="small" label={summarizeDownloadTarget(taskConfig.downloadURL)} variant="outlined" />
             </Stack>
           </Box>
-        </Stack>
 
-        <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
-          <Button
-            variant="contained"
-            startIcon={<PlayCircleFilledWhiteRounded />}
-            disabled={submitting || !activeProfileId || taskPreset.filter((preset) => preset !== "full").length === 0}
-            onClick={onRunTask}
-          >
-            {t("dashboard.tasks.launcher.runPreset", { preset: formatTaskPresetSelectionLabel(taskPreset) })}
-          </Button>
-          <Chip
-            icon={<ScheduleRounded />}
-            label={activeProfileId ? t("dashboard.tasks.launcher.targetProfileSelected") : t("dashboard.tasks.launcher.selectProfileToRun")}
-            variant="outlined"
-            color={activeProfileId ? "success" : "default"}
-            sx={{
-              maxWidth: "100%",
-              "& .MuiChip-label": {
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              },
-            }}
-          />
-        </Stack>
+          <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+            <Button
+              variant="contained"
+              startIcon={<PlayCircleFilledWhiteRounded />}
+              disabled={submitting || !activeProfileId || taskPreset.filter((preset) => preset !== "full").length === 0}
+              onClick={onRunTask}
+            >
+              {t("dashboard.tasks.launcher.runPreset", { preset: formatTaskPresetSelectionLabel(taskPreset) })}
+            </Button>
+            <Chip
+              icon={<ScheduleRounded />}
+              label={activeProfileId ? t("dashboard.tasks.launcher.targetProfileSelected") : t("dashboard.tasks.launcher.selectProfileToRun")}
+              variant="outlined"
+              color={activeProfileId ? "success" : "default"}
+              sx={{
+                maxWidth: "100%",
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                },
+              }}
+            />
+          </Stack>
+        </Box>
 
         <List disablePadding>
           {tasks.map((task) => {

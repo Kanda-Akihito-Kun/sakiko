@@ -41,14 +41,20 @@
 }
 
 .sakiko-sidebar__logo {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  color: var(--primary-main);
-  background: var(--logo-background);
-  border: 1px solid var(--logo-border-color);
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+
+.sakiko-sidebar__logo-img {
+  width: 42px;
+  height: 42px;
+  display: block;
 }
 
 .sakiko-sidebar__nav {
@@ -86,6 +92,15 @@
   overflow: hidden;
 }
 
+.sakiko-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .sakiko-content__header {
   flex: 0 0 auto;
   z-index: 2;
@@ -97,12 +112,23 @@
   overflow: hidden;
 }
 
+.sakiko-page__action {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
 .sakiko-content__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
   padding: 22px 24px 28px;
+}
+
+.sakiko-page__content {
+  width: 100%;
+  margin: 0 auto;
+  min-width: 0;
 }
 
 .sakiko-section-grid {
@@ -194,6 +220,10 @@
   .sakiko-content__header,
   .sakiko-content__body {
     padding-inline: 16px;
+  }
+
+  .sakiko-page__action {
+    width: 100%;
   }
 
   .sakiko-sidebar {

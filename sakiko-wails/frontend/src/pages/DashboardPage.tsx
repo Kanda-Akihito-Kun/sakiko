@@ -1,7 +1,6 @@
 import HomeRounded from "@mui/icons-material/HomeRounded";
 import HubRounded from "@mui/icons-material/HubRounded";
 import InsightsRounded from "@mui/icons-material/InsightsRounded";
-import MenuRounded from "@mui/icons-material/MenuRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import StorageRounded from "@mui/icons-material/StorageRounded";
@@ -20,6 +19,7 @@ import {
 } from "@mui/material";
 import { lazy, Suspense, startTransition, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { WorkspacePage } from "../components/layout/WorkspacePage";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardLifecycle } from "../hooks/useDashboardLifecycle";
 import { useDashboardStore } from "../store/dashboardStore";
@@ -102,6 +102,44 @@ export function DashboardPage() {
     subtitle: t(`dashboard.nav.${item.id}.subtitle`),
   }));
   const activeNav = localizedNavItems.find((item) => item.id === section) || localizedNavItems[0];
+  const pageAction = section === "settings" ? (
+    <Chip
+      label={
+        mode === "system"
+          ? `${t("settings.themeOptions.system")} (${t(`settings.themeOptions.${resolvedMode}`)})`
+          : `${t("settings.appliedTheme.label")}: ${t(`settings.themeOptions.${resolvedMode}`)}`
+      }
+      icon={<SettingsRounded />}
+      color="primary"
+      variant="outlined"
+      sx={{ flex: "0 0 auto" }}
+    />
+  ) : (
+    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: "0 0 auto" }}>
+      <Chip
+        label={dashboard.activeProfile?.name || t("dashboard.workspace.noActiveProfile")}
+        icon={<HubRounded />}
+        variant="outlined"
+        sx={{
+          maxWidth: 280,
+          minWidth: 0,
+          "& .MuiChip-label": {
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          },
+        }}
+      />
+      <Button
+        variant="outlined"
+        startIcon={<RefreshRounded />}
+        disabled={dashboard.loading}
+        onClick={() => void dashboard.refreshDashboard(dashboard.activeProfileId)}
+      >
+        {t("dashboard.workspace.refreshWorkspace")}
+      </Button>
+    </Stack>
+  );
 
   return (
     <Box className="sakiko-shell">
@@ -112,7 +150,12 @@ export function DashboardPage() {
           <Stack className="sakiko-sidebar__header" spacing={1.25}>
             <Stack direction="row" spacing={1.25} alignItems="center">
               <Box className="sakiko-sidebar__logo">
-                <MenuRounded fontSize="small" />
+                <Box
+                  component="img"
+                  className="sakiko-sidebar__logo-img"
+                  src="/sakiko.png"
+                  alt=""
+                />
               </Box>
               <Box>
                 <Typography variant="subtitle1">{t("dashboard.app.title")}</Typography>
@@ -157,63 +200,12 @@ export function DashboardPage() {
         </Box>
 
         <Box className="sakiko-content">
-          <Stack
-            direction="row"
-            spacing={1.5}
-            justifyContent="space-between"
-            alignItems="center"
-            useFlexGap
-            flexWrap="wrap"
-            className="sakiko-content__header"
+          <WorkspacePage
+            title={activeNav.label}
+            subtitle={activeNav.subtitle}
+            action={pageAction}
+            errorBoundaryKey={section}
           >
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h5" noWrap title={activeNav.label}>{activeNav.label}</Typography>
-              <Typography variant="body2" color="text.secondary" noWrap title={activeNav.subtitle}>
-                {activeNav.subtitle}
-              </Typography>
-            </Box>
-
-            {section === "settings" ? (
-              <Chip
-                label={
-                  mode === "system"
-                    ? `${t("settings.themeOptions.system")} (${t(`settings.themeOptions.${resolvedMode}`)})`
-                    : `${t("settings.appliedTheme.label")}: ${t(`settings.themeOptions.${resolvedMode}`)}`
-                }
-                icon={<SettingsRounded />}
-                color="primary"
-                variant="outlined"
-                sx={{ flex: "0 0 auto" }}
-              />
-            ) : (
-              <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: "0 0 auto" }}>
-                <Chip
-                  label={dashboard.activeProfile?.name || t("dashboard.workspace.noActiveProfile")}
-                  icon={<HubRounded />}
-                  variant="outlined"
-                  sx={{
-                    maxWidth: 280,
-                    minWidth: 0,
-                    "& .MuiChip-label": {
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    },
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<RefreshRounded />}
-                  disabled={dashboard.loading}
-                  onClick={() => void dashboard.refreshDashboard(dashboard.activeProfileId)}
-                >
-                  {t("dashboard.workspace.refreshWorkspace")}
-                </Button>
-              </Stack>
-            )}
-          </Stack>
-
-          <Box className="sakiko-content__body">
             <Suspense fallback={<SectionLoadingFallback label={activeNav.label} />}>
               {section === "overview" && (
                 <OverviewSection
@@ -296,7 +288,7 @@ export function DashboardPage() {
                 />
               )}
             </Suspense>
-          </Box>
+          </WorkspacePage>
         </Box>
       </Box>
     </Box>

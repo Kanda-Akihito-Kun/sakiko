@@ -51,18 +51,26 @@ export function SectionCard({ title, subtitle, action, icon, children, subtitleW
           borderBottom: "1px solid",
           borderColor: "divider",
           minWidth: 0,
+          gap: 1,
+          flexWrap: "wrap",
           "& .MuiCardHeader-content": {
             minWidth: 0,
             overflow: "hidden",
+            flex: "1 1 260px",
           },
           "& .MuiCardHeader-avatar": {
             color: "primary.main",
             flexShrink: 0,
           },
           "& .MuiCardHeader-action": {
-            flexShrink: 0,
-            ml: 1.5,
+            flex: { xs: "1 1 100%", sm: "0 0 auto" },
+            ml: { xs: 0, sm: 1.5 },
+            mr: 0,
+            mt: 0,
             alignSelf: "center",
+            "& > *": {
+              width: { xs: "100%", sm: "auto" },
+            },
           },
         }}
       />

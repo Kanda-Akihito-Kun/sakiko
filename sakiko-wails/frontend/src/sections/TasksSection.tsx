@@ -31,23 +31,29 @@ export function TasksSection({
   onRunTask,
   onTaskPresetChange,
 }: TasksSectionProps) {
+  const hasActiveTask = Boolean(activeTask);
+
   return (
     <Box
       sx={{
-        display: "flex",
+        display: "grid",
         gap: 2.25,
         alignItems: "flex-start",
         minWidth: 0,
-        "@media (max-width: 1240px)": {
-          flexDirection: "column",
+        gridTemplateColumns: hasActiveTask
+          ? {
+              xs: "minmax(0, 1fr)",
+              xl: "minmax(360px, 420px) minmax(0, 1fr)",
+            }
+          : "minmax(0, 1fr)",
+        "& > *": {
+          minWidth: 0,
         },
       }}
     >
       <Box
         sx={{
-          flex: "0 0 auto",
-          width: "fit-content",
-          maxWidth: "100%",
+          width: "100%",
           minWidth: 0,
         }}
       >
