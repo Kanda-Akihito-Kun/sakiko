@@ -23,6 +23,14 @@ type TaskLauncherPanelProps = {
   onTaskPresetChange: (preset: TaskPreset) => void;
 };
 
+function getTaskProgressValue(progress: number, total: number) {
+  if (total <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, (progress / total) * 100));
+}
+
 export function TaskLauncherPanel({
   activeProfileId,
   activeTaskId,
@@ -36,6 +44,13 @@ export function TaskLauncherPanel({
   onTaskPresetChange,
 }: TaskLauncherPanelProps) {
   const { t } = useTranslation();
+  const hasActiveProfile = activeProfileId.trim().length > 0;
+  const hasRunnablePreset = taskPreset.some((preset) => preset !== "full");
+  const canRunTask = !submitting && hasActiveProfile && hasRunnablePreset;
+  const selectedPresetLabel = formatTaskPresetSelectionLabel(taskPreset);
+  const profileStatusLabel = hasActiveProfile
+    ? t("dashboard.tasks.launcher.targetProfileSelected")
+    : t("dashboard.tasks.launcher.selectProfileToRun");
 
   return (
     <SectionCard
@@ -84,9 +99,12 @@ export function TaskLauncherPanel({
           sx={{
             display: "grid",
             gap: 1.25,
-            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" },
-            alignItems: "center",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+            alignItems: "stretch",
             minWidth: 0,
+            "& > *": {
+              minWidth: 0,
+            },
           }}
         >
           <Box
@@ -96,7 +114,6 @@ export function TaskLauncherPanel({
               bgcolor: "background.default",
               px: 1.5,
               py: 1.25,
-              minWidth: 0,
             }}
           >
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -111,21 +128,30 @@ export function TaskLauncherPanel({
             </Stack>
           </Box>
 
-          <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1,
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
+              alignItems: "center",
+            }}
+          >
             <Button
               variant="contained"
               startIcon={<PlayCircleFilledWhiteRounded />}
-              disabled={submitting || !activeProfileId || taskPreset.filter((preset) => preset !== "full").length === 0}
+              disabled={!canRunTask}
               onClick={onRunTask}
+              sx={{ minWidth: 0 }}
             >
-              {t("dashboard.tasks.launcher.runPreset", { preset: formatTaskPresetSelectionLabel(taskPreset) })}
+              {t("dashboard.tasks.launcher.runPreset", { preset: selectedPresetLabel })}
             </Button>
             <Chip
               icon={<ScheduleRounded />}
-              label={activeProfileId ? t("dashboard.tasks.launcher.targetProfileSelected") : t("dashboard.tasks.launcher.selectProfileToRun")}
+              label={profileStatusLabel}
               variant="outlined"
-              color={activeProfileId ? "success" : "default"}
+              color={hasActiveProfile ? "success" : "default"}
               sx={{
+                width: "100%",
                 maxWidth: "100%",
                 "& .MuiChip-label": {
                   overflow: "hidden",
@@ -134,12 +160,14 @@ export function TaskLauncherPanel({
                 },
               }}
             />
-          </Stack>
+          </Box>
         </Box>
 
         <List disablePadding>
           {tasks.map((task) => {
-            const activeSummary = task.status === "running" ? summarizeActiveTaskNodes(task.activeNodes || []) : "";
+            const activeSummary = task.status === "running" ? summarizeActiveTaskNodes(task.activeNodes ?? []) : "";
+            const hasKnownProgress = task.total > 0;
+            const progressValue = getTaskProgressValue(task.progress, task.total);
 
             return (
               <ListItemButton
@@ -167,8 +195,8 @@ export function TaskLauncherPanel({
                     </Typography>
                   </Stack>
                   <LinearProgress
-                    variant={task.total > 0 ? "determinate" : "indeterminate"}
-                    value={task.total > 0 ? (task.progress / task.total) * 100 : 0}
+                    variant={hasKnownProgress ? "determinate" : "indeterminate"}
+                    value={progressValue}
                     sx={{ width: "100%", height: 6, borderRadius: 999 }}
                   />
                   {activeSummary ? (

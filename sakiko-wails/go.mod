@@ -2,7 +2,7 @@ module sakiko-wails
 
 go 1.26
 
-require github.com/wailsapp/wails/v3 v3.0.0-alpha.74
+require github.com/wailsapp/wails/v3 v3.0.0-alpha.76
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -146,5 +146,3 @@ require (
 )
 
 replace sakiko.local/sakiko-core => ../sakiko-core
-
-replace github.com/wailsapp/wails/v3 => ../third_party/wails-v3-alpha74

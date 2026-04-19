@@ -54,7 +54,7 @@ func (s *ResultStore) SaveTaskArchive(snapshot interfaces.TaskArchiveSnapshot) e
 		return err
 	}
 
-	if err := os.WriteFile(s.Path(snapshot.Task.ID), raw, 0o644); err != nil {
+	if err := writeFileAtomic(s.Path(snapshot.Task.ID), raw, 0o644); err != nil {
 		return err
 	}
 
@@ -249,7 +249,7 @@ func (s *ResultStore) saveSummary(item interfaces.ResultArchiveListItem) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o644)
+	return writeFileAtomic(path, raw, 0o644)
 }
 
 func buildResultArchive(snapshot interfaces.TaskArchiveSnapshot) interfaces.ResultArchive {

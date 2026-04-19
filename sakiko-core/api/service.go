@@ -103,10 +103,18 @@ func (s *Service) SubmitTask(req interfaces.TaskSubmitRequest, onEvent func(inte
 }
 
 func (s *Service) ListTasks() interfaces.TaskListResponse {
+	if s == nil || s.kernel == nil {
+		apiLogger().Warn("list tasks rejected: service not initialized")
+		return interfaces.TaskListResponse{Tasks: []interfaces.TaskState{}}
+	}
 	return interfaces.TaskListResponse{Tasks: s.kernel.ListTasks()}
 }
 
 func (s *Service) GetTask(taskID string) (interfaces.TaskStatusResponse, error) {
+	if s == nil || s.kernel == nil {
+		apiLogger().Warn("get task rejected: service not initialized")
+		return interfaces.TaskStatusResponse{}, fmt.Errorf("service not initialized")
+	}
 	task, ok := s.kernel.GetTask(taskID)
 	if !ok {
 		apiLogger().Debug("task not found", zap.String("task_id", taskID))
@@ -116,6 +124,10 @@ func (s *Service) GetTask(taskID string) (interfaces.TaskStatusResponse, error) 
 }
 
 func (s *Service) RuntimeStatus() interfaces.RuntimeStatusResponse {
+	if s == nil || s.kernel == nil {
+		apiLogger().Warn("runtime status rejected: service not initialized")
+		return interfaces.RuntimeStatusResponse{}
+	}
 	return interfaces.RuntimeStatusResponse{Status: s.kernel.RuntimeStatus()}
 }
 

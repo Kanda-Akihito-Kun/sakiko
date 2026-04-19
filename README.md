@@ -1,66 +1,127 @@
+<p align="center">
+  <img src="sakiko-wails/frontend/public/sakiko.png" alt="Sakiko icon" width="128" />
+</p>
+
+<p align="center">
+  <a href="./README.zh-CN.md">
+    <img src="https://img.shields.io/badge/README-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-1677ff?style=for-the-badge" alt="README in Simplified Chinese" />
+  </a>
+</p>
+
 # Sakiko
 
-`Sakiko` is a personal project by Kanda Akihito (`鼠鼠今天吃嘉然`).
-The project started as a desktop-first MVP after `miaospeed` had gone quiet for a long time, with the goal of building a reusable proxy benchmarking kernel and a practical desktop client instead of a one-off clone.
+Sakiko is a desktop proxy benchmarking project built around a reusable Go kernel.
+The goal is to build a practical benchmark workflow, while keeping the execution core reusable for desktop and future web delivery.
 
-## Project Layout
+## What Sakiko Func
 
-- `sakiko-core`: reusable Go kernel for subscription parsing, task execution, result archiving, and report generation
-- `sakiko-wails`: Wails3 desktop client and the current primary delivery target
+The current MVP already covers the mainly function:
 
-## Reference Projects
+1. manage subscription
+2. inspect nodes
+3. run a bunch of benchmark task and check proccess
+4archive results and export into picture
 
-`Sakiko` openly references several existing projects in different layers of the stack:
+Current task presets include:
 
-- architecture and execution model reference `miaospeed`
-- page layout and interaction ideas reference `clash-verge-rev`
-- media unlock capability references `RegionRestrictionCheck`
+- `ping`
+- `geo`
+- `speed`
 
-These references guide the design direction, but `Sakiko` keeps its own kernel boundary, report model, and desktop workflow.
+## Architecture
 
-## Web Demo Deployment
+- `sakiko-core`
+  Reusable Go kernel for profile parsing, task execution, result archiving, and report generation
+- `sakiko-wails`
+  Wails v3 desktop client that consumes `sakiko-core`
 
-The desktop client is still the main target.
-The web version is currently only a simple demo built on `sakiko-wails` server mode.
+The execution model stays centered on, learned from `miaospeed` :
 
-Build the demo package locally:
+`Vendor -> Macro -> Matrix`
+
+That boundary matters. Business logic lives in Go, not in frontend pages. The desktop app is a consumer of the kernel, not the place where the core benchmarking logic is implemented.
+
+## Repository Layout
+
+```text
+sakiko/
+  sakiko-core/   reusable kernel
+  sakiko-wails/  desktop app
+  tests/         reserved for future integration and release smoke tests
+```
+
+The current primary delivery target is `sakiko-wails`.
+A future web consumer is planned, but it must reuse `sakiko-core` instead of duplicating business logic.
+
+### Requirements
+
+- Go `1.26` or newer, and pnpm
+- Wails v3 toolchain
+
+The workspace is managed with `go.work` and currently includes:
+
+- `sakiko-core`
+- `sakiko-wails`
+
+### Run The Desktop App
 
 ```powershell
-cd sakiko-wails\frontend
+cd .\sakiko-wails\frontend
+pnpm install
+
+cd ..
+wails3 dev -config .\build\config.yml
+```
+
+## Local Data
+
+The desktop app stores its local data under your OS user config directory in a `sakiko` folder.
+That currently includes:
+
+- `profiles.yaml` for the profile index
+- `profiles/<profile-id>.yaml` for the original profile content snapshots
+- `results/<task-id>.json` for full archived task results
+- `results/<task-id>.meta.json` for history list summaries
+- `settings.json` for desktop settings
+
+Archived results are meant to be reusable data, not just one-time UI exports.
+
+## Server Mode
+
+`sakiko-wails` also has a `server` build tag for a simple single-machine demo mode, although this is not the main product target.
+
+Build it like this:
+
+```powershell
+cd .\sakiko-wails\frontend
 pnpm install
 pnpm build
 
 cd ..
-go build -tags server -o bin\Sakiko-server.exe
+go build -tags server -o .\bin\Sakiko-server.exe
 ```
 
-Upload `sakiko-wails/bin/Sakiko-server.exe` to your Windows Server VPS, then start it with:
+Important caveats:
 
-```powershell
-$env:SAKIKO_SERVER_HOST="0.0.0.0"
-$env:SAKIKO_SERVER_PORT="8080"
-.\Sakiko-server.exe
-```
+- this is a local or single-machine deployment mode, not a multi-user web service
+- profiles, settings, and result history are stored on the machine that runs the process
+- if you expose it publicly, put a real HTTPS reverse proxy in front of it
 
-Open the port in Windows Firewall:
+## Project References
 
-```powershell
-New-NetFirewallRule -DisplayName "Sakiko Demo 8080" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8080
-```
+Sakiko openly learns from several existing projects, but it is not intended to be a one-to-one clone of any single project.
 
-Then verify:
+- Backend architecture and execution abstractions reference `miaospeed`
+- Frontend information architecture and interaction flow reference `clash-verge-rev`
+- Streaming unlock checks and parts of the benchmarking implementation reference `Speed-Stair` and `RegionRestrictionCheck`
+- Protocol library is supported by `mihomo-core`
 
-- `http://127.0.0.1:8080/health`
-- `http://your-server-ip:8080/`
+These references inform the implementation, but Sakiko keeps its own kernel boundary, report model, and desktop-first workflow.
 
-Notes:
+## License
 
-- this is a single-machine demo, not a multi-user web service
-- profiles, settings, and result history are stored on the server machine
-- for a public demo, putting `Caddy` or `IIS` in front of it for HTTPS is recommended
+MIT
 
 ## Author
 
-- Author: Kanda Akihito
-- Alias: 鼠鼠今天吃嘉然
-- GitHub: https://github.com/Kanda-Akihito-Kun
+鼠鼠今天吃嘉然

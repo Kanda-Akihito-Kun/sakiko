@@ -14,6 +14,8 @@ import { formatTaskPresetSelectionLabel, normalizeError, toggleTaskPresetSelecti
 type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading" | "backendIdentity">>;
 
 const BACKEND_IDENTITY_STORAGE_KEY = "sakiko.task-defaults.backend-identity";
+let syncActiveTaskTaskId = "";
+let syncActiveTaskPromise: Promise<void> | null = null;
 
 type DashboardState = {
   profiles: ProfileSummary[];
@@ -332,35 +334,52 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
+    if (syncActiveTaskPromise && syncActiveTaskTaskId === activeTaskId) {
+      return syncActiveTaskPromise;
+    }
+
+    syncActiveTaskTaskId = activeTaskId;
+    const currentPromise = (async () => {
+      try {
+        const detail = await SakikoService.GetTask(activeTaskId);
+        if (get().activeTaskId !== activeTaskId) {
+          return;
+        }
+
+        set({ activeTask: detail });
+
+        const latestTasks = await SakikoService.ListTasks();
+        if (get().activeTaskId !== activeTaskId) {
+          return;
+        }
+
+        const selected = latestTasks.find((item) => item.taskId === activeTaskId);
+        set({
+          tasks: latestTasks,
+          message: selected && selected.status !== "running"
+            ? translate("dashboard.messages.taskFinished", `Task ${selected.name} finished with ${detail.results?.length ?? 0} result(s).`, {
+              name: selected.name,
+              count: detail.results?.length ?? 0,
+            })
+            : get().message,
+        });
+
+        if (selected && selected.status !== "running" && !get().resultArchives.some((item) => item.taskId === activeTaskId)) {
+          void get().refreshResultArchives(false);
+        }
+      } catch (err) {
+        set({ error: normalizeError(err) });
+      }
+    })();
+
+    syncActiveTaskPromise = currentPromise;
     try {
-      const detail = await SakikoService.GetTask(activeTaskId);
-      if (get().activeTaskId !== activeTaskId) {
-        return;
+      await currentPromise;
+    } finally {
+      if (syncActiveTaskPromise === currentPromise) {
+        syncActiveTaskPromise = null;
+        syncActiveTaskTaskId = "";
       }
-
-      set({ activeTask: detail });
-
-      const latestTasks = await SakikoService.ListTasks();
-      if (get().activeTaskId !== activeTaskId) {
-        return;
-      }
-
-      const selected = latestTasks.find((item) => item.taskId === activeTaskId);
-      set({
-        tasks: latestTasks,
-        message: selected && selected.status !== "running"
-          ? translate("dashboard.messages.taskFinished", `Task ${selected.name} finished with ${detail.results?.length ?? 0} result(s).`, {
-            name: selected.name,
-            count: detail.results?.length ?? 0,
-          })
-          : get().message,
-      });
-
-      if (selected && selected.status !== "running" && !get().resultArchives.some((item) => item.taskId === activeTaskId)) {
-        void get().refreshResultArchives(false);
-      }
-    } catch (err) {
-      set({ error: normalizeError(err) });
     }
   },
 

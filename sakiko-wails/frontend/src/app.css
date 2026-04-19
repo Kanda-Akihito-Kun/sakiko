@@ -131,7 +131,8 @@
   min-width: 0;
 }
 
-.sakiko-section-grid {
+.sakiko-section-grid,
+.sakiko-overview-grid {
   display: grid;
   grid-template-columns: clamp(320px, 28vw, 360px) minmax(0, 1fr);
   gap: 18px;
@@ -149,13 +150,6 @@
 .sakiko-section-grid__sidebar > *,
 .sakiko-section-grid__content > * {
   min-width: 0;
-}
-
-.sakiko-overview-grid {
-  display: grid;
-  grid-template-columns: clamp(320px, 28vw, 360px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
 }
 
 .sakiko-overview-grid > * {
@@ -203,15 +197,9 @@
   border-radius: 8px;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1240px) {
   .sakiko-section-grid,
   .sakiko-overview-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1240px) {
-  .sakiko-section-grid {
     grid-template-columns: 1fr;
   }
 }

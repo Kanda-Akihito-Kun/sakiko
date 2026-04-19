@@ -7,12 +7,14 @@ import (
 	"testing"
 
 	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/internal/testkit"
 )
 
 func TestResultStoreSaveLoadAndList(t *testing.T) {
 	t.Parallel()
 
-	store := NewResultStore(t.TempDir() + "/profiles.yaml")
+	_, storePath := testkit.TempProfilesStore(t)
+	store := NewResultStore(storePath)
 	snapshot := interfaces.TaskArchiveSnapshot{
 		Task: interfaces.Task{
 			ID:     "task-1",
@@ -155,7 +157,8 @@ func TestPreferredGeoOrganizationPrefersISPOverPrivateCustomer(t *testing.T) {
 func TestResultStoreListUsesSummarySidecar(t *testing.T) {
 	t.Parallel()
 
-	store := NewResultStore(t.TempDir() + "/profiles.yaml")
+	_, storePath := testkit.TempProfilesStore(t)
+	store := NewResultStore(storePath)
 	snapshot := interfaces.TaskArchiveSnapshot{
 		Task: interfaces.Task{
 			ID:   "task-sidecar",
@@ -184,9 +187,7 @@ func TestResultStoreListUsesSummarySidecar(t *testing.T) {
 		t.Fatalf("expected summary sidecar to exist: %v", err)
 	}
 
-	if err := os.WriteFile(store.Path("task-sidecar"), []byte("{not-json"), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	testkit.MustWriteString(t, store.Path("task-sidecar"), "{not-json")
 
 	items, err := store.List()
 	if err != nil {
@@ -203,7 +204,8 @@ func TestResultStoreListUsesSummarySidecar(t *testing.T) {
 func TestResultStoreDeleteRemovesArchiveAndSummary(t *testing.T) {
 	t.Parallel()
 
-	store := NewResultStore(t.TempDir() + "/profiles.yaml")
+	_, storePath := testkit.TempProfilesStore(t)
+	store := NewResultStore(storePath)
 	snapshot := interfaces.TaskArchiveSnapshot{
 		Task: interfaces.Task{
 			ID:   "task-delete",

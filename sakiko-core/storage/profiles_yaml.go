@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"sakiko.local/sakiko-core/interfaces"
 
@@ -130,12 +129,5 @@ func (s *ProfileStore) Save(profiles []interfaces.Profile) error {
 		return err
 	}
 
-	dir := filepath.Dir(s.path)
-	if dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
-	}
-
-	return os.WriteFile(s.path, raw, 0o644)
+	return writeFileAtomic(s.path, raw, 0o644)
 }

@@ -16,8 +16,8 @@ coverage.out
 *.coverprofile
 
 # Task and runtime outputs
-**/results/
 **/.task/
+/sakiko-wails/.tmp-server-config/
 
 # Frontend dependencies and build outputs
 **/node_modules/
@@ -31,6 +31,9 @@ coverage.out
 
 # Local test/build binaries
 /sakiko-core/*.test.exe
+
+# Local third-party scratch area
+/third_party/
 
 # Environment and local overrides
 .env

@@ -34,12 +34,26 @@ export function useDashboardLifecycle() {
       return;
     }
 
-    const timer = window.setInterval(() => {
-      void syncActiveTask();
+    let cancelled = false;
+    let timer = 0;
+
+    const loop = async () => {
+      await syncActiveTask();
+      if (cancelled) {
+        return;
+      }
+      timer = window.setTimeout(() => {
+        void loop();
+      }, 500);
+    };
+
+    timer = window.setTimeout(() => {
+      void loop();
     }, 500);
 
     return () => {
-      window.clearInterval(timer);
+      cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [activeTaskId, activeTaskStatus, syncActiveTask]);
 }

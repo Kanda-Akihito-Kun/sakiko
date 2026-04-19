@@ -109,6 +109,15 @@ Desktop dev:
 wails3 dev -config ./build/config.yml
 ```
 
+Repository-level test wrappers:
+
+```powershell
+go test ./...
+
+cd .\frontend
+pnpm test
+```
+
 ## Key Files
 
 - `main.go`: Wails app bootstrap

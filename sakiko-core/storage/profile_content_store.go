@@ -50,7 +50,7 @@ func (s *ProfileContentStore) Save(profileID string, content string) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(s.dir, profileID+".yaml"), []byte(content), 0o644)
+	return writeFileAtomic(filepath.Join(s.dir, profileID+".yaml"), []byte(content), 0o644)
 }
 
 func (s *ProfileContentStore) Path(profileID string) string {

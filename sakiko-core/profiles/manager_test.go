@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/internal/testkit"
 	"sakiko.local/sakiko-core/storage"
 	"sakiko.local/sakiko-core/vendors/mihomo"
 )
 
 func TestManagerImportAndRefreshValidation(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {
@@ -112,8 +112,7 @@ proxies:
 }
 
 func TestManagerImportBase64Subscription(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {
@@ -169,8 +168,7 @@ func TestManagerImportBase64Subscription(t *testing.T) {
 }
 
 func TestManagerImportAnyTLSSubscription(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	_, path := testkit.TempProfilesStore(t)
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {
@@ -216,8 +214,7 @@ proxies:
 }
 
 func TestManagerDeleteRemovesProfileFromIndexAndContentDirectory(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {
@@ -274,8 +271,7 @@ proxies:
 }
 
 func TestManagerImportRollsBackWhenIndexPersistFails(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {
@@ -320,8 +316,7 @@ proxies:
 }
 
 func TestManagerRefreshRollsBackProfileFileWhenIndexPersistFails(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 
 	responseBody := `
 proxies:
@@ -387,12 +382,9 @@ proxies:
 }
 
 func TestManagerRecoversProfilesFromContentDirectoryWhenIndexMissing(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 	profilesDir := filepath.Join(dir, "profiles")
-	if err := os.MkdirAll(profilesDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
+	testkit.MustMkdirAll(t, profilesDir)
 
 	const profileID = "1a36627c6a60bd0c021383b9"
 	content := `
@@ -406,9 +398,7 @@ proxies:
 `
 
 	profilePath := filepath.Join(profilesDir, profileID+".yaml")
-	if err := os.WriteFile(profilePath, []byte(content), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	testkit.MustWriteString(t, profilePath, content)
 
 	modTime := time.Date(2026, 3, 29, 22, 35, 48, 0, time.UTC)
 	if err := os.Chtimes(profilePath, modTime, modTime); err != nil {
@@ -455,8 +445,7 @@ proxies:
 }
 
 func TestManagerSetNodeEnabledPersistsSelectionAndSurvivesReload(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	_, path := testkit.TempProfilesStore(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`
@@ -527,8 +516,7 @@ proxies:
 }
 
 func TestManagerRefreshPreservesNodeSelectionByName(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	_, path := testkit.TempProfilesStore(t)
 
 	responseBody := `
 proxies:
@@ -589,8 +577,7 @@ proxies:
 }
 
 func TestManagerMoveNodePersistsOrderAndSurvivesReload(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	_, path := testkit.TempProfilesStore(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`
@@ -670,8 +657,7 @@ proxies:
 }
 
 func TestManagerRefreshPreservesCustomNodeOrderByName(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	_, path := testkit.TempProfilesStore(t)
 
 	responseBody := `
 proxies:
@@ -738,19 +724,14 @@ proxies:
 }
 
 func TestManagerRecoversProfilesWhenIndexIsMalformed(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "profiles.yaml")
+	dir, path := testkit.TempProfilesStore(t)
 	profilesDir := filepath.Join(dir, "profiles")
-	if err := os.MkdirAll(profilesDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
+	testkit.MustMkdirAll(t, profilesDir)
 
-	if err := os.WriteFile(path, []byte("profiles: ["), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	testkit.MustWriteString(t, path, "profiles: [")
 
 	const validProfileID = "good-profile"
-	if err := os.WriteFile(filepath.Join(profilesDir, validProfileID+".yaml"), []byte(`
+	testkit.MustWriteString(t, filepath.Join(profilesDir, validProfileID+".yaml"), `
 proxies:
   - name: sg-demo
     type: ss
@@ -758,13 +739,9 @@ proxies:
     port: 8443
     cipher: aes-128-gcm
     password: demo
-`), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+`)
 
-	if err := os.WriteFile(filepath.Join(profilesDir, "bad-profile.yaml"), []byte("proxies: ["), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	testkit.MustWriteString(t, filepath.Join(profilesDir, "bad-profile.yaml"), "proxies: [")
 
 	m, err := NewManager(Config{StorePath: path})
 	if err != nil {

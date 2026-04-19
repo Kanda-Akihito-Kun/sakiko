@@ -69,18 +69,10 @@ func loadAppSettings(path string) (AppSettings, error) {
 
 func saveAppSettings(path string, settings AppSettings) error {
 	settings = settings.Normalize()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-
 	raw, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	tempPath := path + ".tmp"
-	if err := os.WriteFile(tempPath, raw, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tempPath, path)
+	return writeFileAtomic(path, raw, 0o644)
 }

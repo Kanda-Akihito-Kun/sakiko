@@ -12,25 +12,29 @@ That is an intentional choice, not leftover clutter:
 - `sakiko-core/**/_test.go`: Go unit tests for the reusable kernel
 - `sakiko-wails/*_test.go`: Go bridge tests for the Wails host layer
 - `sakiko-wails/frontend/tests`: frontend unit tests
-- `tests/*.ps1`: centralized local entrypoints for running the main test suites
 
 ## Run
 
-From the repository root:
+Run the Go test suites from their module roots:
 
 ```powershell
-.\tests\run-all.ps1
+cd .\sakiko-core
+go test ./...
 ```
 
-Or run each suite separately:
+```powershell
+cd .\sakiko-wails
+go test ./...
+```
+
+Run the frontend tests from the frontend workspace:
 
 ```powershell
-.\tests\run-core-tests.ps1
-.\tests\run-wails-tests.ps1
-.\tests\run-frontend-tests.ps1
+cd .\sakiko-wails\frontend
+pnpm test
 ```
 
 ## Scope
 
-This directory is the centralized test entrypoint, not a dumping ground for all unit test files.
+This directory is reserved for future integration tests, release smoke tests, or other cross-package test assets.
 If future end-to-end or release smoke tests are added, they should live under `tests/` directly.
