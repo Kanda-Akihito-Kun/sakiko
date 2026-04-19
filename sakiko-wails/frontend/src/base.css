@@ -14,7 +14,7 @@
 }
 
 :root {
-  --sakiko-font-sans: "Microsoft YaHei UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, "twemoji mozilla", "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  --sakiko-font-sans: "Inter", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, "twemoji mozilla", "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   --sakiko-font-mono: "SFMono-Regular", "Cascadia Code", "IBM Plex Mono", "Microsoft YaHei UI", "Microsoft YaHei", "twemoji mozilla", "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", monospace;
   --primary-main: #007AFF;
   --selection-color: #f5f5f5;
@@ -50,6 +50,7 @@ body {
   margin: 0;
   min-width: 320px;
   font-family: var(--sakiko-font-sans);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--page-background-color) 88%, white 12%) 0%, var(--page-background-color) 100%);
   background-color: var(--page-background-color);
 }
 

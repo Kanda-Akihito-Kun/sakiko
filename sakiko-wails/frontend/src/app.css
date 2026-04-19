@@ -2,7 +2,7 @@
   position: relative;
   height: 100vh;
   overflow: hidden;
-  background: var(--background-color);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--background-color) 92%, white 8%) 0%, var(--background-color) 100%);
 }
 
 .sakiko-shell__backdrop {
@@ -16,7 +16,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   min-width: 1024px;
@@ -24,12 +24,12 @@
 }
 
 .sakiko-sidebar {
-  flex: 0 0 248px;
+  flex: 0 0 260px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-height: 0;
-  padding: 18px 16px;
+  padding: 20px 18px;
   border-right: 1px solid var(--divider-color);
   background: var(--sidebar-background);
   backdrop-filter: blur(12px);
@@ -37,23 +37,23 @@
 }
 
 .sakiko-sidebar__header {
-  padding: 8px 8px 0;
+  padding: 10px 10px 4px;
 }
 
 .sakiko-sidebar__logo {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  border: 0;
+  border-radius: 14px;
+  background: var(--logo-background);
+  border: 1px solid var(--logo-border-color);
   overflow: hidden;
 }
 
 .sakiko-sidebar__logo-img {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   display: block;
 }
 
@@ -64,12 +64,29 @@
   scrollbar-gutter: stable;
 }
 
+.sakiko-sidebar__meta {
+  padding: 8px 10px 0;
+  border-top: 1px solid var(--divider-color);
+}
+
+.sakiko-sidebar__version {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .sakiko-sidebar__nav .MuiListItemButton-root {
   align-items: center;
+  position: relative;
+  min-height: 56px;
+  padding-inline: 12px;
+  padding-block: 10px;
 }
 
 .sakiko-sidebar__nav .MuiListItemIcon-root {
   flex: 0 0 38px;
+  color: inherit;
 }
 
 .sakiko-sidebar__nav .MuiListItemText-root {
@@ -81,6 +98,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sakiko-sidebar__nav .MuiListItemButton-root::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 160ms ease;
+}
+
+.sakiko-sidebar__nav .MuiListItemButton-root.Mui-selected::before {
+  background: var(--primary-main);
 }
 
 .sakiko-content {
@@ -105,7 +138,7 @@
   flex: 0 0 auto;
   z-index: 2;
   min-width: 0;
-  padding: 22px 24px 18px;
+  padding: 24px 28px 18px;
   border-bottom: 1px solid var(--divider-color);
   background: var(--header-background);
   backdrop-filter: blur(10px);
@@ -122,7 +155,7 @@
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
-  padding: 22px 24px 28px;
+  padding: 24px 28px 32px;
 }
 
 .sakiko-page__content {
@@ -194,7 +227,7 @@
 .sakiko-table {
   overflow: auto;
   border: 1px solid var(--divider-color);
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 @media (max-width: 1240px) {

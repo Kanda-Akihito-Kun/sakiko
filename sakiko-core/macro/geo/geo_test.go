@@ -32,11 +32,19 @@ func TestMacroRunCapturesInboundAndOutboundGeo(t *testing.T) {
 
 	previousOutbound := outboundLookupURL
 	previousLookupPattern := ipLookupURLPattern
+	previousOutboundIPSB := outboundLookupURLIPSB
+	previousLookupPatternIPSB := ipLookupURLPatternIPSB
+	previousOutboundIPAPICo := outboundLookupURLIPAPICo
+	previousLookupPatternIPAPICo := ipLookupURLPatternIPAPICo
 	outboundLookupURL = server.URL + "/"
 	ipLookupURLPattern = server.URL + "/%s"
 	defer func() {
 		outboundLookupURL = previousOutbound
 		ipLookupURLPattern = previousLookupPattern
+		outboundLookupURLIPSB = previousOutboundIPSB
+		ipLookupURLPatternIPSB = previousLookupPatternIPSB
+		outboundLookupURLIPAPICo = previousOutboundIPAPICo
+		ipLookupURLPatternIPAPICo = previousLookupPatternIPAPICo
 	}()
 
 	task := &interfaces.Task{
@@ -81,6 +89,118 @@ func TestMacroRunCapturesInboundAndOutboundGeo(t *testing.T) {
 	}
 	if macro.Outbound.City != "Los Angeles" {
 		t.Fatalf("expected outbound city Los Angeles, got %q", macro.Outbound.City)
+	}
+}
+
+func TestLookupIPInfoFallsBackToIPSBWhenPrimaryFails(t *testing.T) {
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "upstream blocked", http.StatusBadGateway)
+	}))
+	defer primary.Close()
+
+	secondary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/geoip/198.51.100.7":
+			_, _ = fmt.Fprint(w, `{"ip":"198.51.100.7","country_code":"JP","country":"Japan","city":"Tokyo","asn":"64512","organization":"Fallback ISP"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer secondary.Close()
+
+	previousOutbound := outboundLookupURL
+	previousLookupPattern := ipLookupURLPattern
+	previousOutboundIPSB := outboundLookupURLIPSB
+	previousLookupPatternIPSB := ipLookupURLPatternIPSB
+	previousOutboundIPAPICo := outboundLookupURLIPAPICo
+	previousLookupPatternIPAPICo := ipLookupURLPatternIPAPICo
+	outboundLookupURL = primary.URL + "/"
+	ipLookupURLPattern = primary.URL + "/%s"
+	outboundLookupURLIPSB = secondary.URL + "/geoip"
+	ipLookupURLPatternIPSB = secondary.URL + "/geoip/%s"
+	outboundLookupURLIPAPICo = primary.URL + "/json/"
+	ipLookupURLPatternIPAPICo = primary.URL + "/%s/json/"
+	defer func() {
+		outboundLookupURL = previousOutbound
+		ipLookupURLPattern = previousLookupPattern
+		outboundLookupURLIPSB = previousOutboundIPSB
+		ipLookupURLPatternIPSB = previousLookupPatternIPSB
+		outboundLookupURLIPAPICo = previousOutboundIPAPICo
+		ipLookupURLPatternIPAPICo = previousLookupPatternIPAPICo
+	}()
+
+	info, err := lookupIPInfo(nil, "198.51.100.7", 1500*time.Millisecond)
+	if err != nil {
+		t.Fatalf("lookupIPInfo() error = %v", err)
+	}
+	if info.IP != "198.51.100.7" {
+		t.Fatalf("expected fallback IP 198.51.100.7, got %q", info.IP)
+	}
+	if info.CountryCode != "JP" {
+		t.Fatalf("expected fallback country JP, got %q", info.CountryCode)
+	}
+	if info.ASN != 64512 {
+		t.Fatalf("expected fallback ASN 64512, got %d", info.ASN)
+	}
+	if info.ASOrganization != "Fallback ISP" {
+		t.Fatalf("expected fallback organization Fallback ISP, got %q", info.ASOrganization)
+	}
+}
+
+func TestLookupCurrentIPInfoFallsBackToIPAPICoWhenEarlierProvidersFail(t *testing.T) {
+	blocked := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "upstream blocked", http.StatusBadGateway)
+	}))
+	defer blocked.Close()
+
+	tertiary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/json/":
+			_, _ = fmt.Fprint(w, `{"ip":"203.0.113.9","city":"Los Angeles","country_name":"United States","country_code":"US","asn":"AS64513","org":"Fallback Exit Org"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer tertiary.Close()
+
+	previousOutbound := outboundLookupURL
+	previousLookupPattern := ipLookupURLPattern
+	previousOutboundIPSB := outboundLookupURLIPSB
+	previousLookupPatternIPSB := ipLookupURLPatternIPSB
+	previousOutboundIPAPICo := outboundLookupURLIPAPICo
+	previousLookupPatternIPAPICo := ipLookupURLPatternIPAPICo
+	outboundLookupURL = blocked.URL + "/"
+	ipLookupURLPattern = blocked.URL + "/%s"
+	outboundLookupURLIPSB = blocked.URL + "/geoip"
+	ipLookupURLPatternIPSB = blocked.URL + "/geoip/%s"
+	outboundLookupURLIPAPICo = tertiary.URL + "/json/"
+	ipLookupURLPatternIPAPICo = tertiary.URL + "/%s/json/"
+	defer func() {
+		outboundLookupURL = previousOutbound
+		ipLookupURLPattern = previousLookupPattern
+		outboundLookupURLIPSB = previousOutboundIPSB
+		ipLookupURLPatternIPSB = previousLookupPatternIPSB
+		outboundLookupURLIPAPICo = previousOutboundIPAPICo
+		ipLookupURLPatternIPAPICo = previousLookupPatternIPAPICo
+	}()
+
+	info, err := lookupCurrentIPInfo(nil, 1500*time.Millisecond)
+	if err != nil {
+		t.Fatalf("lookupCurrentIPInfo() error = %v", err)
+	}
+	if info.IP != "203.0.113.9" {
+		t.Fatalf("expected fallback IP 203.0.113.9, got %q", info.IP)
+	}
+	if info.CountryCode != "US" {
+		t.Fatalf("expected fallback country US, got %q", info.CountryCode)
+	}
+	if info.ASN != 64513 {
+		t.Fatalf("expected fallback ASN 64513, got %d", info.ASN)
+	}
+	if info.ASOrganization != "Fallback Exit Org" {
+		t.Fatalf("expected fallback organization Fallback Exit Org, got %q", info.ASOrganization)
 	}
 }
 

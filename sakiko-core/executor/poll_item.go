@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"sakiko.local/sakiko-core/executor/taskpoll"
@@ -26,6 +27,7 @@ type pollItem struct {
 
 	lock     sync.Mutex
 	exitOnce sync.Once
+	canceled atomic.Bool
 }
 
 var executeNodeAttemptFunc = executeNodeAttempt
@@ -47,6 +49,9 @@ func (p *pollItem) Count() int {
 
 func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 	result := interfaces.EntryResult{}
+	if p.IsCanceled() {
+		return
+	}
 	defer func() {
 		p.lock.Lock()
 		p.results[idx] = result
@@ -63,6 +68,9 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 
 	bestScore := -1
 	for attempt := 1; attempt <= attempts; attempt++ {
+		if p.IsCanceled() {
+			break
+		}
 		candidate := executeNodeAttemptFunc(p.task, idx, p.matrices, p.macros, func(activeNode interfaces.TaskActiveNode) {
 			p.emitNodeUpdate(idx, attempt, activeNode)
 		})
@@ -75,6 +83,9 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 			break
 		}
 		if attempt < attempts {
+			if p.IsCanceled() {
+				break
+			}
 			executorLogger().Info("retrying node execution",
 				zap.String("task_id", p.id),
 				zap.Int("index", idx),
@@ -94,6 +105,14 @@ func (p *pollItem) Yield(idx int, c *taskpoll.Controller) {
 		zap.Int64("invoke_duration_ms", result.InvokeDuration),
 		zap.String("result_error", result.Error),
 	)
+}
+
+func (p *pollItem) Cancel() {
+	p.canceled.Store(true)
+}
+
+func (p *pollItem) IsCanceled() bool {
+	return p.canceled.Load()
 }
 
 func (p *pollItem) emitNodeUpdate(idx int, attempt int, activeNode interfaces.TaskActiveNode) {

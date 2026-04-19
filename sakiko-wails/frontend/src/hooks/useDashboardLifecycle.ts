@@ -30,7 +30,7 @@ export function useDashboardLifecycle() {
   }, [activeTaskId, syncActiveTask]);
 
   useEffect(() => {
-    if (!activeTaskId || activeTaskStatus !== "running") {
+    if (!activeTaskId || (activeTaskStatus !== "running" && activeTaskStatus !== "stopping")) {
       return;
     }
 

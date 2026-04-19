@@ -15,6 +15,7 @@ type TasksSectionProps = {
   onInspectTask: (taskId: string) => Promise<void>;
   onOpenSettings: () => void;
   onRunTask: () => Promise<void>;
+  onStopTask: () => Promise<void>;
   onTaskPresetChange: (value: TaskPreset) => void;
 };
 
@@ -29,6 +30,7 @@ export function TasksSection({
   onInspectTask,
   onOpenSettings,
   onRunTask,
+  onStopTask,
   onTaskPresetChange,
 }: TasksSectionProps) {
   return (
@@ -49,7 +51,7 @@ export function TasksSection({
       </Box>
 
       <Box className="sakiko-section-grid__content">
-        <TaskResultsPanel activeTask={activeTask} />
+        <TaskResultsPanel activeTask={activeTask} onStopTask={onStopTask} />
       </Box>
     </Box>
   );

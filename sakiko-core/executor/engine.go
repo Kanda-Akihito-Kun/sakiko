@@ -73,6 +73,21 @@ func (e *Engine) Stop() {
 	})
 }
 
+func (e *Engine) Cancel(taskID string) bool {
+	if e == nil {
+		return false
+	}
+	if e.speedPoll != nil && e.speedPoll.Cancel(taskID) {
+		executorLogger().Info("task cancel requested in speed queue", zap.String("task_id", taskID))
+		return true
+	}
+	if e.connPoll != nil && e.connPoll.Cancel(taskID) {
+		executorLogger().Info("task cancel requested in connection queue", zap.String("task_id", taskID))
+		return true
+	}
+	return false
+}
+
 func (e *Engine) Submit(task interfaces.Task, cb Callbacks) (string, error) {
 	if len(task.Nodes) == 0 {
 		return "", fmt.Errorf("empty nodes")

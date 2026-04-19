@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,10 +20,14 @@ import (
 )
 
 var (
-	outboundLookupURL  = "https://ipwho.is/"
-	ipLookupURLPattern = "https://ipwho.is/%s"
-	lookupInboundFunc  = lookupInbound
-	lookupOutboundFunc = lookupOutbound
+	outboundLookupURL         = "https://ipwho.is/"
+	ipLookupURLPattern        = "https://ipwho.is/%s"
+	outboundLookupURLIPSB     = "https://api.ip.sb/geoip"
+	ipLookupURLPatternIPSB    = "https://api.ip.sb/geoip/%s"
+	outboundLookupURLIPAPICo  = "https://ipapi.co/json/"
+	ipLookupURLPatternIPAPICo = "https://ipapi.co/%s/json/"
+	lookupInboundFunc         = lookupInbound
+	lookupOutboundFunc        = lookupOutbound
 )
 
 type Macro struct {
@@ -42,6 +47,32 @@ type ipWhoIsResponse struct {
 		Org string `json:"org"`
 		ISP string `json:"isp"`
 	} `json:"connection"`
+}
+
+type ipSBResponse struct {
+	IP           string `json:"ip"`
+	CountryCode  string `json:"country_code"`
+	Country      string `json:"country"`
+	City         string `json:"city"`
+	ASN          any    `json:"asn"`
+	Organization string `json:"organization"`
+}
+
+type ipAPICoResponse struct {
+	IP          string `json:"ip"`
+	City        string `json:"city"`
+	Country     string `json:"country_name"`
+	CountryCode string `json:"country_code"`
+	ASN         any    `json:"asn"`
+	Org         string `json:"org"`
+	Error       bool   `json:"error"`
+	Reason      string `json:"reason"`
+}
+
+type geoLookupProvider struct {
+	Name   string
+	URL    func(targetIP string) string
+	Decode func(*http.Response) (interfaces.GeoIPInfo, error)
 }
 
 func (m *Macro) Type() interfaces.MacroType {
@@ -154,15 +185,53 @@ func lookupOutbound(proxy interfaces.Vendor, timeout time.Duration) (interfaces.
 }
 
 func lookupCurrentIPInfo(proxy interfaces.Vendor, timeout time.Duration) (interfaces.GeoIPInfo, error) {
-	return requestIPInfo(proxy, outboundLookupURL, timeout)
+	return requestIPInfo(proxy, "", timeout)
 }
 
 func lookupIPInfo(proxy interfaces.Vendor, ip string, timeout time.Duration) (interfaces.GeoIPInfo, error) {
-	url := fmt.Sprintf(ipLookupURLPattern, ip)
-	return requestIPInfo(proxy, url, timeout)
+	return requestIPInfo(proxy, ip, timeout)
 }
 
-func requestIPInfo(proxy interfaces.Vendor, url string, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+func requestIPInfo(proxy interfaces.Vendor, targetIP string, timeout time.Duration) (interfaces.GeoIPInfo, error) {
+	providers := geoLookupProviders()
+	if len(providers) == 0 {
+		return interfaces.GeoIPInfo{}, fmt.Errorf("no geo providers configured")
+	}
+
+	deadline := time.Now().Add(timeout)
+	errs := make([]error, 0, len(providers))
+	for i, provider := range providers {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			errs = append(errs, fmt.Errorf("%s: timeout budget exhausted", provider.Name))
+			break
+		}
+
+		slotsLeft := len(providers) - i
+		providerTimeout := remaining / time.Duration(slotsLeft)
+		if providerTimeout <= 0 || providerTimeout > remaining {
+			providerTimeout = remaining
+		}
+
+		info, err := requestIPInfoFromProvider(proxy, provider.URL(targetIP), providerTimeout, provider.Decode)
+		if err == nil {
+			return info, nil
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", provider.Name, err))
+	}
+
+	if len(errs) == 1 {
+		return interfaces.GeoIPInfo{}, errs[0]
+	}
+	return interfaces.GeoIPInfo{}, fmt.Errorf("all geo providers failed: %w", errors.Join(errs...))
+}
+
+func requestIPInfoFromProvider(
+	proxy interfaces.Vendor,
+	url string,
+	timeout time.Duration,
+	decode func(*http.Response) (interfaces.GeoIPInfo, error),
+) (interfaces.GeoIPInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -184,6 +253,10 @@ func requestIPInfo(proxy interfaces.Vendor, url string, timeout time.Duration) (
 		return interfaces.GeoIPInfo{}, fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 
+	return decode(resp)
+}
+
+func decodeIPWhoIsResponse(resp *http.Response) (interfaces.GeoIPInfo, error) {
 	var payload ipWhoIsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return interfaces.GeoIPInfo{}, err
@@ -205,6 +278,118 @@ func requestIPInfo(proxy interfaces.Vendor, url string, timeout time.Duration) (
 		City:           payload.City,
 		CountryCode:    payload.CountryCode,
 	}, nil
+}
+
+func decodeIPSBResponse(resp *http.Response) (interfaces.GeoIPInfo, error) {
+	var payload ipSBResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return interfaces.GeoIPInfo{}, err
+	}
+	if strings.TrimSpace(payload.IP) == "" {
+		return interfaces.GeoIPInfo{}, fmt.Errorf("ip.sb lookup failed")
+	}
+
+	org := strings.TrimSpace(payload.Organization)
+	return interfaces.GeoIPInfo{
+		Address:        payload.IP,
+		IP:             payload.IP,
+		ASN:            parseASN(payload.ASN),
+		ASOrganization: org,
+		ISP:            org,
+		Country:        payload.Country,
+		City:           payload.City,
+		CountryCode:    payload.CountryCode,
+	}, nil
+}
+
+func decodeIPAPICoResponse(resp *http.Response) (interfaces.GeoIPInfo, error) {
+	var payload ipAPICoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return interfaces.GeoIPInfo{}, err
+	}
+	if payload.Error && strings.TrimSpace(payload.IP) == "" {
+		reason := strings.TrimSpace(payload.Reason)
+		if reason == "" {
+			reason = "ipapi.co lookup failed"
+		}
+		return interfaces.GeoIPInfo{}, errors.New(reason)
+	}
+	if strings.TrimSpace(payload.IP) == "" {
+		return interfaces.GeoIPInfo{}, fmt.Errorf("ipapi.co lookup failed")
+	}
+
+	org := strings.TrimSpace(payload.Org)
+	return interfaces.GeoIPInfo{
+		Address:        payload.IP,
+		IP:             payload.IP,
+		ASN:            parseASN(payload.ASN),
+		ASOrganization: org,
+		ISP:            org,
+		Country:        payload.Country,
+		City:           payload.City,
+		CountryCode:    payload.CountryCode,
+	}, nil
+}
+
+func geoLookupProviders() []geoLookupProvider {
+	return []geoLookupProvider{
+		{
+			Name: "ipwho.is",
+			URL: func(targetIP string) string {
+				if strings.TrimSpace(targetIP) == "" {
+					return outboundLookupURL
+				}
+				return fmt.Sprintf(ipLookupURLPattern, targetIP)
+			},
+			Decode: decodeIPWhoIsResponse,
+		},
+		{
+			Name: "ip.sb",
+			URL: func(targetIP string) string {
+				if strings.TrimSpace(targetIP) == "" {
+					return outboundLookupURLIPSB
+				}
+				return fmt.Sprintf(ipLookupURLPatternIPSB, targetIP)
+			},
+			Decode: decodeIPSBResponse,
+		},
+		{
+			Name: "ipapi.co",
+			URL: func(targetIP string) string {
+				if strings.TrimSpace(targetIP) == "" {
+					return outboundLookupURLIPAPICo
+				}
+				return fmt.Sprintf(ipLookupURLPatternIPAPICo, targetIP)
+			},
+			Decode: decodeIPAPICoResponse,
+		},
+	}
+}
+
+func parseASN(value any) int {
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case float32:
+		return int(typed)
+	case int:
+		return typed
+	case int64:
+		return int(typed)
+	case json.Number:
+		parsed, err := typed.Int64()
+		if err == nil {
+			return int(parsed)
+		}
+	case string:
+		raw := strings.TrimSpace(strings.ToUpper(typed))
+		raw = strings.TrimPrefix(raw, "AS")
+		parsed, err := strconv.Atoi(raw)
+		if err == nil {
+			return parsed
+		}
+	}
+	return 0
 }
 
 func resolveHost(ctx context.Context, host string) (string, error) {

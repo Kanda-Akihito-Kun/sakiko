@@ -8,7 +8,8 @@
     "openSettings": "Open Settings",
     "refresh": "Refresh",
     "reload": "Reload",
-    "run": "Run"
+    "run": "Run",
+    "stop": "Stop"
   },
   "labels": {
     "protocol": "Protocol"
@@ -41,6 +42,7 @@
     "pending": "Pending",
     "queued": "Queued",
     "running": "Running",
+    "stopping": "Stopping",
     "success": "Success"
   },
   "formats": {

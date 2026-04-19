@@ -13,6 +13,10 @@
 Sakiko is a desktop proxy benchmarking project built around a reusable Go kernel.
 The goal is to build a practical benchmark workflow, while keeping the execution core reusable for desktop and future web delivery.
 
+Version: `v0.1.0`
+
+Web Demo Trail: 43.167.194.92:8080
+
 ## What Sakiko Func
 
 The current MVP already covers the mainly function:
@@ -47,11 +51,7 @@ That boundary matters. Business logic lives in Go, not in frontend pages. The de
 sakiko/
   sakiko-core/   reusable kernel
   sakiko-wails/  desktop app
-  tests/         reserved for future integration and release smoke tests
 ```
-
-The current primary delivery target is `sakiko-wails`.
-A future web consumer is planned, but it must reuse `sakiko-core` instead of duplicating business logic.
 
 ### Requirements
 
@@ -105,7 +105,6 @@ Important caveats:
 
 - this is a local or single-machine deployment mode, not a multi-user web service
 - profiles, settings, and result history are stored on the machine that runs the process
-- if you expose it publicly, put a real HTTPS reverse proxy in front of it
 
 ## Project References
 
@@ -115,8 +114,6 @@ Sakiko openly learns from several existing projects, but it is not intended to b
 - Frontend information architecture and interaction flow reference `clash-verge-rev`
 - Streaming unlock checks and parts of the benchmarking implementation reference `Speed-Stair` and `RegionRestrictionCheck`
 - Protocol library is supported by `mihomo-core`
-
-These references inform the implementation, but Sakiko keeps its own kernel boundary, report model, and desktop-first workflow.
 
 ## License
 

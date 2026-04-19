@@ -276,6 +276,21 @@ func (s *SakikoService) GetTask(taskID string) (interfaces.TaskStatusResponse, e
 	return s.api.GetTask(taskID)
 }
 
+func (s *SakikoService) CancelTask(taskID string) error {
+	if err := s.ensureReady(); err != nil {
+		return err
+	}
+	if err := s.api.CancelTask(taskID); err != nil {
+		wailsServiceLogger().Warn("cancel task failed",
+			zap.String("task_id", taskID),
+			zap.Error(err),
+		)
+		return err
+	}
+	wailsServiceLogger().Info("task cancel requested", zap.String("task_id", taskID))
+	return nil
+}
+
 func (s *SakikoService) ListResultArchives() ([]interfaces.ResultArchiveListItem, error) {
 	if err := s.ensureReady(); err != nil {
 		return nil, err

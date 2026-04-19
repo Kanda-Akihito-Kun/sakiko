@@ -149,6 +149,8 @@ export function formatTaskStatus(value?: string): string {
       return translate("shared.statuses.pending", "Pending");
     case "running":
       return translate("shared.statuses.running", "Running");
+    case "stopping":
+      return translate("shared.statuses.stopping", "Stopping");
     case "success":
       return translate("shared.statuses.success", "Success");
     case "failed":

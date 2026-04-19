@@ -5,6 +5,9 @@ import type { AppSettings, AppSettingsPatch } from "../types/appSettings";
 
 export const SakikoService = {
   ...GeneratedSakikoService,
+  CancelTask(taskID: string): CancellablePromise<void> {
+    return Call.ByName("main.SakikoService.CancelTask", taskID);
+  },
   DeleteResultArchive(taskID: string): CancellablePromise<void> {
     return Call.ByName("main.SakikoService.DeleteResultArchive", taskID);
   },

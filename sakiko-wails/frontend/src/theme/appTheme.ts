@@ -8,26 +8,26 @@ const fontFamily = "var(--sakiko-font-sans)";
 
 const cvrThemes = {
   light: {
-    primary: "#007AFF",
-    primaryDark: "#006ADC",
+    primary: "#1677FF",
+    primaryDark: "#0A63E6",
     secondary: "#FC9B76",
     success: "#06943D",
     error: "#FF3B30",
     warning: "#FF9500",
-    textPrimary: "#000000",
-    textSecondary: "#3C3C4399",
-    pageBackground: "#ECECEC",
-    workspaceBackground: "#F5F5F5",
+    textPrimary: "#0F1728",
+    textSecondary: "rgba(60, 72, 92, 0.68)",
+    pageBackground: "#ECEFF4",
+    workspaceBackground: "#F7F9FC",
     surface: "#FFFFFF",
-    surfaceInset: "#FFFFFF",
-    divider: "rgba(0, 0, 0, 0.06)",
-    scrollbar: "#90939980",
-    scrollbarTrack: "#F1F1F1",
+    surfaceInset: "#FBFCFE",
+    divider: "rgba(15, 23, 42, 0.12)",
+    scrollbar: "rgba(132, 145, 166, 0.72)",
+    scrollbarTrack: "#EEF2F7",
     selectionColor: "#F5F5F5",
-    sidebarBackground: "rgba(255, 255, 255, 0.92)",
-    headerBackground: "rgba(245, 245, 245, 0.9)",
-    logoBackground: alpha("#007AFF", 0.08),
-    logoBorder: alpha("#007AFF", 0.14),
+    sidebarBackground: "rgba(250, 252, 255, 0.9)",
+    headerBackground: "rgba(247, 249, 252, 0.88)",
+    logoBackground: alpha("#1677FF", 0.08),
+    logoBorder: alpha("#1677FF", 0.14),
   },
   dark: {
     primary: "#0A84FF",
@@ -42,7 +42,7 @@ const cvrThemes = {
     workspaceBackground: "#1E1F27",
     surface: "#282A36",
     surfaceInset: "#242733",
-    divider: "rgba(255, 255, 255, 0.06)",
+    divider: "rgba(255, 255, 255, 0.1)",
     scrollbar: "#555555",
     scrollbarTrack: "#2E303D",
     selectionColor: "#3E3E3E",
@@ -99,7 +99,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
       },
     },
     shape: {
-      borderRadius: 4,
+      borderRadius: 8,
     },
     typography: {
       fontFamily,
@@ -115,6 +115,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
       },
       h5: {
         fontWeight: 700,
+        letterSpacing: "-0.02em",
       },
       h6: {
         fontWeight: 700,
@@ -130,12 +131,12 @@ export function createAppTheme(mode: ResolvedThemeMode) {
         color: tokens.textSecondary,
       },
       body2: {
-        lineHeight: 1.55,
+        lineHeight: 1.6,
       },
       button: {
         fontWeight: 600,
         textTransform: "none",
-        letterSpacing: 0,
+        letterSpacing: "-0.01em",
       },
     },
     components: {
@@ -208,8 +209,8 @@ export function createAppTheme(mode: ResolvedThemeMode) {
             backgroundColor: tokens.surface,
             backgroundImage: "none",
             border: `1px solid ${tokens.divider}`,
-            borderRadius: 8,
-            boxShadow: "none",
+            borderRadius: 14,
+            boxShadow: mode === "light" ? "0 8px 24px rgba(15, 23, 42, 0.04)" : "none",
           },
         },
       },
@@ -226,9 +227,9 @@ export function createAppTheme(mode: ResolvedThemeMode) {
         },
         styleOverrides: {
           root: {
-            minHeight: 33.375,
-            borderRadius: 8,
-            paddingInline: 14,
+            minHeight: 36,
+            borderRadius: 10,
+            paddingInline: 15,
           },
           containedPrimary: {
             backgroundColor: tokens.primary,
@@ -239,9 +240,9 @@ export function createAppTheme(mode: ResolvedThemeMode) {
           },
           outlined: {
             borderColor: tokens.divider,
-            backgroundColor: isLight ? tokens.surface : alpha("#FFFFFF", 0.02),
+            backgroundColor: isLight ? alpha(tokens.surface, 0.88) : alpha("#FFFFFF", 0.02),
             "&:hover": {
-              borderColor: alpha(tokens.primary, 0.5),
+              borderColor: alpha(tokens.primary, 0.42),
               backgroundColor: hoverFill,
             },
           },
@@ -257,7 +258,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
         styleOverrides: {
           root: {
             backgroundColor: tokens.surfaceInset,
-            borderRadius: 8,
+            borderRadius: 10,
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: tokens.divider,
             },
@@ -276,7 +277,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
       MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 10,
             fontWeight: 600,
           },
           filledPrimary: {
@@ -285,25 +286,26 @@ export function createAppTheme(mode: ResolvedThemeMode) {
           },
           outlined: {
             borderColor: tokens.divider,
-            backgroundColor: isLight ? tokens.surface : alpha("#FFFFFF", 0.02),
+            backgroundColor: isLight ? alpha(tokens.surface, 0.88) : alpha("#FFFFFF", 0.02),
           },
         },
       },
       MuiListItemButton: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 12,
             border: "1px solid transparent",
             marginBottom: 6,
+            transition: "background-color 160ms ease, border-color 160ms ease",
             "&:hover": {
               backgroundColor: hoverFill,
             },
             "&.Mui-selected": {
-              backgroundColor: selectedFill,
-              borderColor: alpha(tokens.primary, 0.2),
+              backgroundColor: alpha(tokens.primary, isLight ? 0.08 : 0.2),
+              borderColor: alpha(tokens.primary, 0.18),
             },
             "&.Mui-selected:hover": {
-              backgroundColor: selectedFill,
+              backgroundColor: alpha(tokens.primary, isLight ? 0.1 : 0.22),
             },
           },
         },
@@ -311,7 +313,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
       MuiToggleButtonGroup: {
         styleOverrides: {
           grouped: {
-            borderRadius: 8,
+            borderRadius: 10,
             borderColor: tokens.divider,
           },
         },
@@ -322,16 +324,16 @@ export function createAppTheme(mode: ResolvedThemeMode) {
             paddingInline: 16,
             color: tokens.textSecondary,
             borderColor: tokens.divider,
-            backgroundColor: isLight ? tokens.surface : alpha("#FFFFFF", 0.02),
+            backgroundColor: isLight ? alpha(tokens.surface, 0.88) : alpha("#FFFFFF", 0.02),
             "&:hover": {
               backgroundColor: hoverFill,
             },
             "&.Mui-selected": {
               color: tokens.textPrimary,
-              backgroundColor: selectedFill,
+              backgroundColor: alpha(tokens.primary, isLight ? 0.08 : 0.24),
             },
             "&.Mui-selected:hover": {
-              backgroundColor: selectedFill,
+              backgroundColor: alpha(tokens.primary, isLight ? 0.1 : 0.26),
             },
           },
         },
@@ -361,7 +363,7 @@ export function createAppTheme(mode: ResolvedThemeMode) {
       MuiAlert: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 10,
           },
           filledError: {
             backgroundColor: isLight ? "#FFEFEE" : "#4B252A",

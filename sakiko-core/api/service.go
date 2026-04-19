@@ -123,6 +123,22 @@ func (s *Service) GetTask(taskID string) (interfaces.TaskStatusResponse, error) 
 	return task, nil
 }
 
+func (s *Service) CancelTask(taskID string) error {
+	if s == nil || s.kernel == nil {
+		apiLogger().Warn("cancel task rejected: service not initialized")
+		return fmt.Errorf("service not initialized")
+	}
+	if err := s.kernel.CancelTask(taskID); err != nil {
+		apiLogger().Warn("cancel task failed",
+			zap.String("task_id", taskID),
+			zap.Error(err),
+		)
+		return err
+	}
+	apiLogger().Info("task cancel requested", zap.String("task_id", taskID))
+	return nil
+}
+
 func (s *Service) RuntimeStatus() interfaces.RuntimeStatusResponse {
 	if s == nil || s.kernel == nil {
 		apiLogger().Warn("runtime status rejected: service not initialized")

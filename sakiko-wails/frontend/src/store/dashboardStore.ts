@@ -60,6 +60,7 @@ type DashboardState = {
   handleSetProfileNodeEnabled: (nodeIndex: number, enabled: boolean) => Promise<void>;
   handleMoveProfileNode: (nodeIndex: number, targetIndex: number) => Promise<void>;
   handleRunTask: () => Promise<void>;
+  handleStopTask: () => Promise<void>;
   handleInspectTask: (taskId: string) => Promise<void>;
   clearError: () => void;
 };
@@ -356,7 +357,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         const selected = latestTasks.find((item) => item.taskId === activeTaskId);
         set({
           tasks: latestTasks,
-          message: selected && selected.status !== "running"
+          message: selected && selected.status !== "running" && selected.status !== "stopping"
             ? translate("dashboard.messages.taskFinished", `Task ${selected.name} finished with ${detail.results?.length ?? 0} result(s).`, {
               name: selected.name,
               count: detail.results?.length ?? 0,
@@ -364,7 +365,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
             : get().message,
         });
 
-        if (selected && selected.status !== "running" && !get().resultArchives.some((item) => item.taskId === activeTaskId)) {
+        if (selected && selected.status !== "running" && selected.status !== "stopping" && !get().resultArchives.some((item) => item.taskId === activeTaskId)) {
           void get().refreshResultArchives(false);
         }
       } catch (err) {
@@ -601,6 +602,52 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ error: normalizeError(err) });
     } finally {
       set({ submitting: false });
+    }
+  },
+
+  handleStopTask: async () => {
+    const { activeTask, activeTaskId, tasks } = get();
+    if (!activeTaskId || !activeTask) {
+      return;
+    }
+    if (activeTask.task.status !== "running" && activeTask.task.status !== "stopping") {
+      return;
+    }
+
+    set({
+      error: "",
+      message: translate("dashboard.messages.stoppingTask", `Stopping ${activeTask.task.name}...`, {
+        name: activeTask.task.name,
+      }),
+      activeTask: {
+        ...activeTask,
+        task: {
+          ...activeTask.task,
+          status: "stopping",
+        },
+      },
+      tasks: tasks.map((task) => task.taskId === activeTaskId ? { ...task, status: "stopping" } : task),
+    });
+
+    try {
+      await SakikoService.CancelTask(activeTaskId);
+      void get().syncActiveTask();
+    } catch (err) {
+      set((state) => ({
+        error: normalizeError(err),
+        activeTask: state.activeTask && state.activeTask.task.taskId === activeTaskId
+          ? {
+              ...state.activeTask,
+              task: {
+                ...state.activeTask.task,
+                status: "running",
+              },
+            }
+          : state.activeTask,
+        tasks: state.tasks.map((task) => task.taskId === activeTaskId && task.status === "stopping"
+          ? { ...task, status: "running" }
+          : task),
+      }));
     }
   },
 

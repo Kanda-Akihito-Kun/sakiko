@@ -197,7 +197,7 @@ func (s *Service) RuntimeStatus() interfaces.RuntimeStatus {
 
 	running := 0
 	for _, task := range s.tasks {
-		if task.state.Status == "running" {
+		if task.state.Status == "running" || task.state.Status == "stopping" {
 			running++
 		}
 	}
@@ -206,6 +206,43 @@ func (s *Service) RuntimeStatus() interfaces.RuntimeStatus {
 		RunningTask: running,
 		TotalTask:   len(s.tasks),
 	}
+}
+
+func (s *Service) CancelTask(taskID string) error {
+	if s == nil || s.engine == nil {
+		return fmt.Errorf("kernel not initialized")
+	}
+
+	s.lock.Lock()
+	record, ok := s.tasks[taskID]
+	if !ok {
+		s.lock.Unlock()
+		return fmt.Errorf("task not found")
+	}
+	switch record.state.Status {
+	case "finished", "failed", "canceled":
+		s.lock.Unlock()
+		return fmt.Errorf("task already finished")
+	case "stopping":
+		s.lock.Unlock()
+		return nil
+	default:
+		record.state.Status = "stopping"
+		record.state.ActiveNodes = buildActiveNodes(record.activeNodes)
+	}
+	s.lock.Unlock()
+
+	if !s.engine.Cancel(taskID) {
+		s.lock.Lock()
+		if current, ok := s.tasks[taskID]; ok && current.state.Status == "stopping" {
+			current.state.Status = "running"
+		}
+		s.lock.Unlock()
+		return fmt.Errorf("task is not cancelable")
+	}
+
+	kernelLogger().Info("task cancel requested", zap.String("task_id", taskID))
+	return nil
 }
 
 func (s *Service) addTask(task interfaces.Task, total int) {
@@ -267,7 +304,11 @@ func (s *Service) finishTask(taskID string, results []interfaces.EntryResult, ex
 	if !ok {
 		return interfaces.TaskState{}, interfaces.TaskArchiveSnapshot{}
 	}
-	task.state.Status = "finished"
+	if exitCode == taskpoll.ExitCodeStopped {
+		task.state.Status = "canceled"
+	} else {
+		task.state.Status = "finished"
+	}
 	task.state.ActiveNodes = nil
 	task.state.Queuing = 0
 	task.state.FinishedAt = s.now().UTC().Format(time.RFC3339)

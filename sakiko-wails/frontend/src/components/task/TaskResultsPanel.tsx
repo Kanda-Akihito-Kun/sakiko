@@ -1,5 +1,6 @@
 import InsightsRounded from "@mui/icons-material/InsightsRounded";
-import { Box, Card, Chip, Stack, Typography } from "@mui/material";
+import StopCircleRounded from "@mui/icons-material/StopCircleRounded";
+import { Box, Button, Card, Chip, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { TaskActiveNode, TaskStatusResponse } from "../../types/sakiko";
 import { describeTaskActiveNode, formatMacroLabel, formatMatrixLabel, formatTaskRuntimePhase, formatTaskStatus, shouldUseEmojiFont, summarizeActiveTaskNodes } from "../../utils/dashboard";
@@ -11,19 +12,34 @@ import { ResultEntryCard } from "./ResultEntryCard";
 
 type TaskResultsPanelProps = {
   activeTask: TaskStatusResponse | null;
+  onStopTask: () => Promise<void>;
 };
 
-export function TaskResultsPanel({ activeTask }: TaskResultsPanelProps) {
+export function TaskResultsPanel({ activeTask, onStopTask }: TaskResultsPanelProps) {
   const { t } = useTranslation();
   const mediaMatrix = buildMediaMatrixFromResults(activeTask?.results || []);
   const activeNodes = activeTask?.task?.activeNodes || [];
   const activeSummary = summarizeActiveTaskNodes(activeNodes);
+  const isCancelable = activeTask?.task?.status === "running" || activeTask?.task?.status === "stopping";
+  const isStopping = activeTask?.task?.status === "stopping";
 
   return (
     <SectionCard
       title={t("dashboard.tasks.results.title")}
       subtitle={activeTask?.task?.name || t("shared.states.selectTask")}
       icon={<InsightsRounded color="primary" />}
+      action={isCancelable ? (
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          startIcon={<StopCircleRounded />}
+          onClick={() => void onStopTask()}
+          disabled={isStopping}
+        >
+          {t("shared.actions.stop", "Stop")}
+        </Button>
+      ) : undefined}
     >
       {activeTask ? (
         <Stack spacing={2}>

@@ -20,6 +20,7 @@ import {
 import { lazy, Suspense, startTransition, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { WorkspacePage } from "../components/layout/WorkspacePage";
+import { APP_VERSION } from "../constants/appMeta";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardLifecycle } from "../hooks/useDashboardLifecycle";
 import { useDashboardStore } from "../store/dashboardStore";
@@ -71,6 +72,7 @@ export function DashboardPage() {
     handleMoveProfileNode: state.handleMoveProfileNode,
     handleSetProfileNodeEnabled: state.handleSetProfileNodeEnabled,
     handleRunTask: state.handleRunTask,
+    handleStopTask: state.handleStopTask,
     importForm: state.importForm,
     loading: state.loading,
     message: state.message,
@@ -197,6 +199,12 @@ export function DashboardPage() {
             })}
           </List>
 
+          <Box className="sakiko-sidebar__meta">
+            <Typography variant="caption" color="text.secondary" className="sakiko-sidebar__version">
+              {APP_VERSION}
+            </Typography>
+          </Box>
+
         </Box>
 
         <Box className="sakiko-content">
@@ -254,6 +262,7 @@ export function DashboardPage() {
                   onInspectTask={dashboard.handleInspectTask}
                   onOpenSettings={() => startTransition(() => setSection("settings"))}
                   onRunTask={dashboard.handleRunTask}
+                  onStopTask={dashboard.handleStopTask}
                   onTaskPresetChange={dashboard.setTaskPreset}
                 />
               )}
