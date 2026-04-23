@@ -1,0 +1,37 @@
+version: "3"
+
+info:
+  companyName: "Kanda Akihito"
+  productName: "Sakiko"
+  productIdentifier: "io.github.kanda-akihito-kun.sakiko"
+  description: "Desktop proxy benchmark and speed test tool"
+  copyright: "(c) 2026, Kanda Akihito"
+  comments: ""
+  version: "0.1.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - "*.go"
+      - "*.js"
+      - "*.ts"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task build
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: wails3 task run
+      type: primary

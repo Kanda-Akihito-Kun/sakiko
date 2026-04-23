@@ -1,0 +1,79 @@
+{
+  "title": "Basic",
+  "language": {
+    "label": "Language"
+  },
+  "themeMode": {
+    "label": "Theme Mode"
+  },
+  "exportPictureMode": {
+    "label": "Export Picture Mode"
+  },
+  "taskDefaults": {
+    "parameterAdjustTitle": "Parameter Adjust",
+    "speedtestServerTitle": "Speedtest Server",
+    "pingUrl": "Ping URL",
+    "pingUrlHelper": "Used by ping and full tasks",
+    "timeout": "Timeout (ms)",
+    "downloadUrl": "Download URL",
+    "downloadUrlHelper": "Manual override for speed and full tasks",
+    "duration": "Duration (s)",
+    "durationHelper": "Used by speed and full tasks. Range: 5-20s",
+    "backendIdentity": "Backend Identity",
+    "backendIdentityHelper": "{{count}}/50. Leave empty to export as \"empty\".",
+    "downloadTarget": {
+      "title": "Download Target",
+      "description": "Choose a Speedtest target to fill the download URL, or keep the Cloudflare default.",
+      "useDefault": "Use {{name}}",
+      "searchLabel": "Search Speedtest Targets",
+      "searchPlaceholder": "Search remote Speedtest servers by city or country...",
+      "searchHelper": "Search is sent to the Speedtest API. Leave empty to load the default nearby list.",
+      "results": "{{count}} result(s) for \"{{search}}\"",
+      "targets": "{{count}} target(s)",
+      "loading": "Loading Speedtest targets...",
+      "notFound": "No Speedtest targets found for \"{{search}}\".",
+      "notLoaded": "No Speedtest targets loaded yet.",
+      "unknownSponsor": "Unknown sponsor",
+      "selected": "Selected"
+    },
+    "speedMode": {
+      "title": "Speed Mode",
+      "single": "Single-thread",
+      "multi": "Multi-thread",
+      "singleDescription": "Using 1 download stream",
+      "multiDescription": "Using {{count}} parallel download streams"
+    }
+  },
+  "environment": {
+    "title": "Environment",
+    "mode": "Mode",
+    "workspace": "Workspace",
+    "workspaceUnavailable": "Profiles workspace unavailable"
+  },
+  "updates": {
+    "title": "Version",
+    "check": "Check for Updates",
+    "openReleasePage": "Open Release Page",
+    "currentVersion": "Current Version",
+    "latestVersion": "Latest Release",
+    "latestVersionUnavailable": "Unavailable",
+    "status": "Status",
+    "statusChecking": "Checking for updates...",
+    "statusUpdateAvailable": "Update available: {{version}}",
+    "statusLatest": "You are using the latest release",
+    "statusCheckFailed": "Update check failed",
+    "checkedAt": "Last Checked",
+    "notChecked": "Not checked yet",
+    "error": "Error"
+  },
+  "themeOptions": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "followTheme": "Follow Theme"
+  },
+  "languageOptions": {
+    "en": "English",
+    "zh": "Simplified Chinese"
+  }
+}

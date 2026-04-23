@@ -1,0 +1,148 @@
+package speed
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"sync"
+	"time"
+
+	"sakiko.local/sakiko-core/interfaces"
+	"sakiko.local/sakiko-core/netx"
+)
+
+type Macro struct {
+	AvgSpeed    uint64
+	MaxSpeed    uint64
+	Total       uint64
+	TrafficUsed uint64
+	Speeds      []uint64
+}
+
+const (
+	switchCooldown = time.Second
+)
+
+func (m *Macro) Type() interfaces.MacroType {
+	return interfaces.MacroSpeed
+}
+
+func (m *Macro) Run(ctx context.Context, proxy interfaces.Vendor, task *interfaces.Task) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cfg := task.Config.Normalize()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(switchCooldown):
+	}
+
+	samples := make([]uint64, cfg.DownloadDuration)
+
+	counters := make([]*writeCounter, 0, cfg.DownloadThreading)
+	cancels := make([]context.CancelFunc, 0, cfg.DownloadThreading)
+	var ready sync.WaitGroup
+	var done sync.WaitGroup
+
+	for i := 0; i < int(cfg.DownloadThreading); i++ {
+		ready.Add(1)
+		done.Add(1)
+		counter := &writeCounter{}
+		cancel := singleThread(ctx, proxy, cfg.DownloadURL, cfg.DownloadDuration, counter, &ready, &done)
+		counters = append(counters, counter)
+		cancels = append(cancels, cancel)
+	}
+	ready.Wait()
+
+	for i := 0; i < int(cfg.DownloadDuration); i++ {
+		select {
+		case <-ctx.Done():
+			for _, cancel := range cancels {
+				cancel()
+			}
+			done.Wait()
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+		var speedThisSecond uint64
+		for _, counter := range counters {
+			speedThisSecond += counter.Take()
+		}
+		samples[i] = speedThisSecond
+	}
+	for _, cancel := range cancels {
+		cancel()
+	}
+	done.Wait()
+	for _, counter := range counters {
+		m.TrafficUsed += counter.Total()
+	}
+
+	m.Speeds = dropExtremes(samples)
+	for _, speedThisSecond := range m.Speeds {
+		m.Total += speedThisSecond
+		if speedThisSecond > m.MaxSpeed {
+			m.MaxSpeed = speedThisSecond
+		}
+	}
+	if len(m.Speeds) > 0 {
+		m.AvgSpeed = m.Total / uint64(len(m.Speeds))
+	}
+	if m.Total == 0 {
+		return fmt.Errorf("speed test failed, with total in 0")
+	}
+	return nil
+}
+
+func singleThread(parent context.Context, proxy interfaces.Vendor, rawURL string, duration int64, counter *writeCounter, ready *sync.WaitGroup, done *sync.WaitGroup) context.CancelFunc {
+	ctx, cancel := context.WithTimeout(parent, time.Duration(duration+1)*time.Second)
+	go func() {
+		defer done.Done()
+		ready.Done()
+		for ctx.Err() == nil {
+			resp, err := netx.RequestUnsafe(ctx, proxy, interfaces.RequestOptions{
+				URL:     rawURL,
+				Method:  "GET",
+				Network: interfaces.ROptionsTCP,
+			})
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(150 * time.Millisecond):
+				}
+				continue
+			}
+			_, _ = io.Copy(io.Discard, io.TeeReader(resp.Body, counter))
+			resp.Body.Close()
+		}
+	}()
+	return cancel
+}
+
+func dropExtremes(samples []uint64) []uint64 {
+	if len(samples) <= 2 {
+		return append([]uint64{}, samples...)
+	}
+
+	minIdx := 0
+	maxIdx := 0
+	for i := 1; i < len(samples); i++ {
+		if samples[i] < samples[minIdx] {
+			minIdx = i
+		}
+		if samples[i] >= samples[maxIdx] {
+			maxIdx = i
+		}
+	}
+
+	filtered := make([]uint64, 0, len(samples)-2)
+	for i, sample := range samples {
+		if i == minIdx || i == maxIdx {
+			continue
+		}
+		filtered = append(filtered, sample)
+	}
+	return filtered
+}
