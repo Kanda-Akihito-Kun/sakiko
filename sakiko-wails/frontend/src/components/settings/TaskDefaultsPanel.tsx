@@ -14,8 +14,9 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DEFAULT_BACKEND_IDENTITY, DEFAULT_DOWNLOAD_THREADING, MAX_BACKEND_IDENTITY_RUNES } from "../../constants/dashboard";
 import { DownloadTargetSource } from "../../types/sakiko";
 import type { DownloadTarget, TaskConfig } from "../../types/sakiko";
 import { SectionCard } from "../shared/SectionCard";
@@ -43,9 +44,11 @@ export function TaskDefaultsPanel({
 }: TaskDefaultsPanelProps) {
   const { t } = useTranslation();
   const searchInitializedRef = useRef(false);
+  const [durationInput, setDurationInput] = useState(() => String(taskConfig.downloadDuration || ""));
   const defaultTarget = downloadTargets.find((target) => target.source === DownloadTargetSource.DownloadTargetSourceCloudflare) || null;
   const speedtestTargets = downloadTargets.filter((target) => target.source === DownloadTargetSource.DownloadTargetSourceSpeedtest);
   const normalizedTargetSearch = downloadTargetSearch.trim();
+  const isUsingDefaultTarget = Boolean(defaultTarget && taskConfig.downloadURL === defaultTarget.downloadURL);
 
   useEffect(() => {
     if (!searchInitializedRef.current) {
@@ -62,11 +65,32 @@ export function TaskDefaultsPanel({
     };
   }, [downloadTargetSearch, onRefreshDownloadTargets]);
 
+  useEffect(() => {
+    setDurationInput(String(taskConfig.downloadDuration || ""));
+  }, [taskConfig.downloadDuration]);
+
   return (
-    <>
+    <Stack spacing={2.25}>
       <SectionCard
         title={t("settings.taskDefaults.parameterAdjustTitle")}
         icon={<TuneRounded color="primary" />}
+        action={(
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              setDurationInput("10");
+              onPatchTaskConfig({
+                pingAddress: "https://cp.cloudflare.com/generate_204",
+                taskTimeoutMillis: 6000,
+                downloadDuration: 10,
+                backendIdentity: DEFAULT_BACKEND_IDENTITY,
+              });
+            }}
+          >
+            {t("settings.taskDefaults.restoreDefaults")}
+          </Button>
+        )}
       >
         <Box
           sx={{
@@ -91,17 +115,26 @@ export function TaskDefaultsPanel({
           />
           <TextField
             fullWidth
-            label={t("settings.taskDefaults.downloadUrl")}
-            value={taskConfig.downloadURL}
-            onChange={(event) => onPatchTaskConfig({ downloadURL: event.target.value })}
-            helperText={t("settings.taskDefaults.downloadUrlHelper")}
-          />
-          <TextField
-            fullWidth
             label={t("settings.taskDefaults.duration")}
             type="number"
-            value={taskConfig.downloadDuration}
-            onChange={(event) => onPatchTaskConfig({ downloadDuration: Number(event.target.value) })}
+            value={durationInput}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setDurationInput(nextValue);
+              if (nextValue === "") {
+                return;
+              }
+              const parsed = Number(nextValue);
+              if (Number.isFinite(parsed)) {
+                onPatchTaskConfig({ downloadDuration: parsed });
+              }
+            }}
+            onBlur={() => {
+              const parsed = Number(durationInput);
+              const normalized = Number.isFinite(parsed) ? Math.min(20, Math.max(5, Math.floor(parsed))) : 10;
+              setDurationInput(String(normalized));
+              onPatchTaskConfig({ downloadDuration: normalized });
+            }}
             inputProps={{ min: 5, max: 20 }}
             helperText={t("settings.taskDefaults.durationHelper")}
           />
@@ -110,10 +143,16 @@ export function TaskDefaultsPanel({
             label={t("settings.taskDefaults.backendIdentity")}
             value={taskConfig.backendIdentity || ""}
             onChange={(event) => onPatchTaskConfig({ backendIdentity: event.target.value })}
+            onBlur={() => {
+              if (!(taskConfig.backendIdentity || "").trim()) {
+                onPatchTaskConfig({ backendIdentity: DEFAULT_BACKEND_IDENTITY });
+              }
+            }}
             helperText={t("settings.taskDefaults.backendIdentityHelper", {
               count: Array.from(taskConfig.backendIdentity || "").length,
             })}
-            inputProps={{ maxLength: 50 }}
+            placeholder={DEFAULT_BACKEND_IDENTITY}
+            inputProps={{ maxLength: MAX_BACKEND_IDENTITY_RUNES }}
           />
         </Box>
       </SectionCard>
@@ -133,35 +172,35 @@ export function TaskDefaultsPanel({
                   {t("settings.taskDefaults.downloadTarget.description")}
                 </Typography>
               </Box>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<RefreshRounded />}
-                disabled={downloadTargetsLoading}
-                onClick={() => void onRefreshDownloadTargets(downloadTargetSearch)}
-              >
-                {t("shared.actions.refresh")}
-              </Button>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {defaultTarget ? (
+                  <Button
+                    size="small"
+                    variant={isUsingDefaultTarget ? "contained" : "outlined"}
+                    disabled={downloadTargetsLoading}
+                    onClick={() => onPatchTaskConfig({ downloadURL: defaultTarget.downloadURL })}
+                  >
+                    {t("settings.taskDefaults.downloadTarget.useDefault", { name: defaultTarget.name })}
+                  </Button>
+                ) : null}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<RefreshRounded />}
+                  disabled={downloadTargetsLoading}
+                  onClick={() => void onRefreshDownloadTargets(downloadTargetSearch)}
+                >
+                  {t("shared.actions.refresh")}
+                </Button>
+              </Stack>
             </Stack>
-
-            {defaultTarget ? (
-              <Button
-                variant={taskConfig.downloadURL === defaultTarget.downloadURL ? "contained" : "outlined"}
-                onClick={() => onPatchTaskConfig({ downloadURL: defaultTarget.downloadURL })}
-                sx={{ justifyContent: "flex-start" }}
-              >
-                {t("settings.taskDefaults.downloadTarget.useDefault", { name: defaultTarget.name })}
-              </Button>
-            ) : null}
 
             <TextField
               fullWidth
               size="small"
-              label={t("settings.taskDefaults.downloadTarget.searchLabel")}
               value={downloadTargetSearch}
               onChange={(event) => onDownloadTargetSearchChange(event.target.value)}
               placeholder={t("settings.taskDefaults.downloadTarget.searchPlaceholder")}
-              helperText={t("settings.taskDefaults.downloadTarget.searchHelper")}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -170,18 +209,6 @@ export function TaskDefaultsPanel({
                 ),
               }}
             />
-
-            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={
-                  normalizedTargetSearch
-                    ? t("settings.taskDefaults.downloadTarget.results", { count: speedtestTargets.length, search: normalizedTargetSearch })
-                    : t("settings.taskDefaults.downloadTarget.targets", { count: speedtestTargets.length })
-                }
-              />
-            </Stack>
 
             <List
               disablePadding
@@ -244,7 +271,7 @@ export function TaskDefaultsPanel({
                   onPatchTaskConfig({ downloadThreading: 1 });
                 }
                 if (value === "multi") {
-                  onPatchTaskConfig({ downloadThreading: 8 });
+                  onPatchTaskConfig({ downloadThreading: DEFAULT_DOWNLOAD_THREADING });
                 }
               }}
             >
@@ -259,6 +286,6 @@ export function TaskDefaultsPanel({
           </Stack>
         </Stack>
       </SectionCard>
-    </>
+    </Stack>
   );
 }

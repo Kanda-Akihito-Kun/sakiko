@@ -9,6 +9,7 @@ export type ProfileSummary = {
 };
 
 export type {
+  BackendInfo,
   DownloadTarget,
   EntryResult,
   TaskActiveNode,
@@ -24,8 +25,8 @@ export type {
   TaskContext,
   TaskState,
   TaskStatusResponse,
-} from "../../bindings/sakiko.local/sakiko-core/interfaces";
+} from "../../bindings/sakiko.local/sakiko-core/interfaces/index.js";
 
 export {
   DownloadTargetSource,
-} from "../../bindings/sakiko.local/sakiko-core/interfaces";
+} from "../../bindings/sakiko.local/sakiko-core/interfaces/index.js";

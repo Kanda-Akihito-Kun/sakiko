@@ -27,6 +27,39 @@ export class BackendInfo {
     }
 }
 
+export class DNSConfig {
+    "bootstrapServers": string[];
+    "resolverServers": string[];
+
+    /** Creates a new DNSConfig instance. */
+    constructor($$source: Partial<DNSConfig> = {}) {
+        if (!("bootstrapServers" in $$source)) {
+            this["bootstrapServers"] = [];
+        }
+        if (!("resolverServers" in $$source)) {
+            this["resolverServers"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DNSConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DNSConfig {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("bootstrapServers" in $$parsedSource) {
+            $$parsedSource["bootstrapServers"] = $$createField0_0($$parsedSource["bootstrapServers"]);
+        }
+        if ("resolverServers" in $$parsedSource) {
+            $$parsedSource["resolverServers"] = $$createField1_0($$parsedSource["resolverServers"]);
+        }
+        return new DNSConfig($$parsedSource as Partial<DNSConfig>);
+    }
+}
+
 export class DownloadTarget {
     "id": string;
     "source": DownloadTargetSource;
@@ -101,8 +134,8 @@ export class EntryResult {
      * Creates a new EntryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): EntryResult {
-        const $$createField0_0 = $$createType0;
-        const $$createField2_0 = $$createType2;
+        const $$createField0_0 = $$createType1;
+        const $$createField2_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("proxyInfo" in $$parsedSource) {
             $$parsedSource["proxyInfo"] = $$createField0_0($$parsedSource["proxyInfo"]);
@@ -255,7 +288,7 @@ export class Profile {
      * Creates a new Profile instance from a string or object.
      */
     static createFrom($$source: any = {}): Profile {
-        const $$createField3_0 = $$createType4;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -369,10 +402,10 @@ export class ResultArchive {
      * Creates a new ResultArchive instance from a string or object.
      */
     static createFrom($$source: any = {}): ResultArchive {
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType8;
-        const $$createField5_0 = $$createType9;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
+        const $$createField5_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("task" in $$parsedSource) {
             $$parsedSource["task"] = $$createField1_0($$parsedSource["task"]);
@@ -489,11 +522,11 @@ export class ResultArchiveTask {
      * Creates a new ResultArchiveTask instance from a string or object.
      */
     static createFrom($$source: any = {}): ResultArchiveTask {
-        const $$createField3_0 = $$createType10;
-        const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType14;
-        const $$createField6_0 = $$createType16;
-        const $$createField7_0 = $$createType17;
+        const $$createField3_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
+        const $$createField5_0 = $$createType15;
+        const $$createField6_0 = $$createType17;
+        const $$createField7_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("context" in $$parsedSource) {
             $$parsedSource["context"] = $$createField3_0($$parsedSource["context"]);
@@ -531,7 +564,7 @@ export class ResultReport {
      * Creates a new ResultReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ResultReport {
-        const $$createField1_0 = $$createType19;
+        const $$createField1_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sections" in $$parsedSource) {
             $$parsedSource["sections"] = $$createField1_0($$parsedSource["sections"]);
@@ -588,9 +621,9 @@ export class ResultReportSection {
      * Creates a new ResultReportSection instance from a string or object.
      */
     static createFrom($$source: any = {}): ResultReportSection {
-        const $$createField2_0 = $$createType21;
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType22;
+        const $$createField2_0 = $$createType22;
+        const $$createField3_0 = $$createType24;
+        const $$createField4_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField2_0($$parsedSource["columns"]);
@@ -662,7 +695,7 @@ export class TaskActiveNode {
      * Creates a new TaskActiveNode instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskActiveNode {
-        const $$createField8_0 = $$createType24;
+        const $$createField8_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matrices" in $$parsedSource) {
             $$parsedSource["matrices"] = $$createField8_0($$parsedSource["matrices"]);
@@ -752,7 +785,7 @@ export class TaskEnvironment {
      * Creates a new TaskEnvironment instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskEnvironment {
-        const $$createField1_0 = $$createType26;
+        const $$createField1_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("backend" in $$parsedSource) {
             $$parsedSource["backend"] = $$createField1_0($$parsedSource["backend"]);
@@ -814,7 +847,7 @@ export class TaskState {
      * Creates a new TaskState instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskState {
-        const $$createField8_0 = $$createType28;
+        const $$createField8_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("activeNodes" in $$parsedSource) {
             $$parsedSource["activeNodes"] = $$createField8_0($$parsedSource["activeNodes"]);
@@ -841,8 +874,8 @@ export class TaskStatusResponse {
      * Creates a new TaskStatusResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): TaskStatusResponse {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType8;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("task" in $$parsedSource) {
             $$parsedSource["task"] = $$createField0_0($$parsedSource["task"]);
@@ -866,32 +899,33 @@ export enum VendorType {
 };
 
 // Private type creation functions
-const $$createType0 = ProxyInfo.createFrom;
-const $$createType1 = MatrixResult.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = Node.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = ResultArchiveTask.createFrom;
-const $$createType6 = TaskState.createFrom;
-const $$createType7 = EntryResult.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = ResultReport.createFrom;
-const $$createType10 = TaskContext.createFrom;
-const $$createType11 = TaskEnvironment.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = ResultArchiveNode.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = MatrixEntry.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = TaskConfig.createFrom;
-const $$createType18 = ResultReportSection.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = ResultReportColumn.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $Create.Map($Create.Any, $Create.Any);
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $Create.Array($Create.Any);
-const $$createType25 = BackendInfo.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = TaskActiveNode.createFrom;
-const $$createType28 = $Create.Array($$createType27);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = ProxyInfo.createFrom;
+const $$createType2 = MatrixResult.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = Node.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = ResultArchiveTask.createFrom;
+const $$createType7 = TaskState.createFrom;
+const $$createType8 = EntryResult.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = ResultReport.createFrom;
+const $$createType11 = TaskContext.createFrom;
+const $$createType12 = TaskEnvironment.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = ResultArchiveNode.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = MatrixEntry.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = TaskConfig.createFrom;
+const $$createType19 = ResultReportSection.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = ResultReportColumn.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $Create.Map($Create.Any, $Create.Any);
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = $Create.Array($Create.Any);
+const $$createType26 = BackendInfo.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = TaskActiveNode.createFrom;
+const $$createType29 = $Create.Array($$createType28);

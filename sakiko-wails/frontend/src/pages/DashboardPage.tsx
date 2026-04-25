@@ -1,5 +1,4 @@
 import HomeRounded from "@mui/icons-material/HomeRounded";
-import HubRounded from "@mui/icons-material/HubRounded";
 import InsightsRounded from "@mui/icons-material/InsightsRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
@@ -24,7 +23,6 @@ import { APP_VERSION } from "../constants/appMeta";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardLifecycle } from "../hooks/useDashboardLifecycle";
 import { useDashboardStore } from "../store/dashboardStore";
-import { useThemeMode } from "../theme/themeMode";
 
 const OverviewSection = lazy(() => import("../sections/OverviewSection").then((module) => ({ default: module.OverviewSection })));
 const ProfilesSection = lazy(() => import("../sections/ProfilesSection").then((module) => ({ default: module.ProfilesSection })));
@@ -51,7 +49,6 @@ export function DashboardPage() {
   useDashboardLifecycle();
 
   const [section, setSection] = useState<DashboardSection>("overview");
-  const { mode, resolvedMode } = useThemeMode();
   const { t } = useTranslation();
   const dashboard = useDashboardStore(useShallow((state) => ({
     activeProfile: state.activeProfile,
@@ -77,7 +74,9 @@ export function DashboardPage() {
     importForm: state.importForm,
     loading: state.loading,
     message: state.message,
+    mihomoVersion: state.mihomoVersion,
     nodeFilter: state.nodeFilter,
+    networkEnv: state.networkEnv,
     patchTaskConfig: state.patchTaskConfig,
     profiles: state.profiles,
     profilesPath: state.profilesPath,
@@ -104,31 +103,15 @@ export function DashboardPage() {
     label: t(`dashboard.nav.${item.id}.label`),
   }));
   const activeNav = localizedNavItems.find((item) => item.id === section) || localizedNavItems[0];
-  const pageAction = section === "settings" || section === "overview" ? undefined : (
-    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: "0 0 auto" }}>
-      <Chip
-        label={dashboard.activeProfile?.name || t("dashboard.workspace.noActiveProfile")}
-        icon={<HubRounded />}
-        variant="outlined"
-        sx={{
-          maxWidth: 280,
-          minWidth: 0,
-          "& .MuiChip-label": {
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          },
-        }}
-      />
-      <Button
-        variant="outlined"
-        startIcon={<RefreshRounded />}
-        disabled={dashboard.loading}
-        onClick={() => void dashboard.refreshDashboard(dashboard.activeProfileId)}
-      >
-        {t("dashboard.workspace.refreshWorkspace")}
-      </Button>
-    </Stack>
+  const pageAction = (
+    <Button
+      variant="outlined"
+      startIcon={<RefreshRounded />}
+      disabled={dashboard.loading}
+      onClick={() => void dashboard.refreshDashboard(dashboard.activeProfileId)}
+    >
+      {t("dashboard.workspace.refreshWorkspace")}
+    </Button>
   );
 
   return (
@@ -263,9 +246,9 @@ export function DashboardPage() {
 
               {section === "settings" && (
                 <SettingsSection
-                  mode={mode}
                   profilesPath={dashboard.profilesPath}
-                  resolvedMode={resolvedMode}
+                  mihomoVersion={dashboard.mihomoVersion}
+                  networkEnv={dashboard.networkEnv}
                 />
               )}
             </Suspense>

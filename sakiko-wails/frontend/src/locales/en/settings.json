@@ -10,24 +10,21 @@
     "label": "Export Picture Mode"
   },
   "taskDefaults": {
-    "parameterAdjustTitle": "Parameter Adjust",
+    "parameterAdjustTitle": "Basic Parameter",
+    "restoreDefaults": "Restore Defaults",
     "speedtestServerTitle": "Speedtest Server",
     "pingUrl": "Ping URL",
     "pingUrlHelper": "Used by ping and full tasks",
     "timeout": "Timeout (ms)",
-    "downloadUrl": "Download URL",
-    "downloadUrlHelper": "Manual override for speed and full tasks",
     "duration": "Duration (s)",
     "durationHelper": "Used by speed and full tasks. Range: 5-20s",
     "backendIdentity": "Backend Identity",
-    "backendIdentityHelper": "{{count}}/50. Leave empty to export as \"empty\".",
+    "backendIdentityHelper": "{{count}}/30. Leave empty to use \"Sakiko SpeedTest\".",
     "downloadTarget": {
       "title": "Download Target",
       "description": "Choose a Speedtest target to fill the download URL, or keep the Cloudflare default.",
       "useDefault": "Use {{name}}",
-      "searchLabel": "Search Speedtest Targets",
       "searchPlaceholder": "Search remote Speedtest servers by city or country...",
-      "searchHelper": "Search is sent to the Speedtest API. Leave empty to load the default nearby list.",
       "results": "{{count}} result(s) for \"{{search}}\"",
       "targets": "{{count}} target(s)",
       "loading": "Loading Speedtest targets...",
@@ -48,7 +45,23 @@
     "title": "Environment",
     "mode": "Mode",
     "workspace": "Workspace",
-    "workspaceUnavailable": "Profiles workspace unavailable"
+    "workspaceUnavailable": "Profiles workspace unavailable",
+    "mihomoVersion": "Mihomo Version",
+    "versionUnavailable": "Unavailable",
+    "networkEnv": "Network Env",
+    "networkUnavailable": "Network environment unavailable"
+  },
+  "dns": {
+    "title": "DNS Resolver",
+    "description": "Configure the mihomo resolver shared by node dialing, inbound geo lookup, UDP NAT probing, and media DNS-mode checks.",
+    "bootstrapLabel": "Bootstrap DNS Servers",
+    "bootstrapHelper": "{{count}} server(s). One entry per line or separated by commas.",
+    "resolverLabel": "Resolver Endpoints",
+    "resolverHelper": "{{count}} server(s). Supports plain DNS, DoT, and DoH endpoints.",
+    "restoreDefaults": "Restore Defaults",
+    "saved": "DNS configuration saved.",
+    "loadFailed": "Failed to load DNS configuration.",
+    "saveFailed": "Failed to save DNS configuration."
   },
   "updates": {
     "title": "Version",

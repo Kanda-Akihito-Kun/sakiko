@@ -11,7 +11,7 @@
 # Sakiko
 
 Sakiko 是一个围绕可复用 Go 内核构建的桌面代理测速项目。
-它的目标是提供一套实用的测速工作流，同时保证执行核心在桌面端和未来 Web 形态下都可以复用。
+它的目标是提供一套实用的测速工作流，同时保证执行内核在桌面端和未来 Web 形态下都可以复用。
 
 版本：`v0.1.0`
 
@@ -75,10 +75,41 @@ cd ..
 wails3 dev -config .\build\config.yml
 ```
 
+## 构建桌面端
+
+普通构建：
+
+```powershell
+cd .\sakiko-wails
+wails3 task build
+```
+
+这条链路主要用于本地验证。它会使用开发态前端产物，同时保留更偏向调试的 Go 构建参数，因此产物体积会更大一些。
+
+精简构建：
+
+```powershell
+cd .\sakiko-wails
+wails3 task build PRODUCTION=true
+```
+
+这条链路会切换到生产态前端构建，并启用 `-trimpath`、`-ldflags="-w -s"` 这类裁剪参数；在 Windows 下还会额外带上 `-H windowsgui`，所以最终可执行文件会明显更小。
+
+当前输出路径：
+
+- Windows：`sakiko-wails/bin/Sakiko.exe`
+- Linux/macOS：`sakiko-wails/bin/Sakiko`
+
+如果你要的不是裸可执行文件，而是安装包，可以使用：
+
+```powershell
+cd .\sakiko-wails
+wails3 task package
+```
+
 ## 本地数据
 
-桌面应用会将本地数据存放在当前操作系统用户配置目录下的 `sakiko` 文件夹中。
-目前包括：
+桌面应用会将本地数据存放在当前操作系统用户配置目录下的 `sakiko` 文件夹中。当前包括：
 
 - `profiles.yaml`：订阅索引文件
 - `profiles/<profile-id>.yaml`：原始订阅内容快照
@@ -114,7 +145,7 @@ $env:SAKIKO_SERVER_PORT="8080"
 需要注意：
 
 - 这只是本地或单机部署模式，不是多用户 Web 服务
-- 订阅、设置和结果历史都保存在运行该进程的机器上
+- 订阅、设置和结果历史都保存在运行该进程的机器中
 
 ## 项目参考来源
 
@@ -132,4 +163,4 @@ MIT
 
 ## 作者
 
-鼠鼠今天吃嘉然
+鼠鼠今天吃嘉然？

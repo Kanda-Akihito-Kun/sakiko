@@ -20,6 +20,6 @@ export function filterVisibleMediaUnlockItems(items: unknown[]): Record<string, 
   });
 }
 
-export function filterMediaReportSectionColumns<T extends { key: string }>(columns: T[]): T[] {
+export function filterMediaReportSectionColumns<T extends { key: string; label?: string }>(columns: T[]): T[] {
   return columns.filter((column) => fixedMediaColumnKeys.has(column.key) || isVisibleMediaPlatformKey(column.key));
 }

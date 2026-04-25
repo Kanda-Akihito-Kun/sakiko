@@ -11,11 +11,15 @@ import * as interfaces$0 from "../sakiko.local/sakiko-core/interfaces/models.js"
 
 export class AppSettings {
     "language": string;
+    "dns": interfaces$0.DNSConfig;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
         if (!("language" in $$source)) {
             this["language"] = "";
+        }
+        if (!("dns" in $$source)) {
+            this["dns"] = (new interfaces$0.DNSConfig());
         }
 
         Object.assign(this, $$source);
@@ -25,13 +29,18 @@ export class AppSettings {
      * Creates a new AppSettings instance from a string or object.
      */
     static createFrom($$source: any = {}): AppSettings {
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("dns" in $$parsedSource) {
+            $$parsedSource["dns"] = $$createField1_0($$parsedSource["dns"]);
+        }
         return new AppSettings($$parsedSource as Partial<AppSettings>);
     }
 }
 
 export class AppSettingsPatch {
     "language"?: string;
+    "dns"?: interfaces$0.DNSConfig | null;
 
     /** Creates a new AppSettingsPatch instance. */
     constructor($$source: Partial<AppSettingsPatch> = {}) {
@@ -43,7 +52,11 @@ export class AppSettingsPatch {
      * Creates a new AppSettingsPatch instance from a string or object.
      */
     static createFrom($$source: any = {}): AppSettingsPatch {
+        const $$createField1_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("dns" in $$parsedSource) {
+            $$parsedSource["dns"] = $$createField1_0($$parsedSource["dns"]);
+        }
         return new AppSettingsPatch($$parsedSource as Partial<AppSettingsPatch>);
     }
 }
@@ -51,6 +64,8 @@ export class AppSettingsPatch {
 export class DesktopStatus {
     "profilesPath": string;
     "runtime": interfaces$0.RuntimeStatus;
+    "mihomoVersion"?: string;
+    "networkEnv": interfaces$0.BackendInfo;
 
     /** Creates a new DesktopStatus instance. */
     constructor($$source: Partial<DesktopStatus> = {}) {
@@ -60,6 +75,9 @@ export class DesktopStatus {
         if (!("runtime" in $$source)) {
             this["runtime"] = (new interfaces$0.RuntimeStatus());
         }
+        if (!("networkEnv" in $$source)) {
+            this["networkEnv"] = (new interfaces$0.BackendInfo());
+        }
 
         Object.assign(this, $$source);
     }
@@ -68,10 +86,14 @@ export class DesktopStatus {
      * Creates a new DesktopStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): DesktopStatus {
-        const $$createField1_0 = $$createType0;
+        const $$createField1_0 = $$createType2;
+        const $$createField3_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runtime" in $$parsedSource) {
             $$parsedSource["runtime"] = $$createField1_0($$parsedSource["runtime"]);
+        }
+        if ("networkEnv" in $$parsedSource) {
+            $$parsedSource["networkEnv"] = $$createField3_0($$parsedSource["networkEnv"]);
         }
         return new DesktopStatus($$parsedSource as Partial<DesktopStatus>);
     }
@@ -136,8 +158,8 @@ export class ProfileTaskSubmitRequest {
      * Creates a new ProfileTaskSubmitRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ProfileTaskSubmitRequest {
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType2;
+        const $$createField3_0 = $$createType4;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("presets" in $$parsedSource) {
             $$parsedSource["presets"] = $$createField3_0($$parsedSource["presets"]);
@@ -179,6 +201,9 @@ export class ReleaseCheckResult {
 }
 
 // Private type creation functions
-const $$createType0 = interfaces$0.RuntimeStatus.createFrom;
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = interfaces$0.TaskConfig.createFrom;
+const $$createType0 = interfaces$0.DNSConfig.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = interfaces$0.RuntimeStatus.createFrom;
+const $$createType3 = interfaces$0.BackendInfo.createFrom;
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = interfaces$0.TaskConfig.createFrom;

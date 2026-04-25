@@ -1,5 +1,17 @@
-import { TaskConfig } from "../../bindings/sakiko.local/sakiko-core/interfaces";
+import { TaskConfig } from "../../bindings/sakiko.local/sakiko-core/interfaces/index.js";
 import type { ImportForm, TaskPreset, TaskPresetSelection } from "../types/dashboard";
+
+export const DEFAULT_DOWNLOAD_THREADING = 4;
+export const DEFAULT_BACKEND_IDENTITY = "Sakiko SpeedTest";
+export const MAX_BACKEND_IDENTITY_RUNES = 30;
+
+export function sanitizeBackendIdentity(value?: string): string {
+  return Array.from((value || "").trim()).slice(0, MAX_BACKEND_IDENTITY_RUNES).join("");
+}
+
+export function resolveBackendIdentity(value?: string): string {
+  return sanitizeBackendIdentity(value) || DEFAULT_BACKEND_IDENTITY;
+}
 
 export const initialImportForm: ImportForm = {
   name: "",
@@ -13,8 +25,8 @@ export const initialTaskConfig = new TaskConfig({
   taskTimeoutMillis: 6000,
   downloadURL: "https://speed.cloudflare.com/__down?bytes=10000000",
   downloadDuration: 10,
-  downloadThreading: 8,
-  backendIdentity: "",
+  downloadThreading: DEFAULT_DOWNLOAD_THREADING,
+  backendIdentity: DEFAULT_BACKEND_IDENTITY,
 });
 
 export const taskPresets: TaskPreset[] = ["full", "ping", "geo", "udp", "speed", "media"];

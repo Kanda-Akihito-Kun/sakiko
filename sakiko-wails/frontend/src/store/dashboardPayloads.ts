@@ -1,4 +1,5 @@
 import type { ImportForm, TaskPresetSelection } from "../types/dashboard";
+import { resolveBackendIdentity } from "../constants/dashboard";
 
 type ImportProfilePayload = {
   name: string;
@@ -52,7 +53,7 @@ export function createSubmitProfileTaskPayload(
       downloadURL: taskConfig.downloadURL,
       downloadDuration: taskConfig.downloadDuration,
       downloadThreading: taskConfig.downloadThreading,
-      backendIdentity: taskConfig.backendIdentity?.trim() || "",
+      backendIdentity: resolveBackendIdentity(taskConfig.backendIdentity),
     },
   };
 }

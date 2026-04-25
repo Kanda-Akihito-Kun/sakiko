@@ -67,7 +67,7 @@ export function buildMediaMatrixFromSection(section?: ResultReportSection): {
   const columns = sortMediaMatrixColumns(
     filterMediaReportSectionColumns(section?.columns || [])
       .filter((column) => !fixedColumnKeys.has(column.key))
-      .map((column) => ({ key: column.key, label: column.label })),
+      .map((column) => ({ key: column.key, label: column.label || column.key })),
   );
 
   const rows = (section?.rows || []).map<MediaMatrixRow>((row) => {

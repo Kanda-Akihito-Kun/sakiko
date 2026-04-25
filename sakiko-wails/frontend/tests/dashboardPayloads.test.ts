@@ -35,7 +35,7 @@ describe("dashboard payload builders", () => {
       preset: "ping+geo+udp",
       presets: ["ping", "geo", "udp"],
       config: {
-        backendIdentity: "",
+        backendIdentity: "Sakiko SpeedTest",
         pingAddress: "https://cp.cloudflare.com/generate_204",
         pingAverageOver: 2,
         taskRetry: 2,

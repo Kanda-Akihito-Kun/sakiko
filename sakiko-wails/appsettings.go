@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"sakiko.local/sakiko-core/interfaces"
 )
 
 const (
@@ -13,16 +15,19 @@ const (
 )
 
 type AppSettings struct {
-	Language string `json:"language"`
+	Language string               `json:"language"`
+	DNS      interfaces.DNSConfig `json:"dns"`
 }
 
 type AppSettingsPatch struct {
-	Language string `json:"language,omitempty"`
+	Language string                `json:"language,omitempty"`
+	DNS      *interfaces.DNSConfig `json:"dns,omitempty"`
 }
 
 func (s AppSettings) Normalize() AppSettings {
 	return AppSettings{
 		Language: normalizeAppLanguage(s.Language),
+		DNS:      s.DNS.Normalize(),
 	}
 }
 
@@ -40,6 +45,7 @@ func normalizeAppLanguage(value string) string {
 func defaultAppSettings() AppSettings {
 	return AppSettings{
 		Language: defaultAppLanguage,
+		DNS:      interfaces.DefaultDNSConfig(),
 	}
 }
 

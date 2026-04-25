@@ -12,18 +12,22 @@ import (
 	coreapi "sakiko.local/sakiko-core/api"
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/logx"
+	"sakiko.local/sakiko-core/netenv"
+	mihomovendor "sakiko.local/sakiko-core/vendors/mihomo"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
 )
 
 type SakikoService struct {
-	api          *coreapi.Service
-	profilesPath string
-	settingsPath string
-	once         sync.Once
-	initErr      error
-	app          *application.App
+	api           *coreapi.Service
+	profilesPath  string
+	settingsPath  string
+	mihomoVersion string
+	networkEnv    interfaces.BackendInfo
+	once          sync.Once
+	initErr       error
+	app           *application.App
 }
 
 type ProfileTaskSubmitRequest struct {
@@ -35,8 +39,10 @@ type ProfileTaskSubmitRequest struct {
 }
 
 type DesktopStatus struct {
-	ProfilesPath string                   `json:"profilesPath"`
-	Runtime      interfaces.RuntimeStatus `json:"runtime"`
+	ProfilesPath  string                   `json:"profilesPath"`
+	Runtime       interfaces.RuntimeStatus `json:"runtime"`
+	MihomoVersion string                   `json:"mihomoVersion,omitempty"`
+	NetworkEnv    interfaces.BackendInfo   `json:"networkEnv"`
 }
 
 type ProfileSummary struct {
@@ -81,7 +87,17 @@ func (s *SakikoService) UpdateAppSettings(patch AppSettingsPatch) (AppSettings, 
 	if strings.TrimSpace(patch.Language) != "" {
 		settings.Language = patch.Language
 	}
+	if patch.DNS != nil {
+		settings.DNS = patch.DNS.Normalize()
+	}
 	settings = settings.Normalize()
+
+	if s.api != nil {
+		if err := s.api.UpdateDNSConfig(settings.DNS); err != nil {
+			wailsServiceLogger().Warn("update dns config failed", zap.Error(err))
+			return AppSettings{}, err
+		}
+	}
 
 	if err := saveAppSettings(s.settingsPath, settings); err != nil {
 		wailsServiceLogger().Warn("save app settings failed",
@@ -103,8 +119,10 @@ func (s *SakikoService) DesktopStatus() (DesktopStatus, error) {
 	}
 
 	return DesktopStatus{
-		ProfilesPath: s.profilesPath,
-		Runtime:      s.api.RuntimeStatus().Status,
+		ProfilesPath:  s.profilesPath,
+		Runtime:       s.api.RuntimeStatus().Status,
+		MihomoVersion: s.mihomoVersion,
+		NetworkEnv:    s.networkEnv,
 	}, nil
 }
 
@@ -575,6 +593,13 @@ func (s *SakikoService) ensureReady() error {
 		}
 		wailsServiceLogger().Info("resolved settings path", zap.String("settings_path", settingsPath))
 
+		settings, err := loadAppSettings(settingsPath)
+		if err != nil {
+			wailsServiceLogger().Error("load app settings failed", zap.Error(err))
+			s.initErr = err
+			return
+		}
+
 		apiService, err := coreapi.New(coreapi.Config{
 			Mode:                interfaces.ModeParallel,
 			ConnConcurrency:     24,
@@ -582,6 +607,7 @@ func (s *SakikoService) ensureReady() error {
 			SpeedInterval:       300 * time.Millisecond,
 			ProfilesPath:        profilesPath,
 			ProfileFetchTimeout: 20 * time.Second,
+			DNS:                 settings.DNS,
 		})
 		if err != nil {
 			wailsServiceLogger().Error("initialize core api failed", zap.Error(err))
@@ -592,6 +618,8 @@ func (s *SakikoService) ensureReady() error {
 		s.api = apiService
 		s.profilesPath = profilesPath
 		s.settingsPath = settingsPath
+		s.mihomoVersion = mihomovendor.LibraryVersion()
+		s.networkEnv = netenv.Probe(context.Background())
 		wailsServiceLogger().Info("sakiko service ready", zap.String("profiles_path", profilesPath))
 	})
 

@@ -1,6 +1,6 @@
 import { Call, type CancellablePromise } from "@wailsio/runtime";
-import { DownloadTarget, Profile } from "../../bindings/sakiko.local/sakiko-core/interfaces";
-import { SakikoService as GeneratedSakikoService } from "../../bindings/sakiko-wails";
+import { DownloadTarget, Profile } from "../../bindings/sakiko.local/sakiko-core/interfaces/index.js";
+import { SakikoService as GeneratedSakikoService } from "../../bindings/sakiko-wails/index.js";
 import type { AppSettings, AppSettingsPatch } from "../types/appSettings";
 import type { ReleaseCheckResult } from "../types/release";
 

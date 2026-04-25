@@ -5,6 +5,7 @@ import { Alert, AlertTitle, IconButton, Stack, Typography } from "@mui/material"
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotificationStore, type NotificationItem } from "../../store/notificationStore";
+import { formatDateTimeForDisplay } from "../../utils/dateTime";
 
 const AUTO_HIDE_MILLIS: Record<NotificationItem["level"], number> = {
   warning: 8000,
@@ -121,14 +122,5 @@ function formatNotificationSource(source: string, t: (key: string, defaultValue:
 }
 
 function formatNotificationTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(date);
+  return formatDateTimeForDisplay(timestamp);
 }

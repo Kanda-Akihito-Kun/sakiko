@@ -11,6 +11,7 @@ import (
 	"sakiko.local/sakiko-core/logx"
 	"sakiko.local/sakiko-core/profiles"
 	"sakiko.local/sakiko-core/storage"
+	mihomovendor "sakiko.local/sakiko-core/vendors/mihomo"
 
 	"go.uber.org/zap"
 )
@@ -22,6 +23,7 @@ type Config struct {
 	SpeedInterval       time.Duration
 	ProfilesPath        string
 	ProfileFetchTimeout time.Duration
+	DNS                 interfaces.DNSConfig
 }
 
 type Service struct {
@@ -32,6 +34,10 @@ type Service struct {
 }
 
 func New(cfg Config) (*Service, error) {
+	cfg.DNS = cfg.DNS.Normalize()
+	if err := mihomovendor.ConfigureDNSConfig(cfg.DNS); err != nil {
+		return nil, err
+	}
 	resultStore := storage.NewResultStore(cfg.ProfilesPath)
 	k, err := kernel.New(kernel.Config{
 		Mode:             cfg.Mode,
@@ -63,6 +69,8 @@ func New(cfg Config) (*Service, error) {
 		zap.Duration("speed_interval", cfg.SpeedInterval),
 		zap.String("profiles_path", cfg.ProfilesPath),
 		zap.Duration("profile_fetch_timeout", cfg.ProfileFetchTimeout),
+		zap.Int("dns_bootstrap_count", len(cfg.DNS.BootstrapServers)),
+		zap.Int("dns_resolver_count", len(cfg.DNS.ResolverServers)),
 	)
 	return service, nil
 }
@@ -72,6 +80,18 @@ func (s *Service) Stop() {
 		apiLogger().Info("service stopping")
 		s.kernel.Stop()
 	}
+}
+
+func (s *Service) UpdateDNSConfig(cfg interfaces.DNSConfig) error {
+	cfg = cfg.Normalize()
+	if err := mihomovendor.ConfigureDNSConfig(cfg); err != nil {
+		return err
+	}
+	apiLogger().Info("dns config updated",
+		zap.Int("bootstrap_count", len(cfg.BootstrapServers)),
+		zap.Int("resolver_count", len(cfg.ResolverServers)),
+	)
+	return nil
 }
 
 func (s *Service) SubmitTask(req interfaces.TaskSubmitRequest, onEvent func(interfaces.Event)) (interfaces.TaskSubmitResponse, error) {

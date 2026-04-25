@@ -13,6 +13,7 @@ import {
 import type { ResolvedThemeMode } from "../theme/appTheme";
 import { filterMediaReportSectionColumns } from "./mediaUnlock";
 import { mediaCellTone } from "./mediaMatrix";
+import { formatDateTimeForDisplay, formatDateTimeForFileName } from "./dateTime";
 
 export type ExportColumn = {
   key: string;
@@ -201,8 +202,7 @@ function buildLatencySection(archive: ResultArchive): ExportSection | null {
     kind: "latency_table",
     title: "Latency Test",
     columns: [
-      { key: "rank", label: "Rank", width: 72, align: "center" },
-      { key: "nodeName", label: "Node", width: 313 },
+      { key: "nodeName", label: "Node", width: 230 },
       { key: "proxyType", label: "Protocol", width: 170, align: "center" },
       { key: "rttMillis", label: "TLS RTT", width: 160, align: "center" },
       { key: "httpPingMillis", label: "HTTPS Ping", width: 190, align: "center" },
@@ -220,8 +220,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         kind: section.kind,
         title: "Speed Test",
         columns: [
-          { key: "rank", label: "Rank", width: 72, align: "center" },
-          { key: "nodeName", label: "Node", width: 313 },
+          { key: "nodeName", label: "Node", width: 230 },
           { key: "proxyType", label: "Protocol", width: 170, align: "center" },
           ...(hasUDPNATType ? [{ key: "udpNatType", label: "UDP NAT Type", width: 180, align: "center" as const }] : []),
           { key: "rttMillis", label: "TLS RTT", width: 160, align: "center" },
@@ -245,7 +244,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         kind: section.kind,
         title: "Topology Analysis",
         columns: [
-          { key: "nodeName", label: "Node", width: 350 },
+          { key: "nodeName", label: "Node", width: 230 },
           { key: "proxyType", label: "Protocol", width: 150, align: "center" },
           { key: "inboundASN", label: "Inbound ASN", width: 126, align: "center" },
           { key: "inboundIP", label: "Inbound IP", width: 150, align: "center" },
@@ -262,7 +261,7 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         kind: section.kind,
         title: "UDP NAT Test",
         columns: [
-          { key: "nodeName", label: "Node", width: 360 },
+          { key: "nodeName", label: "Node", width: 230 },
           { key: "proxyType", label: "Protocol", width: 160, align: "center" },
           { key: "natType", label: "UDP NAT Type", width: 180, align: "center" },
           { key: "internalEndpoint", label: "Internal Endpoint", width: 220, align: "center" },
@@ -286,9 +285,9 @@ function normalizeReportSection(section: ResultReportSection): ExportSection {
         title: "Media Unlock Test",
         columns: columns.map((column) => {
           if (column.key === "nodeName") {
-            return { key: column.key, label: column.label, width: 220 };
+            return { key: column.key, label: column.label || column.key, width: 230 };
           }
-          return { key: column.key, label: column.label, width: 138, align: "center" as const };
+          return { key: column.key, label: column.label || column.key, width: 138, align: "center" as const };
         }),
         rows: section.rows || [],
       };
@@ -316,8 +315,7 @@ function buildFallbackSection(archive: ResultArchive): ExportSection {
     kind: "raw_table",
     title: "Test Result",
     columns: [
-      { key: "rank", label: "Rank", width: 72, align: "center" },
-      { key: "nodeName", label: "Node", width: 460 },
+      { key: "nodeName", label: "Node", width: 230 },
       { key: "proxyType", label: "Protocol", width: 180, align: "center" },
       { key: "status", label: "Status", width: 240, align: "center" },
       { key: "metrics", label: "Metrics", width: 500 },
@@ -583,7 +581,7 @@ function drawFooter(
 
   ctx.fillStyle = palette.mutedText;
   ctx.fillText(
-    `Tested At: ${formatUTC8DateTime(archive.state.finishedAt || archive.state.startedAt)}  Results are for reference only.`,
+    `Tested At: ${formatDateTimeForDisplay(archive.state.finishedAt || archive.state.startedAt)}  Results are for reference only.`,
     PAGE_PADDING_X,
     footerTop + 66,
   );
@@ -1184,15 +1182,9 @@ function isRegionalIndicator(value: string): boolean {
 function formatBytesAsSpeed(value: unknown): string {
   const numeric = numericValue(value);
   if (numeric <= 0) {
-    return "0B";
+    return "0 Mbps";
   }
-  if (numeric >= 1_000_000) {
-    return `${(numeric / 1_000_000).toFixed(2)}MB`;
-  }
-  if (numeric >= 1_000) {
-    return `${(numeric / 1_000).toFixed(2)}KB`;
-  }
-  return `${Math.round(numeric)}B`;
+  return `${((numeric * 8) / 1_000_000).toFixed(2)} Mbps`;
 }
 
 function formatBytesAsMegabytes(value: unknown): string {
@@ -1310,7 +1302,7 @@ function calculateRuntimeSeconds(archive: ResultArchive): number {
 function buildFileName(archive: ResultArchive, mode: ResolvedThemeMode): string {
   const profile = sanitizeFileName(archive.task.context?.profileName || "result");
   const preset = sanitizeFileName(archive.task.context?.preset || "report");
-  const timestamp = buildUTC8FileTimestamp(archive.state.finishedAt || archive.state.startedAt || new Date().toISOString());
+  const timestamp = formatDateTimeForFileName(archive.state.finishedAt || archive.state.startedAt || new Date().toISOString());
   const theme = mode === "dark" ? "Dark" : "Light";
   return `${profile}_${preset}_${timestamp}_${theme}.png`;
 }
@@ -1340,44 +1332,5 @@ function downloadBlob(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function formatUTC8DateTime(value?: string): string {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const utc8 = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  const year = utc8.getUTCFullYear();
-  const month = pad2(utc8.getUTCMonth() + 1);
-  const day = pad2(utc8.getUTCDate());
-  const hours = pad2(utc8.getUTCHours());
-  const minutes = pad2(utc8.getUTCMinutes());
-  const seconds = pad2(utc8.getUTCSeconds());
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC+8`;
-}
-
-function buildUTC8FileTimestamp(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return sanitizeFileName(value);
-  }
-
-  const utc8 = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  const year = utc8.getUTCFullYear();
-  const month = pad2(utc8.getUTCMonth() + 1);
-  const day = pad2(utc8.getUTCDate());
-  const hours = pad2(utc8.getUTCHours());
-  const minutes = pad2(utc8.getUTCMinutes());
-  const seconds = pad2(utc8.getUTCSeconds());
-  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}_UTC+8`;
-}
-
-function pad2(value: number): string {
-  return String(value).padStart(2, "0");
-}
 
 

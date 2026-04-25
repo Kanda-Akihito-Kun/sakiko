@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"sakiko.local/sakiko-core/interfaces"
+	mihomovendor "sakiko.local/sakiko-core/vendors/mihomo"
 )
 
 const (
@@ -263,14 +264,17 @@ func resolveUDPAddr(ctx context.Context, server stunServer) (*net.UDPAddr, error
 	if ip := net.ParseIP(host); ip != nil {
 		return &net.UDPAddr{IP: ip, Port: server.Port}, nil
 	}
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+
+	resolved, err := mihomovendor.ResolveHost(ctx, host)
 	if err != nil {
 		return nil, err
 	}
-	if len(addrs) == 0 {
-		return nil, fmt.Errorf("no address found for %s", server.Host)
+
+	ip := net.ParseIP(resolved)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid resolved ip for %s: %s", server.Host, resolved)
 	}
-	return &net.UDPAddr{IP: addrs[0].IP, Port: server.Port}, nil
+	return &net.UDPAddr{IP: ip, Port: server.Port}, nil
 }
 
 func buildBindingRequest(changeIP bool, changePort bool) ([]byte, [16]byte, error) {

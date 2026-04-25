@@ -5,17 +5,18 @@ import { UpdatePanel } from "../components/settings/UpdatePanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
 import { OverviewRow } from "../components/shared/OverviewRow";
 import { SectionCard } from "../components/shared/SectionCard";
+import type { BackendInfo } from "../types/sakiko";
 
 type SettingsSectionProps = {
-  mode: string;
   profilesPath: string;
-  resolvedMode: string;
+  mihomoVersion: string;
+  networkEnv: BackendInfo | null;
 };
 
 export function SettingsSection({
-  mode,
   profilesPath,
-  resolvedMode,
+  mihomoVersion,
+  networkEnv,
 }: SettingsSectionProps) {
   const { t } = useTranslation();
 
@@ -45,14 +46,19 @@ export function SettingsSection({
           >
             <Stack spacing={1.25}>
               <OverviewRow
-                label={t("settings.environment.mode")}
-                value={mode === "system" ? `${t("settings.themeOptions.system")} -> ${t(`settings.themeOptions.${resolvedMode}`)}` : t(`settings.themeOptions.${resolvedMode}`)}
-                mono
-              />
-              <OverviewRow
                 label={t("settings.environment.workspace")}
                 value={profilesPath || t("settings.environment.workspaceUnavailable")}
                 mono
+                multiline
+              />
+              <OverviewRow
+                label={t("settings.environment.mihomoVersion")}
+                value={mihomoVersion || t("settings.environment.versionUnavailable")}
+                mono
+              />
+              <OverviewRow
+                label={t("settings.environment.networkEnv")}
+                value={formatNetworkEnv(networkEnv, t("settings.environment.networkUnavailable"))}
                 multiline
               />
             </Stack>
@@ -61,4 +67,19 @@ export function SettingsSection({
       </Box>
     </Box>
   );
+}
+
+function formatNetworkEnv(networkEnv: BackendInfo | null, fallback: string): string {
+  if (!networkEnv) {
+    return fallback;
+  }
+
+  const parts = [
+    networkEnv.location || "",
+    networkEnv.ip ? `IP=${networkEnv.ip}` : "",
+    networkEnv.source ? `Source=${networkEnv.source}` : "",
+    networkEnv.error ? `Error=${networkEnv.error}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n") || fallback;
 }

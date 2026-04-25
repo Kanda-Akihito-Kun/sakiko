@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { DNSSettingsPanel } from "../components/settings/DNSSettingsPanel";
 import { TaskDefaultsPanel } from "../components/settings/TaskDefaultsPanel";
 import type { DownloadTarget, TaskConfig } from "../types/sakiko";
 
@@ -23,15 +24,20 @@ export function OverviewSection({
 }: OverviewSectionProps) {
   return (
     <Box className="sakiko-overview-grid">
-      <TaskDefaultsPanel
-        downloadTargets={downloadTargets}
-        downloadTargetSearch={downloadTargetSearch}
-        downloadTargetsLoading={downloadTargetsLoading}
-        taskConfig={taskConfig}
-        onPatchTaskConfig={onPatchTaskConfig}
-        onDownloadTargetSearchChange={onDownloadTargetSearchChange}
-        onRefreshDownloadTargets={onRefreshDownloadTargets}
-      />
+      <Box sx={{ gridColumn: "1 / -1" }}>
+        <TaskDefaultsPanel
+          downloadTargets={downloadTargets}
+          downloadTargetSearch={downloadTargetSearch}
+          downloadTargetsLoading={downloadTargetsLoading}
+          taskConfig={taskConfig}
+          onPatchTaskConfig={onPatchTaskConfig}
+          onDownloadTargetSearchChange={onDownloadTargetSearchChange}
+          onRefreshDownloadTargets={onRefreshDownloadTargets}
+        />
+      </Box>
+      <Box sx={{ gridColumn: "1 / -1" }}>
+        <DNSSettingsPanel />
+      </Box>
     </Box>
   );
 }

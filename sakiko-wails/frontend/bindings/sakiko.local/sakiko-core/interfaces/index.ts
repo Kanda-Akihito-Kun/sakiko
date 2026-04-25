@@ -3,6 +3,7 @@
 
 export {
     BackendInfo,
+    DNSConfig,
     DownloadTarget,
     DownloadTargetSource,
     EntryResult,

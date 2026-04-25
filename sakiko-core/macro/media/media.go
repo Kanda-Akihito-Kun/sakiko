@@ -18,6 +18,7 @@ import (
 	"sakiko.local/sakiko-core/interfaces"
 	"sakiko.local/sakiko-core/logx"
 	"sakiko.local/sakiko-core/netx"
+	mihomovendor "sakiko.local/sakiko-core/vendors/mihomo"
 
 	"go.uber.org/zap"
 )
@@ -44,10 +45,6 @@ const (
 var (
 	mediaBrowserUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.64"
 	netflixContextRegexp = regexp.MustCompile(`(?s)netflix\.reactContext\s*=\s*(\{.*?\});`)
-	doHQueryPatterns     = []string{
-		"https://cloudflare-dns.com/dns-query?name=%s&type=%s",
-		"https://dns.google/resolve?name=%s&type=%s",
-	}
 )
 
 type Macro struct {
@@ -59,12 +56,6 @@ type httpSnapshot struct {
 	FinalURL   string
 	Headers    http.Header
 	Body       []byte
-}
-
-type doHResponse struct {
-	Answer []struct {
-		Data string `json:"data"`
-	} `json:"Answer"`
 }
 
 type requestSpec struct {
@@ -620,87 +611,7 @@ func lookupPublicHostIPs(ctx context.Context, host string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, publicLookupTimeout)
 	defer cancel()
 
-	for _, pattern := range doHQueryPatterns {
-		records, err := lookupDoHRecords(ctx, pattern, host)
-		if err == nil && len(records) > 0 {
-			return records, nil
-		}
-	}
-
-	resolverCtx, resolverCancel := context.WithTimeout(ctx, publicLookupTimeout)
-	defer resolverCancel()
-
-	ips, err := net.DefaultResolver.LookupIPAddr(resolverCtx, host)
-	if err != nil {
-		return nil, err
-	}
-
-	records := make([]string, 0, len(ips))
-	seen := map[string]struct{}{}
-	for _, ip := range ips {
-		value := strings.TrimSpace(ip.IP.String())
-		if net.ParseIP(value) == nil {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		records = append(records, value)
-	}
-	if len(records) == 0 {
-		return nil, fmt.Errorf("no public records for %s", host)
-	}
-	return records, nil
-}
-
-func lookupDoHRecords(ctx context.Context, pattern string, host string) ([]string, error) {
-	types := []string{"A", "AAAA"}
-	records := make([]string, 0, 4)
-	seen := map[string]struct{}{}
-
-	for _, recordType := range types {
-		queryURL := fmt.Sprintf(pattern, url.QueryEscape(host), recordType)
-		resp, err := netx.RequestUnsafe(ctx, nil, interfaces.RequestOptions{
-			Method: http.MethodGet,
-			URL:    queryURL,
-			Headers: map[string]string{
-				"Accept":     "application/dns-json",
-				"User-Agent": mediaBrowserUA,
-			},
-			Network: interfaces.ROptionsTCP,
-		})
-		if err != nil {
-			continue
-		}
-
-		body, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if readErr != nil {
-			continue
-		}
-
-		var payload doHResponse
-		if err := json.Unmarshal(body, &payload); err != nil {
-			continue
-		}
-		for _, answer := range payload.Answer {
-			ip := strings.TrimSpace(answer.Data)
-			if net.ParseIP(ip) == nil {
-				continue
-			}
-			if _, ok := seen[ip]; ok {
-				continue
-			}
-			seen[ip] = struct{}{}
-			records = append(records, ip)
-		}
-	}
-
-	if len(records) == 0 {
-		return nil, fmt.Errorf("no doh records for %s", host)
-	}
-	return records, nil
+	return mihomovendor.ResolveHostIPs(ctx, host)
 }
 
 func randomHex(byteCount int) (string, error) {

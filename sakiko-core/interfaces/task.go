@@ -8,9 +8,10 @@ import (
 const (
 	defaultDownloadURL      = "https://speed.cloudflare.com/__down?bytes=10000000"
 	defaultDownloadDuration = int64(10)
+	defaultBackendIdentity  = "Sakiko SpeedTest"
 	minDownloadDuration     = int64(5)
 	maxDownloadDuration     = int64(20)
-	maxBackendIdentityRunes = 20
+	maxBackendIdentityRunes = 30
 )
 
 type Node struct {
@@ -69,6 +70,9 @@ func (c TaskConfig) Normalize() TaskConfig {
 
 func clampIdentity(value string) string {
 	runes := []rune(strings.TrimSpace(value))
+	if len(runes) == 0 {
+		return defaultBackendIdentity
+	}
 	if len(runes) <= maxBackendIdentityRunes {
 		return string(runes)
 	}

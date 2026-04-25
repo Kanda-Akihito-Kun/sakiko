@@ -3,12 +3,12 @@ import { SakikoService } from "../services/sakikoService";
 import {
   ProfileImportRequest,
   TaskConfig,
-} from "../../bindings/sakiko.local/sakiko-core/interfaces";
-import { initialImportForm, initialTaskConfig } from "../constants/dashboard";
+} from "../../bindings/sakiko.local/sakiko-core/interfaces/index.js";
+import { initialImportForm, initialTaskConfig, resolveBackendIdentity, sanitizeBackendIdentity } from "../constants/dashboard";
 import { translate } from "../services/i18n";
 import { createImportProfilePayload, createSubmitProfileTaskPayload } from "./dashboardPayloads";
 import type { ImportForm, TaskPreset, TaskPresetSelection } from "../types/dashboard";
-import type { DownloadTarget, Profile, ProfileSummary, ResultArchive, ResultArchiveListItem, TaskState, TaskStatusResponse } from "../types/sakiko";
+import type { BackendInfo, DownloadTarget, Profile, ProfileSummary, ResultArchive, ResultArchiveListItem, TaskState, TaskStatusResponse } from "../types/sakiko";
 import { formatTaskPresetSelectionLabel, normalizeError, toggleTaskPresetSelection } from "../utils/dashboard";
 
 type TaskConfigPatch = Partial<Pick<TaskConfig, "pingAddress" | "taskTimeoutMillis" | "downloadURL" | "downloadDuration" | "downloadThreading" | "backendIdentity">>;
@@ -30,6 +30,8 @@ type DashboardState = {
   resultArchiveLoading: Record<string, boolean | undefined>;
   resultArchivesVisibleCount: number;
   profilesPath: string;
+  mihomoVersion: string;
+  networkEnv: BackendInfo | null;
   downloadTargets: DownloadTarget[];
   downloadTargetsLoading: boolean;
   downloadTargetSearch: string;
@@ -79,6 +81,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   resultArchiveLoading: {},
   resultArchivesVisibleCount: 10,
   profilesPath: "",
+  mihomoVersion: "",
+  networkEnv: null,
   downloadTargets: [],
   downloadTargetsLoading: false,
   downloadTargetSearch: "",
@@ -86,7 +90,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   taskPreset: ["full", "ping", "geo", "udp", "speed", "media"],
   taskConfig: new TaskConfig({
     ...initialTaskConfig,
-    backendIdentity: getStoredBackendIdentity(),
+    backendIdentity: resolveBackendIdentity(getStoredBackendIdentity()),
   }),
   nodeFilter: "",
   loading: true,
@@ -115,7 +119,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       }
     }
     if (typeof nextPatch.downloadDuration === "number" && Number.isFinite(nextPatch.downloadDuration)) {
-      nextPatch.downloadDuration = Math.min(20, Math.max(5, nextPatch.downloadDuration));
+      nextPatch.downloadDuration = Math.max(0, Math.floor(nextPatch.downloadDuration));
     } else if (typeof nextPatch.downloadDuration === "number") {
       delete nextPatch.downloadDuration;
     }
@@ -127,7 +131,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       }
     }
     if (typeof nextPatch.backendIdentity === "string") {
-      nextPatch.backendIdentity = Array.from(nextPatch.backendIdentity.trim()).slice(0, 20).join("");
+      nextPatch.backendIdentity = sanitizeBackendIdentity(nextPatch.backendIdentity);
       persistBackendIdentity(nextPatch.backendIdentity);
     }
 
@@ -153,6 +157,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const currentActiveProfileId = get().activeProfileId;
       const currentActiveProfile = get().activeProfile;
       const currentProfilesPath = get().profilesPath;
+      const currentMihomoVersion = get().mihomoVersion;
+      const currentNetworkEnv = get().networkEnv;
       const currentTasks = get().tasks;
       const currentProfiles = get().profiles;
       const status = statusResult.status === "fulfilled" ? statusResult.value : null;
@@ -172,6 +178,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
       set({
         profilesPath: status?.profilesPath || currentProfilesPath,
+        mihomoVersion: status?.mihomoVersion || currentMihomoVersion,
+        networkEnv: status?.networkEnv || currentNetworkEnv,
         tasks: nextTasks,
         profiles: nextProfiles,
         activeProfileId: targetId,
@@ -703,11 +711,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
 function getStoredBackendIdentity(): string {
   if (typeof window === "undefined") {
-    return "";
+    return resolveBackendIdentity();
   }
 
   const raw = window.localStorage.getItem(BACKEND_IDENTITY_STORAGE_KEY) || "";
-  return Array.from(raw.trim()).slice(0, 20).join("");
+  return resolveBackendIdentity(raw);
 }
 
 function persistBackendIdentity(value: string) {
@@ -715,7 +723,7 @@ function persistBackendIdentity(value: string) {
     return;
   }
 
-  const normalized = Array.from(value.trim()).slice(0, 20).join("");
+  const normalized = sanitizeBackendIdentity(value);
   if (!normalized) {
     window.localStorage.removeItem(BACKEND_IDENTITY_STORAGE_KEY);
     return;

@@ -75,6 +75,38 @@ cd ..
 wails3 dev -config .\build\config.yml
 ```
 
+## Build The Desktop App
+
+Regular local build:
+
+```powershell
+cd .\sakiko-wails
+wails3 task build
+```
+
+This path is mainly for local verification. It uses the development frontend bundle and keeps Go build settings friendlier to debugging, so the output is larger.
+
+Slim production build:
+
+```powershell
+cd .\sakiko-wails
+wails3 task build PRODUCTION=true
+```
+
+This path switches to the production frontend bundle and enables stripped Go build flags such as `-trimpath` and `-ldflags="-w -s"` (Windows also adds `-H windowsgui`), so the final executable is noticeably smaller.
+
+Current output path:
+
+- `sakiko-wails/bin/Sakiko.exe` on Windows
+- `sakiko-wails/bin/Sakiko` on Linux/macOS
+
+If you need an installer instead of a bare executable, use:
+
+```powershell
+cd .\sakiko-wails
+wails3 task package
+```
+
 ## Local Data
 
 The desktop app stores its local data under your OS user config directory in a `sakiko` folder.
