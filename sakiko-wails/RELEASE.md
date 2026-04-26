@@ -2,9 +2,9 @@
 
 This project is released with GitHub Actions using native runners:
 
-- `windows-latest`: NSIS installer + portable zip
+- `windows-latest`: portable zip
 - `macos-latest`: universal `.app` bundle packed as zip
-- `ubuntu-24.04`: AppImage + deb + rpm
+- `ubuntu-24.04`: AppImage
 
 The workflow file is:
 
@@ -56,7 +56,6 @@ Generate the base64 value locally:
 The workflow signs:
 
 - `bin/Sakiko.exe`
-- `build/windows/nsis/*-installer.exe`
 
 If the secrets are absent, the workflow still builds unsigned packages.
 
@@ -106,8 +105,6 @@ Linux package signing is optional for the first public release.
 Right now the workflow builds:
 
 - `AppImage`
-- `deb`
-- `rpm`
 
 You can add package signing later with a GPG private key for `deb` and `rpm`.
 
@@ -116,14 +113,11 @@ You can add package signing later with a GPG private key for `deb` and `rpm`.
 Recommended release assets:
 
 - Windows:
-  - `Sakiko-installer.exe`
   - `Sakiko-portable-windows-amd64.zip`
 - macOS:
   - `Sakiko-macos-universal.zip`
 - Linux:
   - `Sakiko-*.AppImage`
-  - `Sakiko-*.deb`
-  - `Sakiko-*.rpm`
 
 ## 7. First Dry Run
 
@@ -138,7 +132,6 @@ Before the first public tag:
 
 ## 8. Notes
 
-- Windows installer packaging depends on NSIS.
 - macOS packaging is built on a native macOS runner instead of Windows cross-compilation.
 - Linux packaging is built on a native Ubuntu runner instead of Docker cross-compilation.
 - This keeps the pipeline more stable than trying to produce all targets from a single Windows machine.
