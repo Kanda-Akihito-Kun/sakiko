@@ -473,13 +473,7 @@ func probeSteam(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUn
 func probeChatGPT(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnlockPlatformResult {
 	result := newProbeResult(interfaces.MediaUnlockPlatformChatGPT, "ChatGPT")
 
-	headSnapshot, headErr := performRequest(ctx, proxy, requestSpec{
-		Method: http.MethodHead,
-		URL:    chatGPTURL,
-		Headers: map[string]string{
-			"User-Agent": mediaBrowserUA,
-		},
-	})
+	headSnapshot, headErr := performChatGPTRedirectProbe(ctx, proxy)
 	traceSnapshot, traceErr := performRequest(ctx, proxy, requestSpec{
 		URL: chatGPTTraceURL,
 		Headers: map[string]string{
@@ -490,15 +484,15 @@ func probeChatGPT(ctx context.Context, proxy interfaces.Vendor) interfaces.Media
 		result.Region = parseTraceValue(string(traceSnapshot.Body), "loc")
 	}
 
-	iosSnapshot, err := performRequest(ctx, proxy, requestSpec{
+	iosSnapshot, iosErr := performRequest(ctx, proxy, requestSpec{
 		URL: chatGPTIOSURL,
 		Headers: map[string]string{
 			"User-Agent": mediaBrowserUA,
 		},
 	})
-	if err != nil && traceErr != nil {
+	if iosErr != nil && traceErr != nil && headErr != nil {
 		result.Status = interfaces.MediaUnlockStatusFailed
-		result.Error = joinErrors(err, traceErr, headErr)
+		result.Error = joinErrors(iosErr, traceErr, headErr)
 		return finalizeResult(result)
 	}
 	if headErr != nil {
@@ -506,37 +500,13 @@ func probeChatGPT(ctx context.Context, proxy interfaces.Vendor) interfaces.Media
 		result.Error = headErr.Error()
 		return finalizeResult(result)
 	}
+	if iosErr != nil {
+		result.Status = interfaces.MediaUnlockStatusFailed
+		result.Error = joinErrors(iosErr, traceErr)
+		return finalizeResult(result)
+	}
 
-	body := string(iosSnapshot.Body)
-	locationReady := len(headSnapshot.Headers.Values("Location")) > 0
-	if !locationReady && strings.TrimSpace(headSnapshot.FinalURL) != "" && !strings.EqualFold(headSnapshot.FinalURL, chatGPTURL) && !strings.EqualFold(headSnapshot.FinalURL, chatGPTURL+"/") {
-		locationReady = true
-	}
-	switch {
-	case strings.Contains(body, "blocked_why_headline"):
-		result.Status = interfaces.MediaUnlockStatusNo
-		result.Error = "blocked"
-	case strings.Contains(body, "unsupported_country_region_territory"):
-		result.Status = interfaces.MediaUnlockStatusNo
-		result.Error = "unsupported region"
-	case strings.Contains(body, "(1)") || strings.Contains(body, "(2)"):
-		if strings.Contains(body, "(1)") {
-			result.Error = "disallowed isp[1]"
-		} else {
-			result.Error = "disallowed isp[2]"
-		}
-		if locationReady {
-			result.Status = interfaces.MediaUnlockStatusWebOnly
-		} else {
-			result.Status = interfaces.MediaUnlockStatusNo
-		}
-	default:
-		if !locationReady {
-			result.Status = interfaces.MediaUnlockStatusNo
-		} else {
-			result.Status = interfaces.MediaUnlockStatusYes
-		}
-	}
+	result.Status, result.Error = evaluateChatGPTProbe(result.Region, chatGPTRedirectDetected(headSnapshot), iosSnapshot.Body)
 	return finalizeResult(result)
 }
 
@@ -555,12 +525,12 @@ func probeClaude(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaU
 		return finalizeResult(result)
 	}
 
-	lowerFinalURL := strings.ToLower(snapshot.FinalURL)
-	if strings.Contains(lowerFinalURL, "unavailable") || snapshot.StatusCode >= 400 {
-		result.Status = interfaces.MediaUnlockStatusNo
+	status, errText := evaluateClaudeSnapshot(snapshot)
+	result.Status = status
+	result.Error = errText
+	if result.Status == interfaces.MediaUnlockStatusFailed {
 		return finalizeResult(result)
 	}
-	result.Status = interfaces.MediaUnlockStatusYes
 	return finalizeResult(result)
 }
 
@@ -720,6 +690,96 @@ func humanizeMediaReason(value string) string {
 	default:
 		return value
 	}
+}
+
+func performChatGPTRedirectProbe(ctx context.Context, proxy interfaces.Vendor) (httpSnapshot, error) {
+	spec := requestSpec{
+		Method:  http.MethodHead,
+		URL:     chatGPTURL,
+		NoRedir: true,
+		Headers: map[string]string{
+			"User-Agent": mediaBrowserUA,
+		},
+	}
+
+	snapshot, err := performRequest(ctx, proxy, spec)
+	if err == nil {
+		return snapshot, nil
+	}
+
+	spec.Method = http.MethodGet
+	return performRequest(ctx, proxy, spec)
+}
+
+func chatGPTRedirectDetected(snapshot httpSnapshot) bool {
+	if len(snapshot.Headers.Values("Location")) > 0 {
+		return true
+	}
+	location := strings.TrimSpace(snapshot.Headers.Get("Location"))
+	return snapshot.StatusCode >= 300 && snapshot.StatusCode < 400 && location != ""
+}
+
+func evaluateChatGPTProbe(region string, redirectReady bool, body []byte) (interfaces.MediaUnlockStatus, string) {
+	text := strings.ToLower(string(body))
+	cfDetails := strings.ToLower(extractChatGPTCFDetails(body))
+	region = strings.ToUpper(strings.TrimSpace(region))
+
+	switch {
+	case strings.Contains(text, "blocked_why_headline"):
+		return interfaces.MediaUnlockStatusNo, "blocked"
+	case strings.Contains(text, "unsupported_country_region_territory"):
+		return interfaces.MediaUnlockStatusNo, "unsupported region"
+	case strings.Contains(cfDetails, "(1)") || strings.Contains(text, "(1)"):
+		if redirectReady {
+			return interfaces.MediaUnlockStatusWebOnly, "disallowed isp[1]"
+		}
+		return interfaces.MediaUnlockStatusNo, "disallowed isp[1]"
+	case strings.Contains(cfDetails, "(2)") || strings.Contains(text, "(2)"):
+		if redirectReady {
+			return interfaces.MediaUnlockStatusWebOnly, "disallowed isp[2]"
+		}
+		return interfaces.MediaUnlockStatusNo, "disallowed isp[2]"
+	default:
+		if region != "" || redirectReady {
+			return interfaces.MediaUnlockStatusYes, ""
+		}
+		return interfaces.MediaUnlockStatusNo, ""
+	}
+}
+
+func extractChatGPTCFDetails(body []byte) string {
+	var payload struct {
+		CFDetails any `json:"cf_details"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+
+	switch value := payload.CFDetails.(type) {
+	case string:
+		return value
+	case nil:
+		return ""
+	default:
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return ""
+		}
+		return string(raw)
+	}
+}
+
+func evaluateClaudeSnapshot(snapshot httpSnapshot) (interfaces.MediaUnlockStatus, string) {
+	lowerFinalURL := strings.ToLower(snapshot.FinalURL)
+	lowerBody := strings.ToLower(string(snapshot.Body))
+
+	if strings.Contains(lowerFinalURL, "unavailable") || strings.Contains(lowerBody, "unavailable") {
+		return interfaces.MediaUnlockStatusNo, ""
+	}
+	if snapshot.StatusCode >= 500 {
+		return interfaces.MediaUnlockStatusFailed, fmt.Sprintf("status code: %d", snapshot.StatusCode)
+	}
+	return interfaces.MediaUnlockStatusYes, ""
 }
 
 func parseTraceValue(raw string, key string) string {

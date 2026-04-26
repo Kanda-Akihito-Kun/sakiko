@@ -89,6 +89,131 @@ func TestDefaultMediaDisplaySupportsExpandedStatuses(t *testing.T) {
 	}
 }
 
+func TestEvaluateChatGPTProbeHandlesDisallowedISPFromCFDetails(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"cf_details":"traffic policy (1)"}`)
+	status, errText := evaluateChatGPTProbe("JP", true, body)
+	if status != interfaces.MediaUnlockStatusWebOnly {
+		t.Fatalf("expected web only status, got %q", status)
+	}
+	if errText != "disallowed isp[1]" {
+		t.Fatalf("expected disallowed isp[1], got %q", errText)
+	}
+}
+
+func TestEvaluateChatGPTProbeTreatsResolvedSupportedRegionAsAccessible(t *testing.T) {
+	t.Parallel()
+
+	status, errText := evaluateChatGPTProbe("JP", false, []byte(`{"ok":true}`))
+	if status != interfaces.MediaUnlockStatusYes {
+		t.Fatalf("expected yes status with supported region, got %q", status)
+	}
+	if errText != "" {
+		t.Fatalf("expected empty error text, got %q", errText)
+	}
+}
+
+func TestEvaluateChatGPTProbeKeepsUnknownRegionWithoutRedirectAsNo(t *testing.T) {
+	t.Parallel()
+
+	status, errText := evaluateChatGPTProbe("", false, []byte(`{"ok":true}`))
+	if status != interfaces.MediaUnlockStatusNo {
+		t.Fatalf("expected no status without region or redirect, got %q", status)
+	}
+	if errText != "" {
+		t.Fatalf("expected empty error text, got %q", errText)
+	}
+}
+
+func TestExtractChatGPTCFDetailsSupportsStructuredPayload(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"cf_details":{"reason":"(2)"}}`)
+	if got := extractChatGPTCFDetails(body); got != `{"reason":"(2)"}` {
+		t.Fatalf("expected serialized cf_details, got %q", got)
+	}
+}
+
+func TestEvaluateClaudeSnapshotTreatsUnavailableAsBlocked(t *testing.T) {
+	t.Parallel()
+
+	status, errText := evaluateClaudeSnapshot(httpSnapshot{
+		StatusCode: 200,
+		FinalURL:   "https://claude.ai/unavailable",
+	})
+	if status != interfaces.MediaUnlockStatusNo {
+		t.Fatalf("expected no status, got %q", status)
+	}
+	if errText != "" {
+		t.Fatalf("expected empty error text, got %q", errText)
+	}
+}
+
+func TestEvaluateClaudeSnapshotKeepsNonUnavailable4xxAccessible(t *testing.T) {
+	t.Parallel()
+
+	status, errText := evaluateClaudeSnapshot(httpSnapshot{
+		StatusCode: 403,
+		FinalURL:   "https://claude.ai/login",
+		Body:       []byte("challenge page"),
+	})
+	if status != interfaces.MediaUnlockStatusYes {
+		t.Fatalf("expected yes status, got %q", status)
+	}
+	if errText != "" {
+		t.Fatalf("expected empty error text, got %q", errText)
+	}
+}
+
+func TestEvaluateHuluSnapshotTreatsReachableAuthErrorsAsUnlocked(t *testing.T) {
+	t.Parallel()
+
+	status, errText, err := evaluateHuluSnapshot(httpSnapshot{
+		StatusCode: 401,
+		Body:       []byte(`{"error":{"name":"LOGIN_BLOCKED"}}`),
+	})
+	if err != nil {
+		t.Fatalf("expected nil parse error, got %v", err)
+	}
+	if status != interfaces.MediaUnlockStatusYes {
+		t.Fatalf("expected yes status, got %q", status)
+	}
+	if errText != "LOGIN_BLOCKED" {
+		t.Fatalf("expected LOGIN_BLOCKED, got %q", errText)
+	}
+}
+
+func TestEvaluateHuluSnapshotDetectsGeoBlockedTextResponse(t *testing.T) {
+	t.Parallel()
+
+	status, errText, err := evaluateHuluSnapshot(httpSnapshot{
+		StatusCode: 403,
+		Body:       []byte("Hulu is available in the US only and cannot be used with an anonymous proxy service."),
+	})
+	if err != nil {
+		t.Fatalf("expected nil parse error, got %v", err)
+	}
+	if status != interfaces.MediaUnlockStatusNo {
+		t.Fatalf("expected no status, got %q", status)
+	}
+	if errText != "" {
+		t.Fatalf("expected empty error text, got %q", errText)
+	}
+}
+
+func TestHuluLoginPageReachableDetectsAccessibleLoginPage(t *testing.T) {
+	t.Parallel()
+
+	if !huluLoginPageReachable(httpSnapshot{
+		StatusCode: 200,
+		FinalURL:   "https://auth.hulu.com/web/login",
+		Body:       []byte("<html><title>Hulu</title><body>Log In</body></html>"),
+	}) {
+		t.Fatal("expected login page to be considered reachable")
+	}
+}
+
 func TestResolveProbeTimeoutRespectsTaskTimeoutWithinBounds(t *testing.T) {
 	t.Parallel()
 

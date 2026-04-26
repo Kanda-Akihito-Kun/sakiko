@@ -606,7 +606,6 @@ func collectMediaPlatforms(results []interfaces.EntryResult) []interfaces.MediaU
 		interfaces.MediaUnlockPlatformPrimeVideo,
 		interfaces.MediaUnlockPlatformHBOMax,
 		interfaces.MediaUnlockPlatformBilibiliHMT,
-		interfaces.MediaUnlockPlatformBilibiliTW,
 		interfaces.MediaUnlockPlatformAbema,
 		interfaces.MediaUnlockPlatformTikTok,
 	}
@@ -668,8 +667,6 @@ func mediaPlatformLabel(platform interfaces.MediaUnlockPlatform) string {
 		return "HBO Max"
 	case interfaces.MediaUnlockPlatformBilibiliHMT:
 		return "Bilibili HMT"
-	case interfaces.MediaUnlockPlatformBilibiliTW:
-		return "Bilibili TW"
 	case interfaces.MediaUnlockPlatformAbema:
 		return "Abema"
 	case interfaces.MediaUnlockPlatformTikTok:
@@ -688,6 +685,7 @@ func isVisibleMediaPlatform(platform interfaces.MediaUnlockPlatform) bool {
 	case
 		"dazn",
 		"instagram_music",
+		interfaces.MediaUnlockPlatformBilibiliTW,
 		interfaces.MediaUnlockPlatformHuluJP,
 		interfaces.MediaUnlockPlatformSpotify,
 		interfaces.MediaUnlockPlatformSteam:

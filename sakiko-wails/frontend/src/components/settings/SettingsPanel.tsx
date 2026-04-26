@@ -1,20 +1,20 @@
 import ImageRounded from "@mui/icons-material/ImageRounded";
 import LanguageRounded from "@mui/icons-material/LanguageRounded";
 import PaletteRounded from "@mui/icons-material/PaletteRounded";
+import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import {
   Box,
-  Card,
   List,
   ListItem,
   MenuItem,
   ListItemText,
-  ListSubheader,
   Select,
   Typography,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useI18n } from "../../hooks/useI18n";
 import { useThemeMode } from "../../theme/themeMode";
+import { SectionCard } from "../shared/SectionCard";
 import { appThemeModes, exportPictureModes, ThemeModeSwitch } from "./ThemeModeSwitch";
 
 export function SettingsPanel() {
@@ -33,31 +33,18 @@ export function SettingsPanel() {
   }));
 
   return (
-    <Card variant="outlined">
+    <SectionCard
+      title={t("settings.title")}
+      icon={<SettingsRounded color="primary" />}
+    >
       <List
         disablePadding
-        subheader={(
-          <ListSubheader
-            disableSticky
-            sx={{
-              px: 2.25,
-              py: 1.5,
-              fontSize: 16,
-              fontWeight: 700,
-              color: "text.primary",
-              bgcolor: "transparent",
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            {t("settings.title")}
-          </ListSubheader>
-        )}
+        sx={{ mt: -0.5, mb: -0.5 }}
       >
         <ListItem
           sx={{
-            px: 2.25,
-            py: 2,
+            px: 0,
+            py: 1.5,
             alignItems: "center",
             gap: 2,
             borderBottom: "1px solid",
@@ -94,8 +81,8 @@ export function SettingsPanel() {
 
         <ListItem
           sx={{
-            px: 2.25,
-            py: 2,
+            px: 0,
+            py: 1.5,
             alignItems: "center",
             gap: 2,
             borderBottom: "1px solid",
@@ -118,12 +105,10 @@ export function SettingsPanel() {
 
         <ListItem
           sx={{
-            px: 2.25,
-            py: 2,
+            px: 0,
+            py: 1.5,
             alignItems: "center",
             gap: 2,
-            borderBottom: "1px solid",
-            borderColor: "divider",
           }}
         >
           <ListItemText
@@ -141,6 +126,6 @@ export function SettingsPanel() {
         </ListItem>
 
       </List>
-    </Card>
+    </SectionCard>
   );
 }

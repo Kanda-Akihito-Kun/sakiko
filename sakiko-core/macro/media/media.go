@@ -29,6 +29,7 @@ const (
 	netflixTitleURL2         = "https://www.netflix.com/title/70143836"
 	huluAuthHost             = "auth.hulu.com"
 	huluAuthURL              = "https://auth.hulu.com/v4/web/password/authenticate"
+	huluLoginURL             = "https://auth.hulu.com/web/login"
 	huluAuthCookie           = "_h_csrf_id=b0b3da20eccdc796dd61d9145a095be4927a2ff56821ad4d3f91804fd6f918ea"
 	huluAuthBody             = "csrf=fdc1427eccde53326e27d7575c436595e28299dc420232ff26075ca06bbb28ed&password=Jam0.5cm~&scenario=web_password_login&user_email=me%40jamchoi.cc"
 	bilibiliHKMCTWHost       = "api.bilibili.com"
@@ -92,7 +93,6 @@ func (m *Macro) Run(ctx context.Context, proxy interfaces.Vendor, task *interfac
 		{name: "Prime Video", run: probePrimeVideo},
 		{name: "HBO Max", run: probeHBOMax},
 		{name: "Bilibili HK/MO/TW", run: probeBilibiliHKMCTW},
-		{name: "Bilibili Taiwan", run: probeBilibiliTW},
 		{name: "Abema", run: probeAbema},
 		{name: "TikTok", run: probeTikTok},
 	}
@@ -272,9 +272,9 @@ func probeHulu(ctx context.Context, proxy interfaces.Vendor) interfaces.MediaUnl
 
 	status, errName, parseErr := evaluateHuluSnapshot(snapshot)
 	if parseErr != nil {
-		result.Status = interfaces.MediaUnlockStatusFailed
-		result.Error = parseErr.Error()
-		return finalizeResult(result)
+		status, errName = inferHuluFallbackStatus(ctx, proxy, snapshot, parseErr)
+	} else if status == interfaces.MediaUnlockStatusFailed {
+		status, errName = inferHuluFallbackStatus(ctx, proxy, snapshot, nil)
 	}
 
 	result.Status = status
@@ -489,6 +489,14 @@ func inferBilibiliUnlockMode(ctx context.Context, proxy interfaces.Vendor, reque
 }
 
 func evaluateHuluSnapshot(snapshot httpSnapshot) (interfaces.MediaUnlockStatus, string, error) {
+	lowerBody := strings.ToLower(string(snapshot.Body))
+	if strings.Contains(lowerBody, "login_forbidden") {
+		return interfaces.MediaUnlockStatusYes, "", nil
+	}
+	if detectHuluGeoBlocked(snapshot) {
+		return interfaces.MediaUnlockStatusNo, "", nil
+	}
+
 	var payload struct {
 		Error struct {
 			Name string `json:"name"`
@@ -498,7 +506,8 @@ func evaluateHuluSnapshot(snapshot httpSnapshot) (interfaces.MediaUnlockStatus, 
 		return interfaces.MediaUnlockStatusFailed, "", err
 	}
 
-	switch payload.Error.Name {
+	name := strings.TrimSpace(payload.Error.Name)
+	switch strings.ToUpper(name) {
 	case "LOGIN_FORBIDDEN":
 		return interfaces.MediaUnlockStatusYes, "", nil
 	case "GEO_BLOCKED":
@@ -506,7 +515,13 @@ func evaluateHuluSnapshot(snapshot httpSnapshot) (interfaces.MediaUnlockStatus, 
 	case "":
 		return interfaces.MediaUnlockStatusFailed, "page error", nil
 	default:
-		return interfaces.MediaUnlockStatusFailed, payload.Error.Name, nil
+		if isHuluReachableAuthError(name) {
+			return interfaces.MediaUnlockStatusYes, name, nil
+		}
+		if isHuluGeoErrorName(name) {
+			return interfaces.MediaUnlockStatusNo, name, nil
+		}
+		return interfaces.MediaUnlockStatusFailed, name, nil
 	}
 }
 
@@ -546,9 +561,13 @@ func buildHuluRequest(rawURL string, resolvedIP string, direct bool) requestSpec
 		Method: http.MethodPost,
 		URL:    rawURL,
 		Headers: map[string]string{
-			"Cookie":       huluAuthCookie,
-			"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-			"User-Agent":   mediaBrowserUA,
+			"Accept":          "application/json, text/plain, */*",
+			"Accept-Language": "en-US,en;q=0.9",
+			"Content-Type":    "application/x-www-form-urlencoded; charset=UTF-8",
+			"Cookie":          huluAuthCookie,
+			"Origin":          "https://auth.hulu.com",
+			"Referer":         huluLoginURL,
+			"User-Agent":      mediaBrowserUA,
 		},
 		Body: []byte(huluAuthBody),
 	}
@@ -693,4 +712,115 @@ func joinErrorTexts(values ...string) string {
 
 func mediaLogger() *zap.Logger {
 	return logx.Named("core.macro.media")
+}
+
+func inferHuluFallbackStatus(
+	ctx context.Context,
+	proxy interfaces.Vendor,
+	primary httpSnapshot,
+	parseErr error,
+) (interfaces.MediaUnlockStatus, string) {
+	if detectHuluGeoBlocked(primary) {
+		return interfaces.MediaUnlockStatusNo, ""
+	}
+
+	pageSnapshot, err := performRequest(ctx, proxy, requestSpec{
+		URL: huluLoginURL,
+		Headers: map[string]string{
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+			"Accept-Language": "en-US,en;q=0.9",
+			"Referer":         "https://www.hulu.com/",
+			"User-Agent":      mediaBrowserUA,
+		},
+	})
+	if err != nil {
+		if parseErr != nil {
+			return interfaces.MediaUnlockStatusFailed, joinErrors(parseErr, err)
+		}
+		return interfaces.MediaUnlockStatusFailed, err.Error()
+	}
+
+	if detectHuluGeoBlocked(pageSnapshot) {
+		return interfaces.MediaUnlockStatusNo, ""
+	}
+	if huluLoginPageReachable(pageSnapshot) {
+		return interfaces.MediaUnlockStatusYes, ""
+	}
+
+	if parseErr != nil {
+		return interfaces.MediaUnlockStatusFailed, parseErr.Error()
+	}
+	return interfaces.MediaUnlockStatusFailed, "page error"
+}
+
+func detectHuluGeoBlocked(snapshot httpSnapshot) bool {
+	text := strings.ToLower(snapshot.FinalURL + "\n" + string(snapshot.Body))
+	if snapshot.StatusCode == http.StatusForbidden {
+		return true
+	}
+
+	indicators := []string{
+		"geo_blocked",
+		"geo blocked",
+		"invalid region",
+		"not available in your region",
+		"available only in the u.s",
+		"hulu is available in the us only",
+		"anonymous proxy",
+		"outside of the u.s",
+		"unsupported_region",
+	}
+	for _, indicator := range indicators {
+		if strings.Contains(text, indicator) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHuluGeoErrorName(name string) bool {
+	normalized := strings.ToUpper(strings.TrimSpace(name))
+	if normalized == "" {
+		return false
+	}
+	for _, token := range []string{"GEO", "REGION", "COUNTRY", "LOCATION", "VPN", "PROXY"} {
+		if strings.Contains(normalized, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHuluReachableAuthError(name string) bool {
+	normalized := strings.ToUpper(strings.TrimSpace(name))
+	if normalized == "" {
+		return false
+	}
+	if isHuluGeoErrorName(normalized) {
+		return false
+	}
+
+	reachable := []string{
+		"LOGIN_FORBIDDEN",
+		"LOGIN_BLOCKED",
+		"INVALID_LOGIN",
+		"INVALID_CREDENTIALS",
+		"FORBIDDEN",
+		"BAD_REQUEST",
+	}
+	for _, candidate := range reachable {
+		if normalized == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func huluLoginPageReachable(snapshot httpSnapshot) bool {
+	if snapshot.StatusCode >= 500 {
+		return false
+	}
+	text := strings.ToLower(snapshot.FinalURL + "\n" + string(snapshot.Body))
+	return strings.Contains(text, "auth.hulu.com") &&
+		(strings.Contains(text, "log in") || strings.Contains(text, "login") || strings.Contains(text, "sign up"))
 }

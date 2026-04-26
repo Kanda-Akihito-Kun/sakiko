@@ -153,7 +153,6 @@ function sortMediaMatrixColumns(columns: MediaMatrixColumn[]): MediaMatrixColumn
     "prime_video",
     "hbo_max",
     "bilibili_hmt",
-    "bilibili_tw",
     "abema",
     "tiktok",
   ];
