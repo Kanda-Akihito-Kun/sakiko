@@ -9,6 +9,16 @@ on:
 permissions:
   contents: write
 
+env:
+  WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+  WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+  MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+  MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+  MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+  APPLE_ID: ${{ secrets.APPLE_ID }}
+  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
 jobs:
   build:
     name: Build ${{ matrix.name }}
@@ -77,21 +87,21 @@ jobs:
           Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
 
       - name: Import Windows signing certificate
-        if: runner.os == 'Windows' && secrets.WINDOWS_CERT_PFX_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != ''
+        if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
         working-directory: sakiko-wails
         shell: pwsh
         run: |
-          [IO.File]::WriteAllBytes("$pwd\windows-cert.pfx", [Convert]::FromBase64String("${{ secrets.WINDOWS_CERT_PFX_BASE64 }}"))
+          [IO.File]::WriteAllBytes("$pwd\windows-cert.pfx", [Convert]::FromBase64String("${{ env.WINDOWS_CERT_PFX_BASE64 }}"))
 
       - name: Sign Windows binaries
-        if: runner.os == 'Windows' && secrets.WINDOWS_CERT_PFX_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != ''
+        if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
         working-directory: sakiko-wails
         shell: pwsh
         run: |
           $signtool = (Get-Command signtool.exe).Source
-          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ secrets.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 "$pwd\bin\Sakiko.exe"
+          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 "$pwd\bin\Sakiko.exe"
           $installer = Get-ChildItem "$pwd\build\windows\nsis\*-installer.exe" | Select-Object -First 1 -ExpandProperty FullName
-          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ secrets.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 $installer
+          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 $installer
           Remove-Item "$pwd\bin\Sakiko-portable-windows-amd64.zip" -Force
           Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
 
@@ -103,34 +113,34 @@ jobs:
           wails3 task darwin:package:universal
 
       - name: Import macOS signing certificate
-        if: runner.os == 'macOS' && secrets.MACOS_CERT_P12_BASE64 != '' && secrets.MACOS_CERT_PASSWORD != '' && secrets.MACOS_SIGN_IDENTITY != ''
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != ''
         working-directory: sakiko-wails
         shell: bash
         run: |
-          echo "${{ secrets.MACOS_CERT_P12_BASE64 }}" | base64 --decode > macos-cert.p12
+          echo "${{ env.MACOS_CERT_P12_BASE64 }}" | base64 --decode > macos-cert.p12
           security create-keychain -p runner build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p runner build.keychain
-          security import macos-cert.p12 -k build.keychain -P "${{ secrets.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign
+          security import macos-cert.p12 -k build.keychain -P "${{ env.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain
 
       - name: Sign macOS app
-        if: runner.os == 'macOS' && secrets.MACOS_CERT_P12_BASE64 != '' && secrets.MACOS_CERT_PASSWORD != '' && secrets.MACOS_SIGN_IDENTITY != ''
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != ''
         working-directory: sakiko-wails
         shell: bash
         run: |
-          codesign --force --deep --options runtime --sign "${{ secrets.MACOS_SIGN_IDENTITY }}" "bin/Sakiko.app"
+          codesign --force --deep --options runtime --sign "${{ env.MACOS_SIGN_IDENTITY }}" "bin/Sakiko.app"
 
       - name: Notarize macOS app
-        if: runner.os == 'macOS' && secrets.MACOS_CERT_P12_BASE64 != '' && secrets.MACOS_CERT_PASSWORD != '' && secrets.MACOS_SIGN_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != ''
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != '' && env.APPLE_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != ''
         working-directory: sakiko-wails
         shell: bash
         run: |
           ditto -c -k --keepParent "bin/Sakiko.app" "bin/Sakiko-macos-universal.zip"
           xcrun notarytool submit "bin/Sakiko-macos-universal.zip" \
-            --apple-id "${{ secrets.APPLE_ID }}" \
-            --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
-            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --apple-id "${{ env.APPLE_ID }}" \
+            --password "${{ env.APPLE_APP_SPECIFIC_PASSWORD }}" \
+            --team-id "${{ env.APPLE_TEAM_ID }}" \
             --wait
           xcrun stapler staple "bin/Sakiko.app"
 
