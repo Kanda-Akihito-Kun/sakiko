@@ -19,7 +19,7 @@ tasks:
       - sh: pnpm --version
         msg: "Looks like pnpm isn't installed."
     cmds:
-      - pnpm install
+      - pnpm install --frozen-lockfile --config.confirmModulesPurge=false
 
   build:frontend:
     label: build:frontend (PRODUCTION={{.PRODUCTION}})

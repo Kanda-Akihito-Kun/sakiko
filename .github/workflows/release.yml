@@ -47,6 +47,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: sakiko-wails/go.mod
+          cache-dependency-path: sakiko-wails/go.sum
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,7 +65,12 @@ jobs:
 
       - name: Install Wails CLI
         shell: pwsh
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.76
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.74
+
+      - name: Install frontend dependencies
+        working-directory: sakiko-wails/frontend
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
 
       - name: Install Windows packaging dependencies
         if: runner.os == 'Windows'
