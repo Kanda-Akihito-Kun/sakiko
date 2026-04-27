@@ -2,7 +2,7 @@
 
 This project is released with GitHub Actions using native runners:
 
-- `windows-latest`: portable zip
+- `windows-latest`: portable zip + NSIS installer
 - `macos-latest`: universal `.app` bundle packed as zip
 - `ubuntu-24.04`: AppImage
 
@@ -56,6 +56,7 @@ Generate the base64 value locally:
 The workflow signs:
 
 - `bin/Sakiko.exe`
+- `bin/*-installer.exe`
 
 If the secrets are absent, the workflow still builds unsigned packages.
 
@@ -113,6 +114,7 @@ You can add package signing later with a GPG private key for `deb` and `rpm`.
 Recommended release assets:
 
 - Windows:
+  - `Sakiko-amd64-installer.exe`
   - `Sakiko-portable-windows-amd64.zip`
 - macOS:
   - `Sakiko-macos-universal.zip`
@@ -132,6 +134,7 @@ Before the first public tag:
 
 ## 8. Notes
 
+- GitHub Actions `Artifacts` are always wrapped by GitHub into an outer download archive. The actual user-facing release files are the files inside that artifact archive, or the direct assets attached to a tag-based GitHub Release.
 - macOS packaging is built on a native macOS runner instead of Windows cross-compilation.
 - Linux packaging is built on a native Ubuntu runner instead of Docker cross-compilation.
 - This keeps the pipeline more stable than trying to produce all targets from a single Windows machine.
