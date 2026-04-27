@@ -391,4 +391,4 @@ If this README direction is approved, implementation should begin in this order:
 6. expose `api`
 7. add `transport/ws` and the authenticated message flow
 
-This order keeps protocol, scheduling, and capability boundaries stable before adding more features.
+This order keeps protocol, scheduling, and capability boundaries stable before adding more features. 

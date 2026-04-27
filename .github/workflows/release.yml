@@ -73,7 +73,21 @@ jobs:
       - name: Install Windows packaging dependencies
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          $candidates = @(
+            (Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"),
+            (Join-Path $env:ProgramFiles "NSIS\makensis.exe"),
+            (Join-Path $env:ChocolateyInstall "bin\makensis.exe")
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          $makensis = $candidates | Select-Object -First 1
+          if (-not $makensis) {
+            throw "makensis.exe not found after NSIS installation"
+          }
+          $nsisDir = Split-Path -Parent $makensis
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisDir
+          Add-Content -Path $env:GITHUB_ENV -Value "MAKENSIS_EXE=$makensis"
+          & $makensis /VERSION
 
       - name: Install Wails CLI
         shell: pwsh
@@ -97,7 +111,21 @@ jobs:
         working-directory: sakiko-wails
         shell: pwsh
         run: |
-          wails3 task windows:create:nsis:installer ARCH=amd64
+          if (-not $env:MAKENSIS_EXE) {
+            throw "MAKENSIS_EXE is not set"
+          }
+          $root = $pwd.Path
+          $nsisDir = Join-Path $root "build\windows\nsis"
+          wails3 generate webview2bootstrapper -dir $nsisDir
+          Push-Location $nsisDir
+          try {
+            & $env:MAKENSIS_EXE "-DARG_WAILS_AMD64_BINARY=$root\bin\Sakiko.exe" "project.nsi"
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          } finally {
+            Pop-Location
+          }
 
       - name: Import Windows signing certificate
         if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
