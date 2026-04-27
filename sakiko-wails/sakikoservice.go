@@ -25,6 +25,7 @@ type SakikoService struct {
 	settingsPath  string
 	mihomoVersion string
 	networkEnv    interfaces.BackendInfo
+	networkEnvMu  sync.RWMutex
 	once          sync.Once
 	initErr       error
 	app           *application.App
@@ -90,6 +91,12 @@ func (s *SakikoService) UpdateAppSettings(patch AppSettingsPatch) (AppSettings, 
 	if patch.DNS != nil {
 		settings.DNS = patch.DNS.Normalize()
 	}
+	if patch.HideProfileNameInExport != nil {
+		settings.HideProfileNameInExport = *patch.HideProfileNameInExport
+	}
+	if patch.HideCNInboundInExport != nil {
+		settings.HideCNInboundInExport = *patch.HideCNInboundInExport
+	}
 	settings = settings.Normalize()
 
 	if s.api != nil {
@@ -122,7 +129,7 @@ func (s *SakikoService) DesktopStatus() (DesktopStatus, error) {
 		ProfilesPath:  s.profilesPath,
 		Runtime:       s.api.RuntimeStatus().Status,
 		MihomoVersion: s.mihomoVersion,
-		NetworkEnv:    s.networkEnv,
+		NetworkEnv:    s.currentNetworkEnv(),
 	}, nil
 }
 
@@ -619,11 +626,31 @@ func (s *SakikoService) ensureReady() error {
 		s.profilesPath = profilesPath
 		s.settingsPath = settingsPath
 		s.mihomoVersion = mihomovendor.LibraryVersion()
-		s.networkEnv = netenv.Probe(context.Background())
+		s.refreshNetworkEnvAsync()
 		wailsServiceLogger().Info("sakiko service ready", zap.String("profiles_path", profilesPath))
 	})
 
 	return s.initErr
+}
+
+func (s *SakikoService) refreshNetworkEnvAsync() {
+	go func() {
+		info := netenv.Probe(context.Background())
+		s.networkEnvMu.Lock()
+		s.networkEnv = info
+		s.networkEnvMu.Unlock()
+		wailsServiceLogger().Info("network environment refreshed",
+			zap.String("ip", info.IP),
+			zap.String("source", info.Source),
+			zap.String("error", info.Error),
+		)
+	}()
+}
+
+func (s *SakikoService) currentNetworkEnv() interfaces.BackendInfo {
+	s.networkEnvMu.RLock()
+	defer s.networkEnvMu.RUnlock()
+	return s.networkEnv
 }
 
 func wailsServiceLogger() *zap.Logger {

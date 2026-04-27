@@ -108,6 +108,7 @@ export function UpdatePanel() {
     <SectionCard
       title={t("settings.updates.title")}
       icon={<SystemUpdateAltRounded color="primary" />}
+      sx={{ height: "100%" }}
     >
       <Stack spacing={1.25}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>

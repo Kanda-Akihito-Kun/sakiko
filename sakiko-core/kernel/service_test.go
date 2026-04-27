@@ -297,6 +297,36 @@ func TestTaskActivityTracksActiveNodes(t *testing.T) {
 	}
 }
 
+func TestFinishedTasksAreTrimmedToRetentionLimit(t *testing.T) {
+	t.Parallel()
+
+	svc, err := New(Config{Mode: interfaces.ModeSerial})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer svc.Stop()
+
+	for i := 0; i < maxRetainedFinishedTasks+2; i++ {
+		taskID := strings.Join([]string{"task", time.Now().UTC().Format("150405.000000"), string(rune('a' + i))}, "-")
+		svc.addTask(interfaces.Task{
+			ID:   taskID,
+			Name: taskID,
+			Nodes: []interfaces.Node{
+				{Name: "node-1"},
+			},
+		}, 1)
+		svc.finishTask(taskID, []interfaces.EntryResult{{ProxyInfo: interfaces.ProxyInfo{Name: "node-1"}}}, "success")
+	}
+
+	tasks := svc.ListTasks()
+	if len(tasks) != maxRetainedFinishedTasks {
+		t.Fatalf("expected %d retained finished tasks, got %d", maxRetainedFinishedTasks, len(tasks))
+	}
+	if svc.finishedOrder[0] == "" {
+		t.Fatalf("expected finished order to be populated")
+	}
+}
+
 type captureArchiveWriter struct {
 	mu       sync.Mutex
 	snapshot interfaces.TaskArchiveSnapshot

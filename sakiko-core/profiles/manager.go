@@ -27,8 +27,9 @@ import (
 )
 
 type Config struct {
-	StorePath    string
-	FetchTimeout time.Duration
+	StorePath      string
+	FetchTimeout   time.Duration
+	MaxSourceBytes int64
 }
 
 type Manager struct {
@@ -41,7 +42,8 @@ type Manager struct {
 
 	now func() time.Time
 
-	fetchTimeout time.Duration
+	fetchTimeout    time.Duration
+	maxProfileBytes int64
 }
 
 type fetchedProfileSource struct {
@@ -50,21 +52,29 @@ type fetchedProfileSource struct {
 	Attributes map[string]any
 }
 
-const defaultSubscriptionUserAgent = "clash-verge/v2.4.6"
+const (
+	defaultSubscriptionUserAgent = "clash-verge/v2.4.6"
+	defaultMaxProfileSourceBytes = 20 * 1024 * 1024
+)
 
 func NewManager(cfg Config) (*Manager, error) {
 	timeout := cfg.FetchTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
+	maxSourceBytes := cfg.MaxSourceBytes
+	if maxSourceBytes <= 0 {
+		maxSourceBytes = defaultMaxProfileSourceBytes
+	}
 
 	m := &Manager{
-		store:        storage.NewProfileStore(cfg.StorePath),
-		files:        storage.NewProfileContentStore(cfg.StorePath),
-		profiles:     map[string]interfaces.Profile{},
-		order:        []string{},
-		now:          time.Now,
-		fetchTimeout: timeout,
+		store:           storage.NewProfileStore(cfg.StorePath),
+		files:           storage.NewProfileContentStore(cfg.StorePath),
+		profiles:        map[string]interfaces.Profile{},
+		order:           []string{},
+		now:             time.Now,
+		fetchTimeout:    timeout,
+		maxProfileBytes: maxSourceBytes,
 	}
 
 	loaded, recovered, err := m.bootstrapProfiles()
@@ -85,6 +95,7 @@ func NewManager(cfg Config) (*Manager, error) {
 		zap.Int("loaded_profiles", len(loaded)),
 		zap.Bool("recovered_profiles", recovered),
 		zap.Duration("fetch_timeout", timeout),
+		zap.Int64("max_source_bytes", maxSourceBytes),
 		zap.String("store_path", cfg.StorePath),
 	)
 	if recovered {
@@ -494,13 +505,25 @@ func (m *Manager) fetchSource(source string) (fetchedProfileSource, error) {
 		return fetchedProfileSource{}, fmt.Errorf("profile source returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	limit := m.maxProfileBytes
+	if limit <= 0 {
+		limit = defaultMaxProfileSourceBytes
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		profilesLogger().Warn("read profile source body failed",
 			zap.String("source", sourceLabel(source)),
 			zap.Error(err),
 		)
 		return fetchedProfileSource{}, err
+	}
+	if int64(len(body)) > limit {
+		profilesLogger().Warn("profile source body exceeded size limit",
+			zap.String("source", sourceLabel(source)),
+			zap.Int64("limit_bytes", limit),
+			zap.Int("received_bytes", len(body)),
+		)
+		return fetchedProfileSource{}, fmt.Errorf("profile source exceeds %d bytes", limit)
 	}
 	return fetchedProfileSource{
 		Content:    string(body),

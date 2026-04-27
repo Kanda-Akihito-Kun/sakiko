@@ -14,7 +14,6 @@ The codebase now includes a working MVP kernel implementation for:
 
 - task execution (`ping` / `geo` / `udp` / `speed` / `full`), task lifecycle query, and task result retrieval
 - in-memory runtime task registry
-- WebSocket transport with authenticated envelope flow
 - profile management in `api/`:
   - import profile from subscription URL
   - list and get profile
@@ -47,7 +46,7 @@ Each proxy entry is normalized into `interfaces.Node`.
 It is the execution kernel shared by:
 
 - `sakiko-wails`: local desktop application
-- `sakiko-web`: public or self-hosted test service
+- future server-mode consumers
 - future CLI / worker / remote agent forms
 
 Core principles:
@@ -109,7 +108,6 @@ Scope:
 - run ping and speed tasks
 - expose task lifecycle and result streaming
 - import / refresh / list / get profiles through `api`
-- support external communication through `WebSocket + AES-256` authenticated envelopes
 - be embeddable by desktop app and later reusable by web service
 
 Out of scope for the first stage:
@@ -131,10 +129,6 @@ The kernel is planned as layered modules:
 - `profiles/`
   - subscription, profile, node domain models
   - parsing and normalization
-- `protocol/`
-  - external message envelope definitions
-  - request / response / event payload schema
-
 This layer should stay simple and dependency-light.
 
 ### 4.2 Execution Kernel
@@ -182,18 +176,10 @@ This layer should follow the `Vendor -> Macro -> Matrix` model from `miaospeed`,
   - application service facade
   - submit tasks, query progress, list runtime status
   - import / list / get / refresh profiles
-- `transport/ws/`
-  - WebSocket server
-  - session lifecycle
-  - message routing
-- `auth/`
-  - AES-256 based authentication and message verification
-  - challenge, nonce, timestamp, replay protection
-
 Important rule:
 
 - external callers should not call `executor`, `vendor`, or `macro` directly
-- all outward access goes through `api` and `transport`
+- all outward access goes through `api`
 
 ## 5. Suggested Directory Layout
 
@@ -204,7 +190,6 @@ sakiko-core/
   README.md
   go.mod
   api/
-  auth/
   executor/
     taskpoll/
   interfaces/
@@ -223,10 +208,7 @@ sakiko-core/
     persecondspeed/
   netx/
   profiles/
-  protocol/
   storage/
-  transport/
-    ws/
   vendors/
     mihomo/
     local/
@@ -237,43 +219,12 @@ Notes:
 
 - `storage/` is reserved early even if phase 1 only writes local YAML / JSON
 - current phase writes `profiles.yaml` using the `storage.ProfileStore`
-- `transport/ws/` is intentionally independent from `sakiko-wails` and `sakiko-web`
-- `api/` is the stable facade that both desktop and service side should depend on
+- `api/` is the stable facade that both desktop and future server-mode consumers should depend on
 
-## 6. Communication Plan: WebSocket + AES-256
+## 6. Communication Plan
 
-The external communication requirement is:
-
-- transport: WebSocket
-- verification: AES-256 based shared-secret authentication
-
-Because `AES` is naturally an encryption primitive rather than a signature primitive, the implementation should be split into two concepts even if the product language continues to call it "signature verification":
-
-- `auth`: shared-secret verification policy
-- `protocol`: signed or encrypted envelope schema
-
-First-stage plan:
-
-- all clients connect via WebSocket
-- the server performs challenge-response authentication
-- every request carries:
-  - `ts`
-  - `nonce`
-  - `request_id`
-  - `event`
-  - `payload`
-  - `signature`
-- `signature` is produced from canonicalized content plus shared secret material
-- server verifies timestamp window and nonce uniqueness to prevent replay
-- authenticated sessions receive progress and result events on the same socket
-
-Recommended implementation shape:
-
-- keep the public option named `AES-256`
-- keep the internal crypto abstraction algorithm-neutral
-- if later needed, switch internals to a stricter construction without changing the transport API
-
-This avoids locking the whole kernel to one crypto detail.
+Current MVP uses the local desktop facade in `api/`.
+If server mode is added later, the transport and authentication model should be designed around the same application boundary instead of leaking scheduler internals.
 
 ## 7. Runtime Model
 
@@ -336,9 +287,6 @@ Persistence direction:
 - ping matrices
 - speed matrices
 - in-memory task registry
-- WebSocket server
-- AES-256 auth envelope
-
 ### Phase 2: Rich Test Capabilities
 
 - UDP tests
@@ -375,20 +323,18 @@ These decisions should be locked early to avoid churn:
 
 - `Vendor -> Macro -> Matrix` remains the test abstraction model
 - `api/` is the only official outward application boundary
-- external communication uses `WebSocket`
-- authentication is implemented in a dedicated crypto layer, not scattered through handlers
-- `sakiko-wails` and `sakiko-web` are consumers of `sakiko-core`, not places for duplicated business logic
+- future server-mode access should stay behind a dedicated transport layer rather than leaking executor internals
+- `sakiko-wails` is a consumer of `sakiko-core`, not a place for duplicated business logic
 
 ## 11. Immediate Next Step After Approval
 
 If this README direction is approved, implementation should begin in this order:
 
 1. initialize `go.mod` and base package layout
-2. define `interfaces`, `protocol`, and `auth` contracts first
+2. define `interfaces` and task/report contracts first
 3. implement `executor` and `kernel` lifecycle
 4. implement `vendors/mihomo` and `netx`
 5. implement `macro/ping`, `macro/speed`, and matching matrices
 6. expose `api`
-7. add `transport/ws` and the authenticated message flow
 
 This order keeps protocol, scheduling, and capability boundaries stable before adding more features. 

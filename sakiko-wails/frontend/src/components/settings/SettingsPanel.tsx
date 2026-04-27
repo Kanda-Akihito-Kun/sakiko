@@ -36,6 +36,7 @@ export function SettingsPanel() {
     <SectionCard
       title={t("settings.title")}
       icon={<SettingsRounded color="primary" />}
+      sx={{ height: "100%" }}
     >
       <List
         disablePadding
@@ -45,7 +46,8 @@ export function SettingsPanel() {
           sx={{
             px: 0,
             py: 1.5,
-            alignItems: "center",
+            alignItems: { xs: "stretch", sm: "center" },
+            flexDirection: { xs: "column", sm: "row" },
             gap: 2,
             borderBottom: "1px solid",
             borderColor: "divider",
@@ -69,7 +71,7 @@ export function SettingsPanel() {
             onChange={(event) => {
               void switchLanguage(String(event.target.value));
             }}
-            sx={{ minWidth: 132 }}
+            sx={{ minWidth: { xs: 0, sm: 132 }, width: { xs: "100%", sm: "auto" } }}
           >
             {supportedLanguages.map((language) => (
               <MenuItem key={language} value={language}>
@@ -83,7 +85,8 @@ export function SettingsPanel() {
           sx={{
             px: 0,
             py: 1.5,
-            alignItems: "center",
+            alignItems: { xs: "stretch", sm: "center" },
+            flexDirection: { xs: "column", sm: "row" },
             gap: 2,
             borderBottom: "1px solid",
             borderColor: "divider",
@@ -100,14 +103,17 @@ export function SettingsPanel() {
               </Box>
             )}
           />
-          <ThemeModeSwitch value={mode} options={themeModeOptions} onChange={setMode} />
+          <Box sx={{ width: { xs: "100%", sm: "auto" }, overflowX: "auto" }}>
+            <ThemeModeSwitch value={mode} options={themeModeOptions} onChange={setMode} />
+          </Box>
         </ListItem>
 
         <ListItem
           sx={{
             px: 0,
             py: 1.5,
-            alignItems: "center",
+            alignItems: { xs: "stretch", sm: "center" },
+            flexDirection: { xs: "column", sm: "row" },
             gap: 2,
           }}
         >
@@ -122,7 +128,9 @@ export function SettingsPanel() {
               </Box>
             )}
           />
-          <ThemeModeSwitch value={exportPictureMode} options={exportModeOptions} onChange={setExportPictureMode} />
+          <Box sx={{ width: { xs: "100%", sm: "auto" }, overflowX: "auto" }}>
+            <ThemeModeSwitch value={exportPictureMode} options={exportModeOptions} onChange={setExportPictureMode} />
+          </Box>
         </ListItem>
 
       </List>

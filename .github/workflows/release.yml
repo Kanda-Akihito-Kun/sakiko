@@ -27,9 +27,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: windows-amd64
+          - name: windows-portable-amd64
             os: windows-latest
-            artifact_name: release-windows-amd64
+            artifact_name: release-windows-portable-amd64
+            windows_variant: portable
+          - name: windows-installer-amd64
+            os: windows-latest
+            artifact_name: release-windows-installer-amd64
+            windows_variant: installer
           - name: macos-universal
             os: macos-latest
             artifact_name: release-macos-universal
@@ -99,15 +104,22 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Windows portable binary
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.windows_variant == 'portable'
         working-directory: sakiko-wails
         shell: pwsh
         run: |
           wails3 task windows:build PRODUCTION=true ARCH=amd64
           Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
 
+      - name: Build Windows installer binary
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer'
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          wails3 task windows:build PRODUCTION=true ARCH=amd64
+
       - name: Build Windows NSIS installer
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer'
         working-directory: sakiko-wails
         shell: pwsh
         run: |
@@ -134,19 +146,24 @@ jobs:
         run: |
           [IO.File]::WriteAllBytes("$pwd\windows-cert.pfx", [Convert]::FromBase64String("${{ env.WINDOWS_CERT_PFX_BASE64 }}"))
 
-      - name: Sign Windows binaries
-        if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
+      - name: Sign Windows portable binary
+        if: runner.os == 'Windows' && matrix.windows_variant == 'portable' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
         working-directory: sakiko-wails
         shell: pwsh
         run: |
           $signtool = (Get-Command signtool.exe).Source
           & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 "$pwd\bin\Sakiko.exe"
-          $installer = Get-ChildItem "$pwd\bin\*-installer.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          if ($installer) {
-            & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 $installer
-          }
           Remove-Item "$pwd\bin\Sakiko-portable-windows-amd64.zip" -Force
           Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
+
+      - name: Sign Windows NSIS installer
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          $signtool = (Get-Command signtool.exe).Source
+          $installer = Get-ChildItem "$pwd\bin\*-installer.exe" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty FullName
+          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 $installer
 
       - name: Build macOS universal app
         if: runner.os == 'macOS'
@@ -207,12 +224,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist-release | Out-Null
-          if ("${{ runner.os }}" -eq "Windows") {
+          if ("${{ runner.os }}" -eq "Windows" -and "${{ matrix.windows_variant }}" -eq "portable") {
             Copy-Item .\bin\Sakiko-portable-windows-amd64.zip .\dist-release\
-            $installer = Get-ChildItem .\bin\*-installer.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($installer) {
-              Copy-Item $installer.FullName .\dist-release\
-            }
+          } elseif ("${{ runner.os }}" -eq "Windows" -and "${{ matrix.windows_variant }}" -eq "installer") {
+            $installer = Get-ChildItem .\bin\*-installer.exe -ErrorAction Stop | Select-Object -First 1
+            Copy-Item $installer.FullName .\dist-release\
           } elseif ("${{ runner.os }}" -eq "macOS") {
             Copy-Item .\bin\Sakiko-macos-universal.zip .\dist-release\
           } elseif ("${{ runner.os }}" -eq "Linux") {

@@ -17,6 +17,15 @@ Version: `v0.1.0`
 
 Web Demo Trial: `43.167.194.92:8080`
 
+## Downloads
+
+For Windows releases, the recommended download is the portable package:
+
+- `Sakiko-portable-windows-amd64.zip` is the recommended Windows distribution
+- `Sakiko-*-installer.exe` is experimental and provided for testing only
+
+The portable package is currently the preferred choice because it is simpler, easier to verify, and avoids installer-specific issues during early-stage release iterations.
+
 ## Current Capabilities
 
 The current MVP already covers the main workflow:
@@ -106,6 +115,8 @@ If you need an installer instead of a bare executable, use:
 cd .\sakiko-wails
 wails3 task package
 ```
+
+For public Windows releases at the current stage, prefer the portable package. The NSIS installer is still considered experimental.
 
 ## Local Data
 

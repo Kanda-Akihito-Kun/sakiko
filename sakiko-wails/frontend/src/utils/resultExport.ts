@@ -29,6 +29,11 @@ export type ExportSection = {
   rows: Record<string, unknown>[];
 };
 
+export type ExportPrivacyOptions = {
+  hideProfileNameInExport?: boolean;
+  hideCNInboundInExport?: boolean;
+};
+
 type TableMergePlan = {
   spans: Map<string, number>;
   skipped: Set<string>;
@@ -73,6 +78,8 @@ const WATERMARK = "sakiko";
 const FLAG_ICON_GAP = 6;
 const TOPOLOGY_INBOUND_COLUMNS = ["inboundASN", "inboundIP", "inboundInfo"] as const;
 const TOPOLOGY_OUTBOUND_COLUMNS = ["outboundASN", "outboundIP", "outboundInfo"] as const;
+const MASKED_PROFILE_VALUE = "*****";
+const MASKED_INBOUND_VALUE = "******";
 
 const exportPalettes: Record<ResolvedThemeMode, ExportPalette> = {
   light: {
@@ -125,9 +132,11 @@ export async function exportResultArchiveImage(
   archive: ResultArchive,
   downloadTargets: DownloadTarget[] = [],
   mode: ResolvedThemeMode = "light",
+  privacy: ExportPrivacyOptions = {},
 ): Promise<void> {
+  const resolvedPrivacy = resolveExportPrivacyOptions(privacy);
   const palette = exportPalettes[mode];
-  const sections = buildExportSections(archive);
+  const sections = buildExportSections(archive, resolvedPrivacy);
   await ensureExportFontsReady();
   const contentWidth = resolveContentWidth(sections);
   const pageWidth = contentWidth + PAGE_PADDING_X * 2;
@@ -145,20 +154,21 @@ export async function exportResultArchiveImage(
   ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
 
   drawBackground(ctx, pageWidth, pageHeight, palette);
-  drawHeader(ctx, archive, pageWidth, palette);
+  drawHeader(ctx, archive, pageWidth, palette, resolvedPrivacy);
 
   let cursorY = PAGE_PADDING_Y + HEADER_HEIGHT;
   sections.forEach((section, index) => {
     cursorY = drawSection(ctx, section, archive, cursorY, pageWidth, contentWidth, true, palette) + (index < sections.length - 1 ? SECTION_GAP : 0);
   });
 
-  drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight, palette);
+  drawFooter(ctx, archive, downloadTargets, pageWidth, pageHeight, palette, resolvedPrivacy);
 
   const blob = await canvasToBlob(canvas);
-  downloadBlob(blob, buildFileName(archive, mode));
+  downloadBlob(blob, buildFileName(archive, mode, resolvedPrivacy));
 }
 
-export function buildExportSections(archive: ResultArchive): ExportSection[] {
+export function buildExportSections(archive: ResultArchive, privacy: ExportPrivacyOptions = {}): ExportSection[] {
+  const resolvedPrivacy = resolveExportPrivacyOptions(privacy);
   const sections: ExportSection[] = [];
   const hasSpeedSection = (archive.report.sections || []).some((section) => section.kind === "speed_table");
   const latencySection = hasSpeedSection ? null : buildLatencySection(archive);
@@ -167,7 +177,7 @@ export function buildExportSections(archive: ResultArchive): ExportSection[] {
   }
 
   for (const section of archive.report.sections || []) {
-    const normalized = normalizeReportSection(section);
+    const normalized = applyPrivacyToSection(normalizeReportSection(section), archive, resolvedPrivacy);
     if (normalized.columns.length === 0) {
       continue;
     }
@@ -342,9 +352,15 @@ function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
   }
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, archive: ResultArchive, width: number, palette: ExportPalette) {
+function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  archive: ResultArchive,
+  width: number,
+  palette: ExportPalette,
+  privacy: ExportPrivacyOptions,
+) {
   const mainTitle = buildMainTitle(archive);
-  const profileName = archive.task.context?.profileName || "Unknown Profile";
+  const profileName = maskedProfileNameForExport(archive, privacy) || "Unknown Profile";
 
   ctx.fillStyle = palette.text;
   ctx.textAlign = "center";
@@ -549,6 +565,7 @@ function drawFooter(
   width: number,
   height: number,
   palette: ExportPalette,
+  privacy: ExportPrivacyOptions,
 ) {
   const footerTop = height - FOOTER_HEIGHT;
   const preset = buildMainTitle(archive);
@@ -569,7 +586,7 @@ function drawFooter(
   ctx.fillStyle = palette.text;
   ctx.font = `500 12px ${FONT_FAMILY}`;
   ctx.fillText(
-    `Protocol Library=${protocolLibrary}  Backend=${backend}  SpeedTest Target=${target}  Profile=${archive.task.context?.profileName || "Unknown"}  Preset=${preset}`,
+    `Protocol Library=${protocolLibrary}  Backend=${backend}  SpeedTest Target=${target}  Profile=${maskedProfileNameForExport(archive, privacy) || "Unknown"}  Preset=${preset}`,
     PAGE_PADDING_X,
     footerTop + 18,
   );
@@ -1299,8 +1316,93 @@ function calculateRuntimeSeconds(archive: ResultArchive): number {
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
-function buildFileName(archive: ResultArchive, mode: ResolvedThemeMode): string {
-  const profile = sanitizeFileName(archive.task.context?.profileName || "result");
+function resolveExportPrivacyOptions(privacy: ExportPrivacyOptions): Required<ExportPrivacyOptions> {
+  return {
+    hideProfileNameInExport: Boolean(privacy.hideProfileNameInExport),
+    hideCNInboundInExport: Boolean(privacy.hideCNInboundInExport),
+  };
+}
+
+function maskedProfileNameForExport(archive: ResultArchive, privacy?: ExportPrivacyOptions): string {
+  if (privacy?.hideProfileNameInExport) {
+    return MASKED_PROFILE_VALUE;
+  }
+  return archive.task.context?.profileName || "Unknown Profile";
+}
+
+function applyPrivacyToSection(section: ExportSection, archive: ResultArchive, privacy: Required<ExportPrivacyOptions>): ExportSection {
+  if (!privacy.hideCNInboundInExport || section.kind !== "topology_table" || section.rows.length === 0) {
+    return section;
+  }
+
+  const inboundMaskLookup = buildCNInboundMaskLookup(archive);
+  if (inboundMaskLookup.size === 0) {
+    return section;
+  }
+
+  return {
+    ...section,
+    rows: section.rows.map((row) => {
+      const key = buildTopologyRowKey(row);
+      if (!key || !inboundMaskLookup.get(key)) {
+        return row;
+      }
+      return {
+        ...row,
+        inboundASN: MASKED_INBOUND_VALUE,
+        inboundIP: MASKED_INBOUND_VALUE,
+        inboundInfo: MASKED_INBOUND_VALUE,
+      };
+    }),
+  };
+}
+
+function buildCNInboundMaskLookup(archive: ResultArchive): Map<string, boolean> {
+  const lookup = new Map<string, boolean>();
+  for (const result of archive.results || []) {
+    const key = buildResultKey(result.proxyInfo.name, formatProxyType(result.proxyInfo.type), result.proxyInfo.address);
+    if (!key) {
+      continue;
+    }
+    lookup.set(key, isChinaGeoInfo(extractGeoPayloadCountryCode(result.matrices, "GEOIP_INBOUND")));
+  }
+  return lookup;
+}
+
+function buildTopologyRowKey(row: Record<string, unknown>): string {
+  return buildResultKey(row.nodeName, row.proxyType, row.address);
+}
+
+function buildResultKey(nodeName: unknown, proxyType: unknown, address: unknown): string {
+  const name = String(nodeName || "").trim();
+  const type = String(proxyType || "").trim();
+  const addr = String(address || "").trim();
+  if (!name || !type) {
+    return "";
+  }
+  return `${name}::${type}::${addr}`;
+}
+
+function extractGeoPayloadCountryCode(matrices: MatrixResult[] = [], targetType: string): string {
+  const matrix = matrices.find((item) => item.type === targetType);
+  if (!matrix || !matrix.payload || typeof matrix.payload !== "object") {
+    return "";
+  }
+  const payload = matrix.payload as Record<string, unknown>;
+  const countryCode = String(payload.countryCode || "").trim().toUpperCase();
+  if (countryCode) {
+    return countryCode;
+  }
+  return String(payload.country || "").trim().toUpperCase();
+}
+
+function isChinaGeoInfo(value: string): boolean {
+  const normalized = value.trim().toUpperCase();
+  return normalized === "CN" || normalized === "CHINA" || normalized === "中国";
+}
+
+function buildFileName(archive: ResultArchive, mode: ResolvedThemeMode, privacy: ExportPrivacyOptions): string {
+  const profile = sanitizeFileName(privacy.hideProfileNameInExport ? "hidden-profile" : (archive.task.context?.profileName || "result"));
   const preset = sanitizeFileName(archive.task.context?.preset || "report");
   const timestamp = formatDateTimeForFileName(archive.state.finishedAt || archive.state.startedAt || new Date().toISOString());
   const theme = mode === "dark" ? "Dark" : "Light";

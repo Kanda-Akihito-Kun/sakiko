@@ -9,6 +9,14 @@
   "exportPictureMode": {
     "label": "Export Picture Mode"
   },
+  "privacy": {
+    "title": "Privacy Protection",
+    "description": "Control how exported images redact profile and inbound topology details.",
+    "loadFailed": "Failed to load privacy settings.",
+    "saveFailed": "Failed to save privacy settings.",
+    "hideProfileNameInExport": "Hide profile's name in export",
+    "hideCNInboundInExport": "Hide CN inbound in export"
+  },
   "taskDefaults": {
     "parameterAdjustTitle": "Basic Parameter",
     "restoreDefaults": "Restore Defaults",

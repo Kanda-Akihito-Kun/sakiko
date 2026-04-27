@@ -1,6 +1,7 @@
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import { Box, Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import { PrivacySettingsPanel } from "../components/settings/PrivacySettingsPanel";
 import { UpdatePanel } from "../components/settings/UpdatePanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
 import { OverviewRow } from "../components/shared/OverviewRow";
@@ -21,50 +22,48 @@ export function SettingsSection({
   const { t } = useTranslation();
 
   return (
-    <Box className="sakiko-section-grid">
-      <Box className="sakiko-section-grid__sidebar">
-        <SettingsPanel />
-      </Box>
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2.25,
+        gridTemplateColumns: {
+          xs: "minmax(0, 1fr)",
+          lg: "repeat(2, minmax(0, 1fr))",
+        },
+        alignItems: "stretch",
+        "& > *": {
+          minWidth: 0,
+        },
+      }}
+    >
+      <PrivacySettingsPanel />
+      <SettingsPanel />
+      <UpdatePanel />
 
-      <Box className="sakiko-section-grid__content">
-        <Box
-          sx={{
-            display: "grid",
-            gap: 2.25,
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            alignItems: "start",
-            "& > *": {
-              minWidth: 0,
-            },
-          }}
-        >
-          <UpdatePanel />
-
-          <SectionCard
-            title={t("settings.environment.title")}
-            icon={<SettingsRounded color="primary" />}
-          >
-            <Stack spacing={1.25}>
-              <OverviewRow
-                label={t("settings.environment.workspace")}
-                value={profilesPath || t("settings.environment.workspaceUnavailable")}
-                mono
-                multiline
-              />
-              <OverviewRow
-                label={t("settings.environment.mihomoVersion")}
-                value={mihomoVersion || t("settings.environment.versionUnavailable")}
-                mono
-              />
-              <OverviewRow
-                label={t("settings.environment.networkEnv")}
-                value={formatNetworkEnv(networkEnv, t("settings.environment.networkUnavailable"))}
-                multiline
-              />
-            </Stack>
-          </SectionCard>
-        </Box>
-      </Box>
+      <SectionCard
+        title={t("settings.environment.title")}
+        icon={<SettingsRounded color="primary" />}
+        sx={{ height: "100%" }}
+      >
+        <Stack spacing={1.25}>
+          <OverviewRow
+            label={t("settings.environment.workspace")}
+            value={profilesPath || t("settings.environment.workspaceUnavailable")}
+            mono
+            multiline
+          />
+          <OverviewRow
+            label={t("settings.environment.mihomoVersion")}
+            value={mihomoVersion || t("settings.environment.versionUnavailable")}
+            mono
+          />
+          <OverviewRow
+            label={t("settings.environment.networkEnv")}
+            value={formatNetworkEnv(networkEnv, t("settings.environment.networkUnavailable"))}
+            multiline
+          />
+        </Stack>
+      </SectionCard>
     </Box>
   );
 }

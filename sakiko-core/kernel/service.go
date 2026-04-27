@@ -24,13 +24,16 @@ type Config struct {
 	ArchiveWriter    interfaces.ResultArchiveWriter
 }
 
+const maxRetainedFinishedTasks = 5
+
 type Service struct {
 	engine        *executor.Engine
 	now           func() time.Time
 	archiveWriter interfaces.ResultArchiveWriter
 
-	lock  sync.RWMutex
-	tasks map[string]*taskRecord
+	lock          sync.RWMutex
+	tasks         map[string]*taskRecord
+	finishedOrder []string
 }
 
 type taskRecord struct {
@@ -60,6 +63,7 @@ func New(cfg Config) (*Service, error) {
 		now:           time.Now,
 		archiveWriter: cfg.ArchiveWriter,
 		tasks:         map[string]*taskRecord{},
+		finishedOrder: []string{},
 	}
 	kernelLogger().Info("kernel initialized",
 		zap.String("mode", string(cfg.Mode)),
@@ -261,6 +265,7 @@ func (s *Service) DeleteTask(taskID string) error {
 	case "running", "stopping":
 		return fmt.Errorf("task is still active")
 	default:
+		s.removeFinishedTaskLocked(taskID)
 		delete(s.tasks, taskID)
 		return nil
 	}
@@ -336,6 +341,8 @@ func (s *Service) finishTask(taskID string, results []interfaces.EntryResult, ex
 	task.results = append([]interfaces.EntryResult{}, results...)
 	task.exitCode = string(exitCode)
 	task.activeNodes = map[int]interfaces.TaskActiveNode{}
+	s.rememberFinishedTaskLocked(taskID)
+	s.pruneFinishedTasksLocked()
 	return task.state, interfaces.TaskArchiveSnapshot{
 		Task:     task.task,
 		State:    task.state,
@@ -348,7 +355,38 @@ func (s *Service) deleteTask(taskID string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.removeFinishedTaskLocked(taskID)
 	delete(s.tasks, taskID)
+}
+
+func (s *Service) rememberFinishedTaskLocked(taskID string) {
+	s.removeFinishedTaskLocked(taskID)
+	s.finishedOrder = append(s.finishedOrder, taskID)
+}
+
+func (s *Service) pruneFinishedTasksLocked() {
+	for len(s.finishedOrder) > maxRetainedFinishedTasks {
+		evictedID := s.finishedOrder[0]
+		s.finishedOrder = s.finishedOrder[1:]
+		record, ok := s.tasks[evictedID]
+		if !ok {
+			continue
+		}
+		switch record.state.Status {
+		case "finished", "failed", "canceled":
+			delete(s.tasks, evictedID)
+		}
+	}
+}
+
+func (s *Service) removeFinishedTaskLocked(taskID string) {
+	for i, existing := range s.finishedOrder {
+		if existing != taskID {
+			continue
+		}
+		s.finishedOrder = append(s.finishedOrder[:i], s.finishedOrder[i+1:]...)
+		return
+	}
 }
 
 func randomID() string {

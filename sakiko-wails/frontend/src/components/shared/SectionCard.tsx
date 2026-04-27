@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { Card, CardContent, CardHeader, Typography } from "@mui/material";
 
 type SectionCardProps = {
@@ -6,18 +7,24 @@ type SectionCardProps = {
   action?: ReactNode;
   icon?: ReactNode;
   children: ReactNode;
+  sx?: SxProps<Theme>;
 };
 
-export function SectionCard({ title, action, icon, children }: SectionCardProps) {
+export function SectionCard({ title, action, icon, children, sx }: SectionCardProps) {
+  const cardSx: SxProps<Theme> = [
+    {
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+  ];
+
   return (
     <Card
       variant="outlined"
-      sx={{
-        minWidth: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
+      sx={cardSx}
     >
       <CardHeader
         avatar={icon}
@@ -59,7 +66,7 @@ export function SectionCard({ title, action, icon, children }: SectionCardProps)
           },
         }}
       />
-      <CardContent sx={{ px: 2.25, py: 2, minWidth: 0 }}>{children}</CardContent>
+      <CardContent sx={{ px: 2.25, py: 2, minWidth: 0, flex: 1 }}>{children}</CardContent>
     </Card>
   );
 }

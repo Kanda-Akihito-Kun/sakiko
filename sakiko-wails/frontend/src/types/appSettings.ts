@@ -8,6 +8,8 @@ export type DNSConfig = {
 export type AppSettings = {
   language: AppLanguage;
   dns: DNSConfig;
+  hideProfileNameInExport: boolean;
+  hideCNInboundInExport: boolean;
 };
 
 export type AppSettingsPatch = Partial<AppSettings>;

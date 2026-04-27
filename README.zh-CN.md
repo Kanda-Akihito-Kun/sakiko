@@ -17,6 +17,15 @@ Sakiko 是一个围绕可复用 Go 内核构建的桌面代理测速项目。
 
 Web Demo 体验：`43.167.194.92:8080`
 
+## 下载说明
+
+Windows 版本当前推荐下载便携版：
+
+- `Sakiko-portable-windows-amd64.zip` 是当前推荐的 Windows 发行形式
+- `Sakiko-*-installer.exe` 仍处于实验阶段，仅供测试
+
+当前优先推荐便携版，是因为它更简单、更容易验证，也能避免早期发布阶段与安装器相关的额外问题。
+
 ## 当前能力
 
 当前 MVP 已经覆盖主要使用链路：
@@ -77,7 +86,7 @@ wails3 dev -config .\build\config.yml
 
 ## 构建桌面端
 
-普通构建：
+普通本地构建：
 
 ```powershell
 cd .\sakiko-wails
@@ -86,7 +95,7 @@ wails3 task build
 
 这条链路主要用于本地验证。它会使用开发态前端产物，同时保留更偏向调试的 Go 构建参数，因此产物体积会更大一些。
 
-精简构建：
+精简生产构建：
 
 ```powershell
 cd .\sakiko-wails
@@ -106,6 +115,8 @@ wails3 task build PRODUCTION=true
 cd .\sakiko-wails
 wails3 task package
 ```
+
+但在当前公开 Windows 发布策略里，仍然推荐优先使用便携版；NSIS 安装版仅视为实验性产物。
 
 ## 本地数据
 
@@ -163,4 +174,4 @@ MIT
 
 ## 作者
 
-鼠鼠今天吃嘉然？
+榧犻紶今天吃嘉然？

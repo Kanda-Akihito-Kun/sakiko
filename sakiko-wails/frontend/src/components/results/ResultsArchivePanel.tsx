@@ -23,6 +23,7 @@ import {
 import { alpha, type Theme } from "@mui/material/styles";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SakikoService } from "../../services/sakikoService";
 import { useThemeMode } from "../../theme/themeMode";
 import type { DownloadTarget, ResultArchive, ResultArchiveListItem } from "../../types/sakiko";
 import {
@@ -242,7 +243,11 @@ export function ResultsArchivePanel({
                               if (!nextDetail) {
                                 throw new Error(t("dashboard.results.archiveUnavailable"));
                               }
-                              await exportResultArchiveImage(nextDetail, downloadTargets, resolvedExportPictureMode);
+                              const settings = await SakikoService.GetAppSettings();
+                              await exportResultArchiveImage(nextDetail, downloadTargets, resolvedExportPictureMode, {
+                                hideProfileNameInExport: settings.hideProfileNameInExport,
+                                hideCNInboundInExport: settings.hideCNInboundInExport,
+                              });
                             } finally {
                               setExportingTaskId("");
                             }

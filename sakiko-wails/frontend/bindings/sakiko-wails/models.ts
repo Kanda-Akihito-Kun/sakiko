@@ -12,6 +12,8 @@ import * as interfaces$0 from "../sakiko.local/sakiko-core/interfaces/models.js"
 export class AppSettings {
     "language": string;
     "dns": interfaces$0.DNSConfig;
+    "hideProfileNameInExport": boolean;
+    "hideCNInboundInExport": boolean;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -20,6 +22,12 @@ export class AppSettings {
         }
         if (!("dns" in $$source)) {
             this["dns"] = (new interfaces$0.DNSConfig());
+        }
+        if (!("hideProfileNameInExport" in $$source)) {
+            this["hideProfileNameInExport"] = false;
+        }
+        if (!("hideCNInboundInExport" in $$source)) {
+            this["hideCNInboundInExport"] = false;
         }
 
         Object.assign(this, $$source);
@@ -41,6 +49,8 @@ export class AppSettings {
 export class AppSettingsPatch {
     "language"?: string;
     "dns"?: interfaces$0.DNSConfig | null;
+    "hideProfileNameInExport"?: boolean | null;
+    "hideCNInboundInExport"?: boolean | null;
 
     /** Creates a new AppSettingsPatch instance. */
     constructor($$source: Partial<AppSettingsPatch> = {}) {

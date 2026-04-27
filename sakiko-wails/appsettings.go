@@ -15,19 +15,25 @@ const (
 )
 
 type AppSettings struct {
-	Language string               `json:"language"`
-	DNS      interfaces.DNSConfig `json:"dns"`
+	Language                string               `json:"language"`
+	DNS                     interfaces.DNSConfig `json:"dns"`
+	HideProfileNameInExport bool                 `json:"hideProfileNameInExport"`
+	HideCNInboundInExport   bool                 `json:"hideCNInboundInExport"`
 }
 
 type AppSettingsPatch struct {
-	Language string                `json:"language,omitempty"`
-	DNS      *interfaces.DNSConfig `json:"dns,omitempty"`
+	Language                string                `json:"language,omitempty"`
+	DNS                     *interfaces.DNSConfig `json:"dns,omitempty"`
+	HideProfileNameInExport *bool                 `json:"hideProfileNameInExport,omitempty"`
+	HideCNInboundInExport   *bool                 `json:"hideCNInboundInExport,omitempty"`
 }
 
 func (s AppSettings) Normalize() AppSettings {
 	return AppSettings{
-		Language: normalizeAppLanguage(s.Language),
-		DNS:      s.DNS.Normalize(),
+		Language:                normalizeAppLanguage(s.Language),
+		DNS:                     s.DNS.Normalize(),
+		HideProfileNameInExport: s.HideProfileNameInExport,
+		HideCNInboundInExport:   s.HideCNInboundInExport,
 	}
 }
 
@@ -44,8 +50,10 @@ func normalizeAppLanguage(value string) string {
 
 func defaultAppSettings() AppSettings {
 	return AppSettings{
-		Language: defaultAppLanguage,
-		DNS:      interfaces.DefaultDNSConfig(),
+		Language:                defaultAppLanguage,
+		DNS:                     interfaces.DefaultDNSConfig(),
+		HideProfileNameInExport: true,
+		HideCNInboundInExport:   true,
 	}
 }
 
@@ -66,7 +74,7 @@ func loadAppSettings(path string) (AppSettings, error) {
 		return AppSettings{}, err
 	}
 
-	var settings AppSettings
+	settings := defaultAppSettings()
 	if err := json.Unmarshal(raw, &settings); err != nil {
 		return AppSettings{}, err
 	}

@@ -111,6 +111,35 @@ proxies:
 	}
 }
 
+func TestManagerImportRejectsOversizedSource(t *testing.T) {
+	_, path := testkit.TempProfilesStore(t)
+
+	m, err := NewManager(Config{
+		StorePath:      path,
+		MaxSourceBytes: 32,
+		FetchTimeout:   5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("a", 64)))
+	}))
+	defer server.Close()
+
+	_, err = m.Import(interfaces.ProfileImportRequest{
+		Name:   "too-large",
+		Source: server.URL,
+	})
+	if err == nil {
+		t.Fatalf("expected oversized source import to fail")
+	}
+	if !strings.Contains(err.Error(), "exceeds 32 bytes") {
+		t.Fatalf("expected size limit error, got %v", err)
+	}
+}
+
 func TestManagerImportBase64Subscription(t *testing.T) {
 	dir, path := testkit.TempProfilesStore(t)
 

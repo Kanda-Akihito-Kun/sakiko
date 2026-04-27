@@ -5,9 +5,9 @@ package main
 import "github.com/wailsapp/wails/v3/pkg/application"
 
 const (
-	defaultWindowWidth  = 1120
+	defaultWindowWidth  = 1280
 	defaultWindowHeight = 760
-	minWindowWidth      = 1024
+	minWindowWidth      = 1200
 	minWindowHeight     = 680
 )
 
