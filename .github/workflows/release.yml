@@ -73,7 +73,14 @@ jobs:
       - name: Install Windows packaging dependencies
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          $nsisDir = Join-Path ${env:ProgramFiles(x86)} "NSIS"
+          if (-not (Test-Path (Join-Path $nsisDir "makensis.exe"))) {
+            throw "makensis.exe not found in $nsisDir"
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisDir
+          & (Join-Path $nsisDir "makensis.exe") /VERSION
 
       - name: Install Wails CLI
         shell: pwsh
