@@ -19,10 +19,6 @@ type Macro struct {
 	Speeds      []uint64
 }
 
-const (
-	switchCooldown = time.Second
-)
-
 func (m *Macro) Type() interfaces.MacroType {
 	return interfaces.MacroSpeed
 }
@@ -32,11 +28,6 @@ func (m *Macro) Run(ctx context.Context, proxy interfaces.Vendor, task *interfac
 		ctx = context.Background()
 	}
 	cfg := task.Config.Normalize()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(switchCooldown):
-	}
 
 	samples := make([]uint64, cfg.DownloadDuration)
 

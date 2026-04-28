@@ -19,6 +19,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const defaultMacroInterval = 1500 * time.Millisecond
+
+var (
+	findMacroFunc         = macro.Find
+	waitMacroIntervalFunc = waitMacroInterval
+)
+
 type Config struct {
 	SpeedConcurrency uint
 	ConnConcurrency  uint
@@ -166,10 +173,16 @@ func runMacros(ctx context.Context, v interfaces.Vendor, task *interfaces.Task, 
 	}
 	out := map[interfaces.MacroType]interfaces.Macro{}
 	errs := make([]error, 0, len(macroTypes))
-	for _, macroType := range macroExecutionOrder(macroTypes) {
+	for index, macroType := range macroExecutionOrder(macroTypes) {
 		if err := ctx.Err(); err != nil {
 			errs = append(errs, err)
 			break
+		}
+		if index > 0 {
+			if err := waitMacroIntervalFunc(ctx, defaultMacroInterval); err != nil {
+				errs = append(errs, err)
+				break
+			}
 		}
 		notifyTaskActiveNode(onUpdate, interfaces.TaskActiveNode{
 			NodeName:    v.ProxyInfo().Name,
@@ -179,7 +192,7 @@ func runMacros(ctx context.Context, v interfaces.Vendor, task *interfaces.Task, 
 			Macro:       macroType,
 			Matrices:    matrixTypesForMacro(entries, macroType),
 		})
-		m := macro.Find(macroType)
+		m := findMacroFunc(macroType)
 		err := m.Run(ctx, v, task)
 		if err != nil {
 			executorLogger().Warn("macro execution failed",
@@ -192,6 +205,22 @@ func runMacros(ctx context.Context, v interfaces.Vendor, task *interfaces.Task, 
 		out[macroType] = m
 	}
 	return out, errors.Join(errs...)
+}
+
+func waitMacroInterval(ctx context.Context, interval time.Duration) error {
+	if interval <= 0 {
+		return nil
+	}
+
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func macroExecutionOrder(macroTypes []interfaces.MacroType) []interfaces.MacroType {
