@@ -1,0 +1,375 @@
+---
+name: sakiko
+description: Skill for working on Sakiko in D:\Project\AAA\sakiko. Use this when modifying sakiko-core, sakiko-wails, result archives, task execution flow, remote Master / Knight capability, frontend dashboard structure, or result export behavior.
+---
+
+# Sakiko Agent Guide
+
+This document is for agents and fork maintainers. It should answer the questions an AI needs before changing the code:
+
+- Which layer owns the behavior?
+- Where should I look first?
+- What must not be broken?
+- How do I verify the change?
+
+## 1. Product Shape
+
+Sakiko is a desktop proxy subscription testing tool.
+
+The repository has two product layers:
+
+- `sakiko-core`: the business core.
+- `sakiko-wails`: the Wails 3 desktop client and frontend consumer.
+
+Treat this boundary as a hard rule:
+
+- Core owns profile parsing, task execution, storage, archives, result reports, and remote capability.
+- Wails owns desktop bridge methods, UI composition, user interaction, frontend state, and image export.
+- The frontend may adapt backend data for presentation, but it must not become the source of truth for tasks, profiles, archives, or remote state.
+
+If a feature needs new business behavior, start in `sakiko-core`, expose it through API / Wails, then wire the frontend.
+
+## 2. Current Desktop Frontend Shape
+
+The desktop client uses `Wails3 + React + MUI + Zustand`.
+
+Current dashboard structure:
+
+- `frontend/src/views/dashboard/DashboardView.tsx`: shell composition.
+- `frontend/src/views/dashboard/model.ts`: page keys and navigation metadata.
+- `frontend/src/views/dashboard/useDashboardViewModel.tsx`: shell-level view model.
+- `frontend/src/views/dashboard/components/DashboardPageOutlet.tsx`: lazy-loads dashboard sections.
+- `frontend/src/views/dashboard/sections/configs`: shared task / DNS configuration page.
+- `frontend/src/views/dashboard/sections/profiles`: profile import, list, and node management.
+- `frontend/src/views/dashboard/sections/tasks`: task launcher and live task results.
+- `frontend/src/views/dashboard/sections/results`: archived local results.
+- `frontend/src/views/dashboard/sections/remote`: Master / Knight workspace.
+- `frontend/src/views/dashboard/sections/settings`: app settings.
+
+Important naming note:
+
+- The configuration page is `configs`.
+- Do not add an `overview` dashboard page unless it has a clear product role.
+- Do not reintroduce a `pages/*` forwarding layer unless it gains a real responsibility. The current dashboard lazy-loads `sections/*` directly.
+
+Shared frontend components:
+
+- `frontend/src/components/shared/SectionCard.tsx`: common panel container.
+- `frontend/src/components/shared/DetailRow.tsx`: compact label/value row.
+- `frontend/src/components/shared/EmptyState.tsx`: empty state.
+- `frontend/src/components/shared/InfoSurface.tsx`: secondary information surface.
+
+Theme and visual direction:
+
+- `frontend/src/theme/appTheme.ts`: MUI theme and app CSS variables.
+- `frontend/src/app.css`: desktop shell layout.
+- The intended look is Material 3 inspired, desktop-density, not business dashboard / SaaS template.
+- Prefer tonal surfaces, low shadow, stable table/list density, and restrained colors.
+
+## 3. Core Entry Points
+
+Local execution chain:
+
+- `sakiko-core/api`
+- `sakiko-core/kernel`
+- `sakiko-core/executor`
+- `sakiko-core/executor/taskpoll`
+
+Profile and storage:
+
+- `sakiko-core/storage`
+- `sakiko-core/interfaces`
+- `sakiko-core/api`
+
+Result archive and report chain:
+
+- `sakiko-core/interfaces/result_archive.go`
+- `sakiko-core/storage`
+- `sakiko-wails/frontend/src/components/results`
+- `sakiko-wails/frontend/src/utils/resultExport.ts`
+
+Remote chain:
+
+- `sakiko-core/interfaces/cluster.go`
+- `sakiko-core/cluster`
+- `sakiko-core/api/cluster_service.go`
+- `sakiko-wails/sakikoservice.go`
+- `sakiko-wails/frontend/src/store/dashboard/slices/remoteSlice.ts`
+- `sakiko-wails/frontend/src/views/dashboard/sections/remote`
+
+Desktop bridge:
+
+- `sakiko-wails/sakikoservice.go`
+- `sakiko-wails/frontend/src/services/sakikoService.ts`
+- `sakiko-wails/frontend/bindings`
+
+## 4. Frontend State Rules
+
+Dashboard state is split under:
+
+- `frontend/src/store/dashboard/types.ts`
+- `frontend/src/store/dashboard/helpers.ts`
+- `frontend/src/store/dashboard/slices/coreSlice.ts`
+- `frontend/src/store/dashboard/slices/profilesSlice.ts`
+- `frontend/src/store/dashboard/slices/tasksSlice.ts`
+- `frontend/src/store/dashboard/slices/resultsSlice.ts`
+- `frontend/src/store/dashboard/slices/remoteSlice.ts`
+
+Prefer:
+
+- slice-specific actions and helpers
+- plain frontend objects for UI defaults
+- narrow section components
+- presentation components with minimal backend knowledge
+
+Avoid:
+
+- giant page files
+- one mixed-purpose store file
+- business logic buried in JSX
+- runtime dependency on generated Wails model constructors in ordinary UI helpers
+
+Generated Wails binding types are useful, but be careful with runtime imports:
+
+- Type-only imports from bindings are acceptable when needed.
+- Do not instantiate generated model classes for frontend defaults unless there is a backend contract reason.
+- Plain objects are preferable for state and request payloads.
+- This keeps Vitest usable in Node without a Wails `window` runtime.
+
+## 5. Remote Master / Knight Model
+
+Every instance has exactly one role:
+
+- `standalone`
+- `master`
+- `knight`
+
+Master responsibilities:
+
+- listens for inbound Knight traffic
+- generates pairing codes
+- manages connected Knights
+- dispatches remote tasks
+- collects and archives remote results
+
+Knight responsibilities:
+
+- initiates outbound connection to Master
+- executes Master-issued remote tasks
+- reports progress snapshots and final results
+
+After a machine becomes `knight`, standalone local task submission must remain disabled.
+
+Connectivity rules:
+
+- Only Knight initiates connectivity.
+- Master listens and waits.
+- Transport should remain `HTTP polling + mTLS`.
+- Knight may disconnect at any time.
+- Master must keep explicit Knight lifecycle state.
+
+Pairing model:
+
+- Enrollment uses a one-time pairing code.
+- Knight sends `master host + port + code`.
+- Knight generates a CSR locally.
+- Master issues a client certificate.
+- Daily operation uses stored certificates, not the pairing code.
+
+Knight lifecycle states:
+
+- `paired`
+- `online`
+- `busy`
+- `offline`
+- `revoked`
+
+Master should be able to explicitly remove a Knight. If a Knight is kicked or revoked, later heartbeat / poll / report requests should be rejected.
+
+Remote task rules:
+
+- one assignment belongs to one Knight
+- one remote task keeps Master-side runtime state
+- Knight reports progress snapshots and final result
+- heartbeat timeout should not immediately mean task failure
+- a running remote task should not be marked failed just because the Knight has not exited yet
+
+## 6. Result Archive Rules
+
+Archives are formal product data, not temporary frontend exports.
+
+Local and remote archives must stay separated:
+
+- `results/`
+- `results/remote-master/`
+- `results/remote-knight/`
+
+Remote result archives must preserve remote metadata:
+
+- `mode`
+- `remoteTaskID`
+- `knightID`
+- `knightName`
+- `assignmentID`
+
+Archive shape changes can affect:
+
+- result list summaries
+- result detail previews
+- PNG export header
+- PNG export footer
+- remote result archive display
+
+If archive data gains a user-visible field such as `knightName`, update result browsing and export behavior together.
+
+If a remote result cannot be read back from disk in time, Knight should still be able to build an archive from the in-memory task snapshot and send it to Master.
+
+## 7. Result Export Rules
+
+PNG export is frontend canvas rendering:
+
+- `sakiko-wails/frontend/src/utils/resultExport.ts`
+- `sakiko-wails/frontend/src/components/results/ResultsArchivePanel.tsx`
+
+Current export style:
+
+- white-table report style
+- supports multi-section export for `full` results
+- uses archived reports from `sakiko-core`
+- does not re-run tests
+- can mask profile names and domestic inbound topology info
+
+When changing report sections, verify:
+
+- local result detail preview
+- remote result detail preview
+- export section layout
+- export file naming
+- privacy masking
+
+## 8. Recommended Change Order
+
+For backend or product behavior:
+
+1. Inspect `sakiko-core/interfaces` and storage impact.
+2. Change core business logic.
+3. Add or update Go tests.
+4. Expose through `sakiko-core/api`.
+5. Expose through `sakiko-wails/sakikoservice.go`.
+6. Update frontend service types / store / views.
+7. Update result export if archive/report shape changed.
+8. Run verification.
+
+For frontend-only UI or layout work:
+
+1. Inspect existing section and shared component patterns.
+2. Prefer changing shared components or theme tokens before per-page styling.
+3. Keep store contracts stable.
+4. Avoid adding business rules to JSX.
+5. Run `pnpm test` and `pnpm run build`.
+
+For remote capability:
+
+1. Update `sakiko-core/interfaces`.
+2. Update `sakiko-core/cluster`.
+3. Update `sakiko-core/api`.
+4. Update `sakiko-wails/sakikoservice.go`.
+5. Update frontend remote slice.
+6. Update `views/dashboard/sections/remote`.
+7. Update archive and export paths if remote metadata changes.
+
+## 9. Version And Release Rules
+
+Sakiko uses one human-maintained version source:
+
+- `VERSION`
+
+Do not manually bump versions in platform metadata files. They are synchronized by:
+
+- `scripts/sync-version.mjs`
+
+The script updates generated and packaging metadata, including:
+
+- `sakiko-core/app/version_generated.go`
+- `sakiko-wails/frontend/src/constants/version.generated.ts`
+- `sakiko-wails/frontend/package.json`
+- `sakiko-wails/build/config.yml`
+- Windows metadata under `sakiko-wails/build/windows`
+- macOS plist files under `sakiko-wails/build/darwin`
+- Linux package metadata under `sakiko-wails/build/linux`
+- iOS metadata under `sakiko-wails/build/ios`
+
+Generated version files must not be edited directly. If a version changes, run:
+
+```powershell
+node scripts/sync-version.mjs 0.2.0
+```
+
+or edit `VERSION` and run:
+
+```powershell
+node scripts/sync-version.mjs
+```
+
+During GitHub Actions release builds, tag names are authoritative. A pushed tag such as `v0.2.0` is normalized to `0.2.0` and synchronized before packaging.
+
+Release trigger:
+
+```powershell
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin v0.2.0
+```
+
+The release workflow is `.github/workflows/release.yml`. It builds Windows portable / installer, Darwin universal zip, and Linux AppImage, then publishes assets for tag builds.
+
+If you touch version flow, verify:
+
+- `node scripts/sync-version.mjs`
+- `go test ./...` in `sakiko-core`
+- `go test ./...` in `sakiko-wails`
+- `pnpm test` and `pnpm run build` in `sakiko-wails/frontend`
+
+## 10. Verification Commands
+
+From repository root:
+
+```powershell
+go test ./...
+```
+
+Frontend:
+
+```powershell
+cd .\sakiko-wails\frontend
+pnpm test
+pnpm run build
+```
+
+Desktop dev:
+
+```powershell
+cd .\sakiko-wails
+wails3 dev -config .\build\config.yml
+```
+
+If a frontend test fails with `window is not defined`, check whether a testable helper imported generated Wails runtime code at runtime. Prefer type-only imports or plain frontend objects.
+
+## 11. Documentation Rules
+
+- Root `README.md` is for ordinary users.
+- `docs/` is for developers, maintainers, and agents.
+- `docs/sakiko.skill` is the agent handoff map and should stay current with architecture.
+- Temporary design notes or one-off assessments should not remain in `docs/` unless they are promoted into stable project guidance.
+
+## 12. CLI / Automation Guidance
+
+If CLI or automation support is needed, prefer:
+
+- a thin CLI layer on top of `sakiko-core/api.Service`
+
+Avoid:
+
+- routing automation through Wails
+- putting bot-specific logic inside `sakiko-core`
+
+The core should expose stable structures; CLI, bots, and scripts should adapt those structures to their own workflows.

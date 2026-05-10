@@ -1,0 +1,102 @@
+{
+  "title": "\u57fa\u7840\u8bbe\u7f6e",
+  "language": {
+    "label": "\u8bed\u8a00"
+  },
+  "themeMode": {
+    "label": "\u4e3b\u9898\u6a21\u5f0f"
+  },
+  "exportPictureMode": {
+    "label": "\u5bfc\u51fa\u56fe\u7247\u6a21\u5f0f"
+  },
+  "privacy": {
+    "title": "\u9690\u79c1\u4fdd\u62a4",
+    "description": "\u63a7\u5236\u5bfc\u51fa\u56fe\u7247\u65f6\u5bf9\u8ba2\u9605\u540d\u79f0\u548c\u5165\u53e3\u62d3\u6251\u4fe1\u606f\u7684\u906e\u7f69\u65b9\u5f0f\u3002",
+    "loadFailed": "\u52a0\u8f7d\u9690\u79c1\u8bbe\u7f6e\u5931\u8d25\u3002",
+    "saveFailed": "\u4fdd\u5b58\u9690\u79c1\u8bbe\u7f6e\u5931\u8d25\u3002",
+    "hideProfileNameInExport": "\u5bfc\u51fa\u65f6\u9690\u85cf\u8ba2\u9605\u540d\u79f0",
+    "hideCNInboundInExport": "\u5bfc\u51fa\u65f6\u9690\u85cf\u56fd\u5185\u5165\u53e3\u4fe1\u606f"
+  },
+  "taskDefaults": {
+    "parameterAdjustTitle": "\u57fa\u7840\u53c2\u6570",
+    "restoreDefaults": "\u6062\u590d\u9ed8\u8ba4\u503c",
+    "speedtestServerTitle": "\u6d4b\u901f\u670d\u52a1\u5668",
+    "pingUrl": "Ping URL",
+    "pingUrlHelper": "\u7528\u4e8e ping \u548c full \u4efb\u52a1",
+    "timeout": "\u8d85\u65f6\uff08ms\uff09",
+    "duration": "\u6301\u7eed\u65f6\u95f4\uff08\u79d2\uff09",
+    "durationHelper": "\u7528\u4e8e speed \u548c full \u4efb\u52a1\uff0c\u8303\u56f4 5-20 \u79d2",
+    "backendIdentity": "\u540e\u7aef\u6807\u8bc6",
+    "backendIdentityHelper": "{{count}}/30\u3002\u7559\u7a7a\u65f6\u4f7f\u7528 \u201cSakiko SpeedTest\u201d\u3002",
+    "downloadTarget": {
+      "title": "\u4e0b\u8f7d\u76ee\u6807",
+      "description": "\u9009\u62e9\u4e00\u4e2a Speedtest \u76ee\u6807\u6765\u586b\u5145\u4e0b\u8f7d URL\uff0c\u6216\u7ee7\u7eed\u4f7f\u7528 Cloudflare \u9ed8\u8ba4\u76ee\u6807\u3002",
+      "useDefault": "\u4f7f\u7528 {{name}}",
+      "searchPlaceholder": "\u6309\u57ce\u5e02\u6216\u56fd\u5bb6\u641c\u7d22\u8fdc\u7a0b Speedtest \u670d\u52a1\u5668...",
+      "results": "\u201c{{search}}\u201d \u5171\u627e\u5230 {{count}} \u4e2a\u7ed3\u679c",
+      "targets": "{{count}} \u4e2a\u76ee\u6807",
+      "loading": "\u6b63\u5728\u52a0\u8f7d Speedtest \u76ee\u6807...",
+      "notFound": "\u6ca1\u6709\u627e\u5230\u4e0e \u201c{{search}}\u201d \u5339\u914d\u7684 Speedtest \u76ee\u6807\u3002",
+      "notLoaded": "\u8fd8\u6ca1\u6709\u52a0\u8f7d\u4efb\u4f55 Speedtest \u76ee\u6807\u3002",
+      "unknownSponsor": "\u672a\u77e5\u8fd0\u8425\u65b9",
+      "selected": "\u5df2\u9009\u4e2d"
+    },
+    "speedMode": {
+      "title": "\u6d4b\u901f\u6a21\u5f0f",
+      "single": "\u5355\u7ebf\u7a0b",
+      "multi": "\u591a\u7ebf\u7a0b",
+      "singleDescription": "\u4f7f\u7528 1 \u6761\u4e0b\u8f7d\u6d41",
+      "multiDescription": "\u4f7f\u7528 {{count}} \u6761\u5e76\u884c\u4e0b\u8f7d\u6d41"
+    }
+  },
+  "environment": {
+    "title": "\u73af\u5883\u4fe1\u606f",
+    "mode": "\u6a21\u5f0f",
+    "workspace": "\u5de5\u4f5c\u533a",
+    "workspaceUnavailable": "\u914d\u7f6e\u5de5\u4f5c\u533a\u4e0d\u53ef\u7528",
+    "mihomoVersion": "Mihomo \u7248\u672c",
+    "versionUnavailable": "\u4e0d\u53ef\u7528",
+    "networkEnv": "\u7f51\u7edc\u73af\u5883",
+    "networkUnavailable": "\u7f51\u7edc\u73af\u5883\u4e0d\u53ef\u7528"
+  },
+  "dns": {
+    "title": "DNS \u89e3\u6790\u5668",
+    "description": "\u914d\u7f6e mihomo \u7edf\u4e00\u4f7f\u7528\u7684\u89e3\u6790\u5668\uff0c\u8282\u70b9\u62e8\u53f7\u3001\u5165\u53e3 Geo \u67e5\u8be2\u3001UDP NAT \u63a2\u6d4b\u548c\u5a92\u4f53 DNS \u6a21\u5f0f\u68c0\u6d4b\u90fd\u4f1a\u590d\u7528\u8fd9\u91cc\u7684\u8bbe\u7f6e\u3002",
+    "bootstrapLabel": "\u5f15\u5bfc DNS \u670d\u52a1\u5668",
+    "bootstrapHelper": "\u5f53\u524d {{count}} \u4e2a\u3002\u652f\u6301\u6bcf\u884c\u4e00\u4e2a\uff0c\u6216\u4f7f\u7528\u9017\u53f7\u5206\u9694\u3002",
+    "resolverLabel": "\u89e3\u6790\u5668\u7aef\u70b9",
+    "resolverHelper": "\u5f53\u524d {{count}} \u4e2a\u3002\u652f\u6301\u666e\u901a DNS\u3001DoT \u548c DoH \u7aef\u70b9\u3002",
+    "restoreDefaults": "\u6062\u590d\u9ed8\u8ba4\u503c",
+    "saved": "DNS \u914d\u7f6e\u5df2\u4fdd\u5b58\u3002",
+    "loadFailed": "\u52a0\u8f7d DNS \u914d\u7f6e\u5931\u8d25\u3002",
+    "saveFailed": "\u4fdd\u5b58 DNS \u914d\u7f6e\u5931\u8d25\u3002"
+  },
+  "updates": {
+    "title": "\u7248\u672c",
+    "check": "\u68c0\u67e5\u66f4\u65b0",
+    "releaseNotes": "\u66f4\u65b0\u5185\u5bb9",
+    "noReleaseNotes": "\u6682\u65e0\u66f4\u65b0\u5185\u5bb9\u3002",
+    "openReleasePage": "\u6253\u5f00 Release \u9875\u9762",
+    "currentVersion": "\u5f53\u524d\u7248\u672c",
+    "latestVersion": "\u6700\u65b0\u7248\u672c",
+    "latestVersionUnavailable": "\u6682\u4e0d\u53ef\u7528",
+    "status": "\u72b6\u6001",
+    "statusChecking": "\u6b63\u5728\u68c0\u67e5\u66f4\u65b0...",
+    "statusUpdateAvailable": "\u53d1\u73b0\u65b0\u7248\u672c\uff1a{{version}}",
+    "statusLatest": "\u5f53\u524d\u5df2\u7ecf\u662f\u6700\u65b0\u7248\u672c",
+    "statusCheckFailed": "\u68c0\u67e5\u66f4\u65b0\u5931\u8d25",
+    "checkedAt": "\u4e0a\u6b21\u68c0\u67e5",
+    "notChecked": "\u5c1a\u672a\u68c0\u67e5",
+    "error": "\u9519\u8bef"
+  },
+  "themeOptions": {
+    "light": "\u6d45\u8272",
+    "dark": "\u6df1\u8272",
+    "system": "\u8ddf\u968f\u7cfb\u7edf",
+    "followTheme": "\u8ddf\u968f\u4e3b\u9898"
+  },
+  "languageOptions": {
+    "en": "English",
+    "zh": "\u7b80\u4f53\u4e2d\u6587"
+  }
+}

@@ -1,0 +1,273 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+  WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+  MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+  MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+  MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+  APPLE_ID: ${{ secrets.APPLE_ID }}
+  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-portable-amd64
+            os: windows-latest
+            artifact_name: release-windows-portable-amd64
+            windows_variant: portable
+          - name: windows-installer-amd64
+            os: windows-latest
+            artifact_name: release-windows-installer-amd64
+            windows_variant: installer
+          - name: darwin-universal
+            os: macos-latest
+            artifact_name: release-darwin-universal
+          - name: linux-amd64
+            os: ubuntu-24.04
+            artifact_name: release-linux-amd64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: sakiko-wails/go.mod
+          cache-dependency-path: sakiko-wails/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+
+      - name: Sync release version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $version = "${{ github.ref_name }}"
+          } else {
+            $version = (Get-Content VERSION -Raw).Trim()
+          }
+          node scripts/sync-version.mjs $version
+
+      - name: Add Go bin to PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value ((go env GOPATH) + [IO.Path]::DirectorySeparatorChar + "bin")
+
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.1-dev rpm
+
+      - name: Install Windows packaging dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nsis -y
+          $candidates = @(
+            (Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"),
+            (Join-Path $env:ProgramFiles "NSIS\makensis.exe"),
+            (Join-Path $env:ChocolateyInstall "bin\makensis.exe")
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          $makensis = $candidates | Select-Object -First 1
+          if (-not $makensis) {
+            throw "makensis.exe not found after NSIS installation"
+          }
+          $nsisDir = Split-Path -Parent $makensis
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisDir
+          Add-Content -Path $env:GITHUB_ENV -Value "MAKENSIS_EXE=$makensis"
+          & $makensis /VERSION
+
+      - name: Install Wails CLI
+        shell: pwsh
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.74
+
+      - name: Install frontend dependencies
+        working-directory: sakiko-wails/frontend
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows portable binary
+        if: runner.os == 'Windows' && matrix.windows_variant == 'portable'
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          wails3 task windows:build PRODUCTION=true ARCH=amd64
+          Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
+
+      - name: Build Windows installer binary
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer'
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          wails3 task windows:build PRODUCTION=true ARCH=amd64
+
+      - name: Build Windows NSIS installer
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer'
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          if (-not $env:MAKENSIS_EXE) {
+            throw "MAKENSIS_EXE is not set"
+          }
+          $root = $pwd.Path
+          $nsisDir = Join-Path $root "build\windows\nsis"
+          wails3 generate webview2bootstrapper -dir $nsisDir
+          Push-Location $nsisDir
+          try {
+            & $env:MAKENSIS_EXE "-DARG_WAILS_AMD64_BINARY=$root\bin\Sakiko.exe" "project.nsi"
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("$pwd\windows-cert.pfx", [Convert]::FromBase64String("${{ env.WINDOWS_CERT_PFX_BASE64 }}"))
+
+      - name: Sign Windows portable binary
+        if: runner.os == 'Windows' && matrix.windows_variant == 'portable' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          $signtool = (Get-Command signtool.exe).Source
+          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 "$pwd\bin\Sakiko.exe"
+          Remove-Item "$pwd\bin\Sakiko-portable-windows-amd64.zip" -Force
+          Compress-Archive -Path .\bin\Sakiko.exe -DestinationPath .\bin\Sakiko-portable-windows-amd64.zip -Force
+
+      - name: Sign Windows NSIS installer
+        if: runner.os == 'Windows' && matrix.windows_variant == 'installer' && env.WINDOWS_CERT_PFX_BASE64 != '' && env.WINDOWS_CERT_PASSWORD != ''
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          $signtool = (Get-Command signtool.exe).Source
+          $installer = Get-ChildItem "$pwd\bin\*-installer.exe" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty FullName
+          & $signtool sign /fd SHA256 /f "$pwd\windows-cert.pfx" /p "${{ env.WINDOWS_CERT_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 $installer
+
+      - name: Build macOS universal app
+        if: runner.os == 'macOS'
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          wails3 task darwin:package:universal
+
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != ''
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          echo "${{ env.MACOS_CERT_P12_BASE64 }}" | base64 --decode > macos-cert.p12
+          security create-keychain -p runner build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p runner build.keychain
+          security import macos-cert.p12 -k build.keychain -P "${{ env.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain
+
+      - name: Sign macOS app
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != ''
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          codesign --force --deep --options runtime --sign "${{ env.MACOS_SIGN_IDENTITY }}" "bin/Sakiko.app"
+
+      - name: Notarize macOS app
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGN_IDENTITY != '' && env.APPLE_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != ''
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          ditto -c -k --keepParent "bin/Sakiko.app" "bin/Sakiko-darwin-universal.zip"
+          xcrun notarytool submit "bin/Sakiko-darwin-universal.zip" \
+            --apple-id "${{ env.APPLE_ID }}" \
+            --password "${{ env.APPLE_APP_SPECIFIC_PASSWORD }}" \
+            --team-id "${{ env.APPLE_TEAM_ID }}" \
+            --wait
+          xcrun stapler staple "bin/Sakiko.app"
+
+      - name: Package macOS app archive
+        if: runner.os == 'macOS'
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          ditto -c -k --keepParent "bin/Sakiko.app" "bin/Sakiko-darwin-universal.zip"
+
+      - name: Build Linux AppImage
+        if: runner.os == 'Linux'
+        working-directory: sakiko-wails
+        shell: bash
+        run: |
+          wails3 task linux:create:appimage ARCH=amd64
+
+      - name: Collect release assets
+        if: always()
+        working-directory: sakiko-wails
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-release | Out-Null
+          if ("${{ runner.os }}" -eq "Windows" -and "${{ matrix.windows_variant }}" -eq "portable") {
+            Copy-Item .\bin\Sakiko-portable-windows-amd64.zip .\dist-release\
+          } elseif ("${{ runner.os }}" -eq "Windows" -and "${{ matrix.windows_variant }}" -eq "installer") {
+            $installer = Get-ChildItem .\bin\*-installer.exe -ErrorAction Stop | Select-Object -First 1
+            Copy-Item $installer.FullName .\dist-release\
+          } elseif ("${{ runner.os }}" -eq "macOS") {
+            Copy-Item .\bin\Sakiko-darwin-universal.zip .\dist-release\
+          } elseif ("${{ runner.os }}" -eq "Linux") {
+            Get-ChildItem .\bin\*.AppImage -ErrorAction SilentlyContinue | Copy-Item -Destination .\dist-release\
+          }
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: sakiko-wails/dist-release/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist-release
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-release/*

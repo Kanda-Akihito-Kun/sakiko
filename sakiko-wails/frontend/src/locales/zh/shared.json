@@ -1,0 +1,138 @@
+{
+  "actions": {
+    "browse": "浏览",
+    "clear": "清空",
+    "delete": "删除",
+    "export": "导出",
+    "import": "导入",
+    "openConfigs": "打开配置",
+    "openProfiles": "打开订阅",
+    "refresh": "刷新",
+    "reload": "重新加载",
+    "run": "启动",
+    "stop": "停止"
+  },
+  "labels": {
+    "protocol": "协议"
+  },
+  "states": {
+    "addressPending": "地址待定",
+    "booleanFalse": "false",
+    "booleanTrue": "true",
+    "empty": "empty",
+    "idle": "空闲",
+    "loading": "加载中...",
+    "loadingSection": "正在加载 {{label}}...",
+    "noAddress": "无地址",
+    "none": "N/A",
+    "pending": "pending",
+    "profile": "订阅",
+    "ready": "就绪",
+    "readyWithPeriod": "就绪。",
+    "selectTask": "选择一个任务",
+    "syncing": "同步中",
+    "unknown": "unknown",
+    "unknownProfile": "未知订阅",
+    "unknownServer": "未知服务器",
+    "unnamedNode": "未命名节点",
+    "unnamedProfile": "未命名订阅"
+  },
+  "statuses": {
+    "canceled": "已取消",
+    "failed": "失败",
+    "pending": "等待中",
+    "queued": "排队中",
+    "running": "运行中",
+    "stopping": "停止中",
+    "success": "成功"
+  },
+  "formats": {
+    "archivedMetrics": "归档指标",
+    "attempt": "第 {{count}} 次尝试",
+    "backendProbeFailed": "探测失败",
+    "customTarget": "自定义目标",
+    "durationMillisTotal": "总耗时 {{value}} ms",
+    "durationSeconds": "{{value}}s",
+    "loadDetailToInspect": "加载详情后可查看",
+    "matricesCount": "{{count}} 个矩阵",
+    "matchingNodes": "{{count}} 个匹配节点",
+    "moreActiveNodes": "另有 {{count}} 个",
+    "nodeCount": "{{count}} 个节点",
+    "nodeNumber": "节点 {{index}}",
+    "nodeNumberLower": "节点 {{index}}",
+    "nodesCount": "{{count}} 个节点",
+    "resultsCount": "{{count}} 条结果",
+    "testCount": "{{count}} 项测试",
+    "testingNodeDetail": "{{name}}：{{detail}}",
+    "testingNodes": "正在测试 {{count}} 个节点：{{preview}}",
+    "testingNodesMore": "正在测试 {{count}} 个节点：{{preview}} | 另有 {{moreCount}} 个",
+    "threadsCount": "{{count}} 线程",
+    "timeoutMillis": "超时 {{value}} ms"
+  },
+  "presets": {
+    "full": "全量",
+    "geo": "Geo",
+    "media": "流媒体",
+    "ping": "Ping",
+    "speed": "测速",
+    "udp": "UDP",
+    "task": "任务"
+  },
+  "macros": {
+    "geo": "Geo",
+    "media": "媒体解锁",
+    "ping": "Ping",
+    "speed": "测速",
+    "udp": "UDP"
+  },
+  "matrices": {
+    "geoipInbound": "入口 GeoIP",
+    "geoipOutbound": "出口 GeoIP",
+    "mediaUnlock": "媒体解锁",
+    "speedAverage": "平均速度",
+    "speedMax": "峰值速度",
+    "speedPerSecond": "每秒速度",
+    "speedTrafficUsed": "流量消耗",
+    "testPingConn": "HTTPS Ping",
+    "testPingRtt": "RTT Ping",
+    "udpNatType": "UDP NAT 类型"
+  },
+  "phases": {
+    "extracting": "提取中",
+    "preparing": "准备中",
+    "running": "运行中"
+  },
+  "runtime": {
+    "extractingMatrix": "提取矩阵结果",
+    "extractingTarget": "提取 {{target}}",
+    "preparingNode": "准备节点运行环境",
+    "runningMacro": "执行 {{macro}}",
+    "runningMacroTarget": "{{macro}}：{{target}}"
+  },
+  "metrics": {
+    "geo": "入口 / 出口拓扑",
+    "media": "Netflix / Hulu / 哔哩哔哩 HMT",
+    "ping": "TLS RTT / HTTPS Ping",
+    "speed": "平均 / 峰值 / 每秒速率 / 流量",
+    "udp": "UDP NAT 类型 / 端点映射"
+  },
+  "targets": {
+    "cloudflareDefault": "Cloudflare 默认目标",
+    "speedtestTarget": "Speedtest 目标",
+    "unavailable": "目标不可用"
+  },
+  "mediaStatus": {
+    "failed": "失败",
+    "no": "否",
+    "originalsOnly": "仅 Originals",
+    "overseaOnly": "仅海外",
+    "unsupported": "不支持",
+    "webOnly": "仅 Web",
+    "yes": "是"
+  },
+  "unlockMode": {
+    "dns": "DNS",
+    "native": "原生",
+    "unknown": "未知"
+  }
+}

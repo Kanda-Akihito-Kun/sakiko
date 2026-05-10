@@ -1,0 +1,238 @@
+.sakiko-shell {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--background-color) 0%, var(--page-background-color) 100%);
+}
+
+.sakiko-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+}
+
+.sakiko-workspace {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 1024px;
+  overflow: hidden;
+}
+
+.sakiko-sidebar {
+  flex: 0 0 224px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 18px 12px 14px;
+  border-right: 1px solid var(--divider-color);
+  background: var(--sidebar-background);
+  backdrop-filter: blur(12px);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.sakiko-sidebar__header {
+  padding: 8px 8px 4px;
+}
+
+.sakiko-sidebar__logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--logo-background);
+  border: 1px solid var(--logo-border-color);
+  overflow: hidden;
+}
+
+.sakiko-sidebar__logo-img {
+  width: 31px;
+  height: 31px;
+  display: block;
+}
+
+.sakiko-sidebar__title {
+  line-height: 1.08;
+}
+
+.sakiko-sidebar__status {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  align-self: flex-start;
+  padding: 0 10px;
+  border: 1px solid var(--divider-color);
+  border-radius: 999px;
+  background: var(--surface-container-color);
+}
+
+.sakiko-sidebar__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #12b76a;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #12b76a 16%, transparent);
+}
+
+.sakiko-sidebar__status--loading .sakiko-sidebar__status-dot {
+  background: #f79009;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #f79009 16%, transparent);
+}
+
+.sakiko-sidebar__nav {
+  flex: 1;
+  overflow: auto;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+}
+
+.sakiko-sidebar__meta {
+  padding: 10px 12px 0;
+  border-top: 1px solid var(--divider-color);
+}
+
+.sakiko-sidebar__version {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.sakiko-sidebar__nav .MuiListItemButton-root {
+  align-items: center;
+  position: relative;
+  min-height: 48px;
+  padding-inline: 16px;
+  padding-block: 9px;
+}
+
+.sakiko-sidebar__nav .MuiListItemIcon-root {
+  flex: 0 0 38px;
+  color: inherit;
+}
+
+.sakiko-sidebar__nav .MuiListItemText-root {
+  min-width: 0;
+}
+
+.sakiko-sidebar__nav .MuiListItemText-primary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sakiko-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sakiko-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sakiko-content__header {
+  flex: 0 0 auto;
+  z-index: 2;
+  min-width: 0;
+  min-height: 64px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--divider-color);
+  background: var(--header-background);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.sakiko-page__action {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.sakiko-content__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding: 16px 20px 28px;
+  background: var(--surface-container-color);
+}
+
+.sakiko-page__content {
+  width: 100%;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.sakiko-results-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.sakiko-results-grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 1520px) {
+  .sakiko-results-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 2048px) {
+  .sakiko-results-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sakiko-mono {
+  font-family: var(--sakiko-font-mono);
+}
+
+.sakiko-emoji {
+  font-family: var(--sakiko-font-sans) !important;
+}
+
+.sakiko-mono.sakiko-emoji {
+  font-family: var(--sakiko-font-mono) !important;
+}
+
+.sakiko-table {
+  overflow: auto;
+  border: 1px solid var(--divider-color);
+  border-radius: 12px;
+}
+
+@media (max-width: 720px) {
+  .sakiko-content__header,
+  .sakiko-content__body {
+    padding-inline: 16px;
+  }
+
+  .sakiko-page__action {
+    width: 100%;
+  }
+
+  .sakiko-sidebar {
+    padding-inline: 12px;
+  }
+}

@@ -1,0 +1,60 @@
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: local(""), url("/Inter-Medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "twemoji mozilla";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Twemoji.Mozilla.ttf") format("truetype");
+}
+
+:root {
+  --sakiko-font-sans: Roboto, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Helvetica Neue", Arial, "twemoji mozilla", "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  --sakiko-font-mono: "SFMono-Regular", "Cascadia Code", "IBM Plex Mono", "Microsoft YaHei UI", "Microsoft YaHei", "twemoji mozilla", "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", monospace;
+  --primary-main: #007AFF;
+  --selection-color: #f5f5f5;
+  --scroller-color: #90939980;
+  --scrollbar-bg: #f1f1f1;
+  --background-color: #F5F5F5;
+  --page-background-color: #ECECEC;
+  --surface-color: #FFFFFF;
+  --background-color-alpha: rgba(10, 132, 255, 0.12);
+  --divider-color: rgba(0, 0, 0, 0.06);
+  --sidebar-background: rgba(255, 255, 255, 0.92);
+  --header-background: rgba(245, 245, 245, 0.9);
+  --logo-background: rgba(0, 122, 255, 0.08);
+  --logo-border-color: rgba(0, 122, 255, 0.14);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body,
+#root {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: var(--sakiko-font-sans);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--page-background-color) 88%, white 12%) 0%, var(--page-background-color) 100%);
+  background-color: var(--page-background-color);
+}
+
+::selection {
+  color: var(--selection-color);
+  background-color: var(--primary-main);
+}

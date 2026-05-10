@@ -1,0 +1,44 @@
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Workspace-local caches
+.goproxy/
+.pnpm-store/
+
+# Go tool caches
+**/.gocache/
+**/.gotelemetry/
+**/.gotmp/
+coverage.out
+*.coverprofile
+
+# Task and runtime outputs
+**/.task/
+/sakiko-wails/.tmp-server-config/
+
+# Frontend dependencies and build outputs
+**/node_modules/
+**/dist/
+
+# Wails build artifacts
+/sakiko-wails/bin/
+/sakiko-wails/build/linux/appimage/build/
+/sakiko-wails/build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+/sakiko-wails/*.exe
+
+# Local test/build binaries
+/sakiko-core/*.test.exe
+
+# Local third-party scratch area
+/third_party/*
+!/third_party/wails-v3-alpha76/
+!/third_party/wails-v3-alpha76/**
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+!.env.*.example

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10">
+  
+  <Identity 
+    Name="io.github.kanda-akihito-kun.sakiko"
+    Publisher="CN=Kanda Akihito"
+    Version="0.2.1.0" 
+    ProcessorArchitecture="x64" />
+  
+  <Properties>
+    <DisplayName>sakiko</DisplayName>
+    <PublisherDisplayName>Kanda Akihito</PublisherDisplayName>
+    <Description>Desktop proxy benchmark and speed test tool</Description>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+  </Dependencies>
+  
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  
+  <Applications>
+    <Application Id="io.github.kanda-akihito-kun.sakiko" Executable="sakiko.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="sakiko"
+        Description="Desktop proxy benchmark and speed test tool"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      
+      <Extensions>
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="sakiko.exe" />
+        
+      </Extensions>
+    </Application>
+  </Applications>
+  
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    
+  </Capabilities>
+</Package>
